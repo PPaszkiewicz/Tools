@@ -8,7 +8,7 @@ Coroutines
 
 Import in **build.gradle** or **build.gradle.kts**:
 ```gradle
-implementation("com.github.ppaszkiewicz.tools:coroutines:1.0.0")
+implementation("com.github.PPaszkiewicz:Tools:coroutines:1.0.0")
 ```
 
 See demo app for sample usage.

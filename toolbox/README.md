@@ -11,7 +11,7 @@ file header.
 
 To import everything, add to **build.gradle** or **build.gradle.kts**:
 ```gradle    
-implementation("com.github.ppaszkiewicz.tools:toolbox:1.0.0")
+implementation("com.github.PPaszkiewicz:Tools:toolbox:1.0.0")
 ```
 
 ### DownloadManager
