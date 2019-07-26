@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.toolbox.view
+package com.github.ppaszkiewicz.tools.toolbox.view
 
 import android.app.Activity
 import android.content.Context

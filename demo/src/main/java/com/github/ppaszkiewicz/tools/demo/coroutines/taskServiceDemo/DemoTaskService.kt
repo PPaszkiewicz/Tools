@@ -5,7 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Parcelable
 import android.util.Log
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.viewModel.LiveDataProgressMap
+import com.github.ppaszkiewicz.tools.toolbox.viewModel.LiveDataProgressMap
 import com.github.ppaszkiewicz.tools.coroutines.service.QueuedTaskService
 import com.github.ppaszkiewicz.tools.coroutines.service.TaskServiceJob
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.DemoTaskService.Companion.EXTRA_PARAMS

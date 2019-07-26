@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.toolbox.service
+package com.github.ppaszkiewicz.tools.toolbox.service
 
 import android.app.Service
 import android.content.ComponentName
@@ -12,7 +12,7 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.service.DirectBindService.Companion.BIND_DIRECT_ACTION
+import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService.Companion.BIND_DIRECT_ACTION
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 

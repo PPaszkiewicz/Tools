@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.toolbox.viewModel
+package com.github.ppaszkiewicz.tools.toolbox.viewModel
 
 import androidx.annotation.MainThread
 import androidx.lifecycle.LifecycleOwner

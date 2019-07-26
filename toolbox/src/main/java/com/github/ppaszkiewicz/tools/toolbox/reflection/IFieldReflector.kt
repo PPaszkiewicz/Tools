@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package com.github.ppaszkiewicz.kotlin.tools.toolbox.reflection
+package com.github.ppaszkiewicz.tools.toolbox.reflection
 
 import java.lang.reflect.Field
 import java.lang.reflect.Method

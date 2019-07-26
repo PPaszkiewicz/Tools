@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.toolbox.transition
+package com.github.ppaszkiewicz.tools.toolbox.transition
 
 import android.content.Context
 import android.transition.AutoTransition

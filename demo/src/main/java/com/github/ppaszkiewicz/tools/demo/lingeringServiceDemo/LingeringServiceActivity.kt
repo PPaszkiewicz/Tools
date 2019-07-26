@@ -2,7 +2,7 @@ package com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.service.LingeringServiceConnection
+import com.github.ppaszkiewicz.tools.toolbox.service.LingeringServiceConnection
 import com.github.ppaszkiewicz.tools.demo.R
 import kotlinx.android.synthetic.main.activity_service.*
 

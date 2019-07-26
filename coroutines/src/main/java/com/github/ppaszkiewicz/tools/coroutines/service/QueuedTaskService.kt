@@ -5,7 +5,7 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.service.DirectBindService
+import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.android.asCoroutineDispatcher
 import java.lang.IllegalStateException

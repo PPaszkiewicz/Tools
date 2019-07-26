@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.toolbox.transition
+package com.github.ppaszkiewicz.tools.toolbox.transition
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
@@ -11,7 +11,7 @@ import android.util.AttributeSet
 import android.util.TypedValue
 import android.view.ViewGroup
 import android.widget.TextView
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.R
+import com.github.ppaszkiewicz.tools.toolbox.R
 import kotlin.math.max
 
 /**

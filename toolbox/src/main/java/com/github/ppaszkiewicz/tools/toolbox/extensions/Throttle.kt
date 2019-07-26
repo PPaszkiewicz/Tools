@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.toolbox.extensions
+package com.github.ppaszkiewicz.tools.toolbox.extensions
 
 import android.view.View
 

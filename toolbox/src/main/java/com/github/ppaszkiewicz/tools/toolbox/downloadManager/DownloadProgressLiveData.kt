@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.toolbox.downloadManager
+package com.github.ppaszkiewicz.tools.toolbox.downloadManager
 
 import android.app.DownloadManager
 import android.content.BroadcastReceiver

@@ -2,7 +2,7 @@
 
 package com.github.ppaszkiewicz.tools.demo
 
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.reflection.*
+import com.github.ppaszkiewicz.tools.toolbox.reflection.*
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4

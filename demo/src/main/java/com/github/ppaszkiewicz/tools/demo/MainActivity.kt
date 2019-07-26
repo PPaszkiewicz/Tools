@@ -2,12 +2,10 @@ package com.github.ppaszkiewicz.tools.demo
 
 import android.content.Intent
 import android.os.Bundle
-import android.os.Parcelable
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.extensions.RWBooleanPref
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.extensions.defaultPrefs
+import com.github.ppaszkiewicz.tools.toolbox.extensions.RWBooleanPref
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParams
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity

@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.toolbox.service
+package com.github.ppaszkiewicz.tools.toolbox.service
 
 import android.content.Context
 import android.content.Intent
@@ -7,8 +7,6 @@ import android.os.IBinder
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.OnLifecycleEvent
 
 /*
  *   Requires DirectBindService.kt

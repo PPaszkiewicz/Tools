@@ -1,11 +1,11 @@
-package com.github.ppaszkiewicz.kotlin.tools.toolbox.transition
+package com.github.ppaszkiewicz.tools.toolbox.transition
 
 import android.content.Context
 import android.transition.TransitionValues
 import android.util.AttributeSet
 import android.view.View
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.R
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.view.TextViewColorable
+import com.github.ppaszkiewicz.tools.toolbox.R
+import com.github.ppaszkiewicz.tools.toolbox.view.TextViewColorable
 
 /*
 * Requires TextViewColorable.kt (or modify the target).

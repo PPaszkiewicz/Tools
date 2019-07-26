@@ -5,7 +5,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.view.children
 import androidx.lifecycle.Observer
-import com.github.ppaszkiewicz.kotlin.tools.toolbox.service.DirectServiceConnection
+import com.github.ppaszkiewicz.tools.toolbox.service.DirectServiceConnection
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
 import com.github.ppaszkiewicz.tools.demo.coroutines.ProgressTextView
 import kotlinx.android.synthetic.main.activity_test.*
