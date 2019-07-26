@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        tools:context="com.github.ppaszkiewicz.tools.demo.MainActivity">
+
+    <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="?attr/colorPrimary"
+            app:popupTheme="@style/AppTheme.PopupOverlay"/>
+
+    <ScrollView android:layout_width="match_parent" android:layout_height="wrap_content">
+    <LinearLayout
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:padding="16dp">
+
+        <TextView
+                android:text="Loader test: within activity"
+                android:gravity="center"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"/>
+
+        <Button
+                android:id="@+id/btnLoaderTest1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Loader Test 1"/>
+
+        <TextView
+                android:text="Service test: queuing tasks within service"
+                android:gravity="center"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"/>
+
+        <Button
+                android:id="@+id/btnServiceTest1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Task Service Test 1"/>
+
+
+        <TextView
+                android:text="Demo of custom views"
+                android:gravity="center"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"/>
+
+        <Button
+                android:id="@+id/btnViewsTest1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Views Demo (NYI)"/>
+
+        <TextView
+                android:text="Demo of lingering service"
+                android:gravity="center"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"/>
+
+        <Button
+                android:id="@+id/btnLingeringTest1"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Lingering service demo 1 (lfecycle)"/>
+
+        <Button
+                android:id="@+id/btnLingeringTest2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Lingering service demo 2 (manual)"/>
+    </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="CustomColorTransition">
+        <attr name="colorFrom" format="color" />
+        <attr name="colorTo" format="color" />
+    </declare-styleable>
+</resources>

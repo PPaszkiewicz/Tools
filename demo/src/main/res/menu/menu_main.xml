@@ -1,0 +1,14 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+      xmlns:app="http://schemas.android.com/apk/res-auto"
+      xmlns:tools="http://schemas.android.com/tools"
+      tools:context="com.github.ppaszkiewicz.tools.demo.MainActivity">
+    <item android:id="@+id/action_edit_params"
+          android:title="Edit task params"
+          android:orderInCategory="200"
+          android:icon="@drawable/ic_settings"
+          app:showAsAction="ifRoom"/>
+    <!--<item android:id="@+id/action_help"-->
+          <!--android:title="@string/action_help"-->
+          <!--android:orderInCategory="100"-->
+          <!--app:showAsAction="never"/>-->
+</menu>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="TextSizeTransition">
+        <attr name="sizeFrom" format="dimension" />
+        <attr name="sizeTo" format="dimension" />
+    </declare-styleable>
+</resources>
