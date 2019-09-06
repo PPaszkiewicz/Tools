@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/layConstraintContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+        <LinearLayout
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:id="@+id/layHints"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                    style="@style/TextAppearance.AppCompat.Title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Save state layouts" />
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="All those layouts inflate the same checkboxes with same two IDs.
+Issue with normal layouts is they store state in shared SparseArray, so only state of last two
+checkboxes is saved and it's restored into all checkboxes with same ID." />
+
+            <Button
+                    android:id="@+id/btnRecreate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:text="Recreate" />
+
+        </LinearLayout>
+
+        <!-- First we show off how multiple instances of SaveChildStateLinearLayout work -->
+        <!-- All of them include same layout so there are duplicate IDs among entire view hierarchy -->
+        <LinearLayout
+                android:id="@+id/laySaveStateContainer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="0"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/layHints"
+                app:layout_constraintWidth_percent="0.5">
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="4dp"
+                    android:text="Save state layout 1" />
+
+            <com.github.ppaszkiewicz.tools.toolbox.view.SaveChildStateLinearLayout
+                    android:id="@+id/laySaveState1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                <include layout="@layout/view_save_state_duplicates" />
+            </com.github.ppaszkiewicz.tools.toolbox.view.SaveChildStateLinearLayout>
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="4dp"
+                    android:text="Save state layout 2" />
+
+            <com.github.ppaszkiewicz.tools.toolbox.view.SaveChildStateLinearLayout
+                    android:id="@+id/laySaveState2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                <include layout="@layout/view_save_state_duplicates" />
+            </com.github.ppaszkiewicz.tools.toolbox.view.SaveChildStateLinearLayout>
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="4dp"
+                    android:text="Save state layout 3" />
+
+            <com.github.ppaszkiewicz.tools.toolbox.view.SaveChildStateLinearLayout
+                    android:id="@+id/laySaveState3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                <include layout="@layout/view_save_state_duplicates" />
+            </com.github.ppaszkiewicz.tools.toolbox.view.SaveChildStateLinearLayout>
+        </LinearLayout>
+
+        <!-- Next use regular layouts and see how duplicate id save state behaves -->
+        <LinearLayout
+                android:id="@+id/layNormalContainer"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintHorizontal_bias="1"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/layHints"
+                app:layout_constraintWidth_percent="0.5">
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="4dp"
+                    android:text="Normal layout 1" />
+
+            <LinearLayout
+                    android:id="@+id/layLay1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                <include layout="@layout/view_save_state_duplicates" />
+            </LinearLayout>
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="4dp"
+                    android:text="Normal layout 2" />
+
+            <LinearLayout
+                    android:id="@+id/layLay2"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                <include layout="@layout/view_save_state_duplicates" />
+            </LinearLayout>
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="4dp"
+                    android:text="Normal layout 3" />
+
+            <LinearLayout
+                    android:id="@+id/layLay3"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                <include layout="@layout/view_save_state_duplicates" />
+            </LinearLayout>
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</ScrollView>

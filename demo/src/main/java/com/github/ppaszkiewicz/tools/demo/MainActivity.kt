@@ -13,6 +13,7 @@ import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceA
 import com.github.ppaszkiewicz.tools.demo.coroutines.loaderDemo.LoaderActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.TaskServiceActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParamsDialog
+import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
 import kotlinx.android.synthetic.main.activity_main.*
 
 /**
@@ -67,6 +68,11 @@ class MainActivity : AppCompatActivity() {
         }
         btnLingeringTest2.setOnClickListener {
             startActivity(Intent(this@MainActivity, LingeringServiceActivity2::class.java))
+        }
+
+        // layouts test
+        btnViewsTest1.setOnClickListener {
+            startActivity(Intent(this@MainActivity, SaveStateTestActivity::class.java))
         }
     }
 

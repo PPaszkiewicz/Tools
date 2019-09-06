@@ -28,6 +28,6 @@ inline fun withGlobalThrottle(block : () -> Unit) : Boolean{
 }
 
 /** Click listener that shares a global throttle for listener invocation. */
-fun View.setThrottledOnClickListener(onClick : (View) -> Unit) = setOnClickListener {
+inline fun View.setThrottledOnClickListener(crossinline onClick : (View) -> Unit) = setOnClickListener {
     withGlobalThrottle { onClick(it) }
 }
