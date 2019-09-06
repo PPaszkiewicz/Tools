@@ -14,11 +14,11 @@ import androidx.constraintlayout.widget.ConstraintLayout
 /**
  * Helper holding implementation for storing/restoring save state for views children.
  *
- * To use it ensure all views children [isSaveFromParentEnabled] is disabled and they have set IDs.
+ * To use it ensure all views children [View.isSaveFromParentEnabled] is disabled and they have set IDs.
  *
  * Then implement following overrides:
  *
- *     override fun addView(child: View?, index: Int, params: ViewGroup.LayoutParams?) = super.addView(child.apply { isSaveFromParentEnabled = false }, index, params)
+ *     override fun addView(child: View?, index: Int, params: ViewGroup.LayoutParams?) = super.addView(child?.apply { isSaveFromParentEnabled = false }, index, params)
  *     override fun onSaveInstanceState() = ViewChildStateManager.onSaveInstanceState(this, super.onSaveInstanceState())
  *     override fun onRestoreInstanceState(state: Parcelable?) = super.onRestoreInstanceState(ViewChildStateManager.onRestoreInstanceState(this, state))
  *
@@ -55,7 +55,7 @@ open class SaveChildStateFrameLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : FrameLayout(context, attrs, defStyleAttr) {
     override fun addView(child: View?, index: Int, params: ViewGroup.LayoutParams?) =
-        super.addView(child.apply { isSaveFromParentEnabled = false }, index, params)
+        super.addView(child?.apply { isSaveFromParentEnabled = false }, index, params)
 
     override fun onSaveInstanceState() =
         ViewChildStateManager.onSaveInstanceState(this, super.onSaveInstanceState())
@@ -68,7 +68,7 @@ open class SaveChildStateConstraintLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : ConstraintLayout(context, attrs, defStyleAttr) {
     override fun addView(child: View?, index: Int, params: ViewGroup.LayoutParams?) =
-        super.addView(child.apply { isSaveFromParentEnabled = false }, index, params)
+        super.addView(child?.apply { isSaveFromParentEnabled = false }, index, params)
 
     override fun onSaveInstanceState() =
         ViewChildStateManager.onSaveInstanceState(this, super.onSaveInstanceState())
@@ -81,7 +81,7 @@ open class SaveChildStateLinearLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : LinearLayout(context, attrs, defStyleAttr) {
     override fun addView(child: View?, index: Int, params: ViewGroup.LayoutParams?) =
-        super.addView(child.also { it?.isSaveFromParentEnabled = false }, index, params)
+        super.addView(child?.apply { isSaveFromParentEnabled = false }, index, params)
 
     override fun onSaveInstanceState() =
         ViewChildStateManager.onSaveInstanceState(this, super.onSaveInstanceState())
