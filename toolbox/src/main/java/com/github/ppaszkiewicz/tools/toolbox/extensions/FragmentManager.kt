@@ -3,7 +3,6 @@ package com.github.ppaszkiewicz.tools.toolbox.extensions
 import android.util.Log
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
-import kotlin.reflect.KProperty
 
 
 /** Reflect static TAG value of this class. */
@@ -32,40 +31,34 @@ inline fun <reified F : Fragment> FragmentManager.getFragment(allowCreate: Boole
 }
 
 /**
- * Obtain existing fragment of given type from this fragmentManager or return new fragment instance.
- * Fragments classes MUST have reflectable static TAG field and empty constructor.
+ * Load [fragment] into view with [containerId]. This will detach current fragment and reattach or add new one.
  *
- * Inside fragments use [fragmentManager] or [childFragmentManager] delegates instead.
+ * If [fragment] is already attached this does nothing.
+ *
+ * This runs a fragment transaction internally, and unlike [FragmentTransaction.replace] this does not
+ * destroy previous fragment (only its view hierarchy).
+ *
+ * [fragment] must have unique static TAG field.
  * */
-inline operator fun <reified F : Fragment> FragmentManager.getValue(
-    parent: Any,
-    prop: KProperty<*>
-): F {
-    return getFragment(true)!!
-}
+fun FragmentManager.swap(fragment: Fragment?, containerId : Int) : Boolean {
+    return if (fragment != null) {
+        val currentFragment = findFragmentById(containerId)
+        // same button clicked, don't replace
+        if (fragment == currentFragment) return false
 
-/** Helper for declaring delegates from [fragmentManager]. */
-fun Fragment.fragmentManager() = LazyFragmentManager(this)
-
-/** Helper for delegate for [fragmentManager]. */
-class LazyFragmentManager(val host: Fragment){
-    inline operator fun <reified F : Fragment> getValue(
-        parent: Any,
-        prop: KProperty<*>
-    ): F {
-        return host.fragmentManager!!.getFragment(true)!!
-    }
-}
-
-/** Helper for declaring delegates from [childFragmentManager]. */
-fun Fragment.childFragmentManager() = LazyChildFragmentManager(this)
-
-/** Helper for delegate for [childFragmentManager]. */
-class LazyChildFragmentManager(val host: Fragment){
-    inline operator fun <reified F : Fragment> getValue(
-        parent: Any,
-        prop: KProperty<*>
-    ): F {
-        return host.childFragmentManager.getFragment(true)!!
-    }
+        beginTransaction().apply {
+            if (currentFragment != null) {
+                // detach current fragment - only destroys its view hierarchy
+                detach(currentFragment)
+            }
+            if (fragment.isDetached)
+            // re-attach previously detached fragment, recreating view hierarchy
+                attach(fragment)
+            else
+            // add fragment triggering its onCreate etc
+                add(containerId, fragment, fragment.TAG)
+            commit()
+        }
+        true
+    } else false
 }

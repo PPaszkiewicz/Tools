@@ -12,7 +12,8 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
-import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService.Companion.BIND_DIRECT_ACTION
+import com.github.ppaszkiewicz.tools.toolbox.extensions.ContextDelegate
+import com.github.ppaszkiewicz.tools.toolbox.extensions.contextDelegate
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -110,7 +111,7 @@ open class DirectServiceConnection<T : DirectBindService>(
         get() = value != null
 
     /** Alias for [getValue]. Returns service object if this connection is connected. */
-    val service : T?
+    val service: T?
         get() = value
 
     /** Bind to service. By default uses [defaultBindFlags]. */
@@ -121,7 +122,10 @@ open class DirectServiceConnection<T : DirectBindService>(
     fun bind(flags: Int) {
         if (!isBound) {
             isBound = true
-            context.bindService(Intent(context, serviceClass).setAction(BIND_DIRECT_ACTION), this, flags)
+            context.bindService(
+                Intent(context, serviceClass)
+                    .setAction(DirectBindService.BIND_DIRECT_ACTION), this, flags
+            )
         }
     }
 
@@ -148,31 +152,32 @@ open class DirectServiceConnection<T : DirectBindService>(
     }
 }
 
-// helper class needed to lazily obtain a context
-/** Context delegate for classes that can return a [Context]. */
-sealed class ContextDelegate : ReadOnlyProperty<Any, Context>{
-    /** Returns self. */
-    class OfContext(private val context: Context) : ContextDelegate(){
-        override fun getValue(thisRef: Any, property: KProperty<*>) = context
-    }
-
-    /** Returns fragments context. Fragment might not have context attached when this wrapper is created. */
-    class OfFragment(private val fragment: Fragment) : ContextDelegate() {
-        override fun getValue(thisRef: Any, property: KProperty<*>) = fragment.requireContext()
-    }
-
-    /** Returns views context. */
-    class OfView(private val view: View) : ContextDelegate() {
-        override fun getValue(thisRef: Any, property: KProperty<*>) = view.context
-    }
-}
-
-/** Delegate that returns context. */
-val Context.contextDelegate
-    get() = ContextDelegate.OfContext(this)
-/** Delegate that returns context. */
-val Fragment.contextDelegate
-    get() = ContextDelegate.OfFragment(this)
-/** Delegate that returns context. */
-val View.contextDelegate
-    get() = ContextDelegate.OfView(this)
+//// helper class needed to lazily obtain a context
+// either uncomment this or copy extensions.ContextDelegate
+///** Context delegate for classes that can return a [Context]. */
+//sealed class ContextDelegate : ReadOnlyProperty<Any, Context> {
+//    /** Returns self. */
+//    class OfContext(private val context: Context) : ContextDelegate() {
+//        override fun getValue(thisRef: Any, property: KProperty<*>) = context
+//    }
+//
+//    /** Returns fragments context. Fragment might not have context attached when this wrapper is created. */
+//    class OfFragment(private val fragment: Fragment) : ContextDelegate() {
+//        override fun getValue(thisRef: Any, property: KProperty<*>) = fragment.requireContext()
+//    }
+//
+//    /** Returns views context. */
+//    class OfView(private val view: View) : ContextDelegate() {
+//        override fun getValue(thisRef: Any, property: KProperty<*>) = view.context
+//    }
+//}
+//
+///** Delegate that returns context. */
+//val Context.contextDelegate
+//    get() = ContextDelegate.OfContext(this)
+///** Delegate that returns context. */
+//val Fragment.contextDelegate
+//    get() = ContextDelegate.OfFragment(this)
+///** Delegate that returns context. */
+//val View.contextDelegate
+//    get() = ContextDelegate.OfView(this)

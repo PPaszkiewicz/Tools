@@ -7,6 +7,8 @@ import android.os.IBinder
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import com.github.ppaszkiewicz.tools.toolbox.extensions.ContextDelegate
+import com.github.ppaszkiewicz.tools.toolbox.extensions.contextDelegate
 
 /*
  *   Requires DirectBindService.kt

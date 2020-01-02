@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
-import com.github.ppaszkiewicz.tools.toolbox.extensions.RWBooleanPref
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParams
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity
@@ -14,6 +13,7 @@ import com.github.ppaszkiewicz.tools.demo.coroutines.loaderDemo.LoaderActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.TaskServiceActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParamsDialog
 import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
+import com.github.ppaszkiewicz.tools.toolbox.extensions.*
 import kotlinx.android.synthetic.main.activity_main.*
 
 /**
@@ -23,6 +23,10 @@ class MainActivity : AppCompatActivity() {
     companion object {
         const val TAG = "MainActivity"
         const val SAVE_PARAMS = "SAVE_PARAMS"
+    }
+
+    enum class TestEnum{
+        ON, OFF
     }
 
     // default params
@@ -36,7 +40,8 @@ class MainActivity : AppCompatActivity() {
     )
 
     // boolean stored in shared preferences. maybe add test for this later.
-    var storedPreference by RWBooleanPref("Bool", false)
+    var storedPreference by preferences.boolean("Bool", false)
+    var storedPrefEnum by preferences.enum("EnumPref", TestEnum.OFF)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -84,6 +89,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         // Inflate the menu; this adds items to the action bar if it is present.
         menuInflater.inflate(R.menu.menu_main, menu)
+        menu.findItem(R.id.action_test_enum).isChecked = storedPrefEnum == TestEnum.ON
         return true
     }
 
@@ -96,6 +102,11 @@ class MainActivity : AppCompatActivity() {
                 TestActivityParamsDialog.createAndShow(this, params) {
                     params = it
                 }
+                true
+            }
+            R.id.action_test_enum -> {
+                item.isChecked = !item.isChecked
+                storedPrefEnum = if(item.isChecked) TestEnum.ON else TestEnum.OFF
                 true
             }
             else -> super.onOptionsItemSelected(item)
