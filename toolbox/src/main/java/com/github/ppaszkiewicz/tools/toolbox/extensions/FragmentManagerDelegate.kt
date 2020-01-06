@@ -106,10 +106,6 @@ class FragmentDelegate<T : Fragment>(
     val tag: String?,
     buildImpl: () -> T
 ) : ReadOnlyProperty<Any, T> {
-    companion object {
-        /** Prefix that's added before fragments property name. */
-        const val TAG_PREFIX = "FragmentDelegate:"
-    }
     private var buildImpl: (() -> T)? = buildImpl
     private var value: T? = null
 
@@ -118,7 +114,7 @@ class FragmentDelegate<T : Fragment>(
             buildImpl = null
             return value!!
         }
-        val f = manager.get().findFragmentByTag(tag ?: (TAG_PREFIX + property.name)) as T?
+        val f = manager.get().findFragmentByTag(tag ?: (property.name)) as T?
         if (f != null) {
             value = f
             return f
