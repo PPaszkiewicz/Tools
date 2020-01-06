@@ -22,7 +22,10 @@ val Class<*>.TAG
 inline fun <reified F : Fragment> FragmentManager.getFragment(allowCreate: Boolean): F? {
     val tag = F::class.java.TAG
     (findFragmentByTag(tag))?.let {
-        Log.d("FragmentManager", "getFragment: found ${F::class.java.name} : tag = $tag, isAdded=${it.isAdded}, isDetached=${it.isDetached}")
+        Log.d(
+            "FragmentManager",
+            "getFragment: found ${F::class.java.name} : tag = $tag, isAdded=${it.isAdded}, isDetached=${it.isDetached}"
+        )
         return it as F
     }
     Log.d("FragmentManager", "getFragment: creating ${F::class.java.name} : tag = $tag")
@@ -33,14 +36,27 @@ inline fun <reified F : Fragment> FragmentManager.getFragment(allowCreate: Boole
 /**
  * Load [fragment] into view with [containerId]. This will detach current fragment and reattach or add new one.
  *
- * If [fragment] is already attached this does nothing.
+ * If [fragment] is already attached or null this does nothing.
  *
  * This runs a fragment transaction internally, and unlike [FragmentTransaction.replace] this does not
  * destroy previous fragment (only its view hierarchy).
  *
- * [fragment] must have unique static TAG field.
+ * [fragment] must have unique static reflectable [Fragment.TAG] field.
  * */
-fun FragmentManager.swap(fragment: Fragment?, containerId : Int) : Boolean {
+fun FragmentManager.swap(fragment: Fragment?, containerId: Int) =
+    if (fragment != null) swap(fragment, containerId, fragment.TAG) else false
+
+/**
+ * Load [fragment] into view with [containerId]. This will detach current fragment and reattach or add new one.
+ *
+ * If [fragment] is already attached or null this does nothing.
+ *
+ * This runs a fragment transaction internally, and unlike [FragmentTransaction.replace] this does not
+ * destroy previous fragment (only its view hierarchy).
+ *
+ * If fragment is added for the first time then [tag] is used in transaction.
+ * */
+fun FragmentManager.swap(fragment: Fragment?, containerId: Int, tag: String): Boolean {
     return if (fragment != null) {
         val currentFragment = findFragmentById(containerId)
         // same button clicked, don't replace
@@ -51,12 +67,13 @@ fun FragmentManager.swap(fragment: Fragment?, containerId : Int) : Boolean {
                 // detach current fragment - only destroys its view hierarchy
                 detach(currentFragment)
             }
-            if (fragment.isDetached)
-            // re-attach previously detached fragment, recreating view hierarchy
+            if (fragment.isDetached) {
+                // re-attach previously detached fragment, recreating view hierarchy
                 attach(fragment)
-            else
-            // add fragment triggering its onCreate etc
-                add(containerId, fragment, fragment.TAG)
+            } else {
+                // add fragment triggering its onCreate etc
+                add(containerId, fragment, tag)
+            }
             commit()
         }
         true

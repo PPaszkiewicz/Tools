@@ -16,7 +16,7 @@ import kotlin.reflect.KProperty
 val Context?.defaultPrefs: SharedPreferences
     get() = PreferenceManager.getDefaultSharedPreferences(this!!)
 
-// alias for context delegates
+// aliases for context delegates
 /** Delegate for obtaining data from default shared preferences. */
 val Context.preferences
     get() = ContextDelegate.OfContext(this)
