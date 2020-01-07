@@ -11,7 +11,7 @@ file header.
 
 To import everything, add to **build.gradle** or **build.gradle.kts**:
 ```gradle    
-implementation("com.github.PPaszkiewicz.Tools:toolbox:1.0.1")
+implementation("com.github.PPaszkiewicz.Tools:toolbox:1.0.2")
 ```
 
 ### DownloadManager
@@ -20,7 +20,7 @@ Utilities for querying download progress from systems DownloadManager.
 Available as standalone **DownloadProgressObserver** or wrapped with **LiveData**.
 
 ### Extensions
-Some extensions including delegates for storing/writing values in PreferenceManager.
+Some extensions including delegates for storing/writing values in PreferenceManager and FragmentManager.
 
 ### Reflection
 **IFieldReflector** - interface and utilities for reflecting fields and methods as simple delegates. See demo/tests for sample.
@@ -51,7 +51,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-http://www.apache.org/licenses/LICENSE-2.0
+<http://www.apache.org/licenses/LICENSE-2.0>
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,

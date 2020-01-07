@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity() {
 
         savedInstanceState?.let {
             // restore edited params
-            params = savedInstanceState.getParcelable(SAVE_PARAMS)
+            params = it.getParcelable(SAVE_PARAMS)!!
         }
 
         // task tests
