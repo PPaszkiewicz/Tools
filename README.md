@@ -21,7 +21,7 @@ Mixed bag of kotlin utils. Most files are standalone so they can be copied into 
 
 Import in **build.gradle** or **build.gradle.kts**:
 ```gradle    
-implementation("com.github.PPaszkiewicz.Tools:toolbox:1.0.1")
+implementation("com.github.PPaszkiewicz.Tools:toolbox:1.0.2")
 ```
 
 ### Demo
