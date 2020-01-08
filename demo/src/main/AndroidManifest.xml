@@ -24,6 +24,7 @@
         <activity android:name=".lingeringServiceDemo.LingeringServiceActivity"/>
         <activity android:name=".lingeringServiceDemo.LingeringServiceActivity2"/>
         <activity android:name=".views.SaveStateTestActivity" />
+        <activity android:name=".delegates.DelegateDemoActivity" />
 
         <service android:name="com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.DemoTaskService"/>
         <service android:name=".lingeringServiceDemo.DemoLingeringService"/>

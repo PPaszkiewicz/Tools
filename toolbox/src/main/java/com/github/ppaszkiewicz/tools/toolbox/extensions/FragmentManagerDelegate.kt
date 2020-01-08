@@ -92,22 +92,22 @@ sealed class FragmentManagerProvider {
     inline fun <reified T : Fragment> createDelegate(tag: String? = null) =
         createDelegate<T>(tag, NewInstanceFragmentFactory())
 
-    fun <T : Fragment> createDelegate(
+    inline fun <reified T : Fragment> createDelegate(
         tag: String? = null,
-        buildImpl: () -> T
-    ): ReadOnlyProperty<Any, T> {
-        return FragmentDelegate(this, tag, buildImpl)
+        noinline buildImpl: () -> T
+    ): FragmentManagerDelegateByPropName<T> {
+        return FragmentManagerDelegateByPropName(this, tag, buildImpl, T::class.java)
     }
 }
 
 /** Lazy fragment delegate object. If [tag] is null then property name is used. */
-class FragmentDelegate<T : Fragment>(
+sealed class FragmentDelegate<T : Fragment>(
     val manager: FragmentManagerProvider,
     val tag: String?,
     buildImpl: () -> T
 ) : ReadOnlyProperty<Any, T> {
-    private var buildImpl: (() -> T)? = buildImpl
-    private var value: T? = null
+    protected var buildImpl: (() -> T)? = buildImpl
+    protected var value: T? = null
 
     override fun getValue(thisRef: Any, property: KProperty<*>): T {
         if (value != null) {
@@ -125,6 +125,34 @@ class FragmentDelegate<T : Fragment>(
         return f2
     }
 }
+
+/** Lazy fragment delegate object that uses provided tag or property name if tag is null. */
+class FragmentManagerDelegateByPropName<T : Fragment>(
+    manager: FragmentManagerProvider,
+    tag: String?,
+    buildImpl: () -> T,
+    // class that can be optionally consumed by useTag()
+    var fClass: Class<T>?
+) : FragmentDelegate<T>(manager, tag, buildImpl){
+    /** Use fragments static TAG field instead of property name. */
+    fun useTag() = FragmentManagerDelegateByTag(manager, fClass!!.TAG, getBuildImpl)
+
+    override fun getValue(thisRef: Any, property: KProperty<*>): T {
+        fClass = null
+        return super.getValue(thisRef, property)
+    }
+
+    @PublishedApi
+    internal val getBuildImpl
+        get() = buildImpl!!
+}
+
+/** Lazy fragment delegate object that uses [Fragment.TAG]. */
+class FragmentManagerDelegateByTag<T : Fragment>(
+    manager: FragmentManagerProvider,
+    tag: String?,
+    buildImpl: () -> T
+) : FragmentDelegate<T>(manager, tag, buildImpl)
 
 /*
     Internal - helper extensions.
