@@ -5,7 +5,6 @@ import android.content.SharedPreferences
 import android.preference.PreferenceManager
 import android.view.View
 import androidx.fragment.app.Fragment
-import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
@@ -28,21 +27,21 @@ val Fragment.preferences
 val View.preferences
     get() = ContextDelegate.OfView(this)
 
-/** Boolean preference. [setBlock] can be run before changing value in preferences.*/
-fun ContextDelegate.boolean(key: String, default: Boolean, setBlock: ((Boolean) -> Unit)? = null) =
-    RWBooleanPref(this, key, default, setBlock)
+/** Boolean preference. [setListener] can be run before changing value in preferences.*/
+fun ContextDelegate.boolean(key: String, default: Boolean, setListener: ((Boolean) -> Unit)? = null) =
+    RWBooleanPref(this, key, default, setListener)
 
-/** Long preference. [setBlock] can be run before changing value in preferences.*/
-fun ContextDelegate.long(key: String, default: Long, setBlock: ((Long) -> Unit)? = null) =
-    RWLongPref(this, key, default, setBlock)
+/** Long preference. [setListener] can be run before changing value in preferences.*/
+fun ContextDelegate.long(key: String, default: Long, setListener: ((Long) -> Unit)? = null) =
+    RWLongPref(this, key, default, setListener)
 
-/** Int preference. [setBlock] can be run before changing value in preferences.*/
-fun ContextDelegate.int(key: String, default: Int, setBlock: ((Int) -> Unit)? = null) =
-    RWIntPref(this, key, default, setBlock)
+/** Int preference. [setListener] can be run before changing value in preferences.*/
+fun ContextDelegate.int(key: String, default: Int, setListener: ((Int) -> Unit)? = null) =
+    RWIntPref(this, key, default, setListener)
 
-/** String preference. [setBlock] can be run before changing value in preferences.*/
-fun ContextDelegate.string(key: String, default: String, setBlock: ((String) -> Unit)? = null) =
-    RWStringPref(this, key, default, setBlock)
+/** String preference. [setListener] can be run before changing value in preferences.*/
+fun ContextDelegate.string(key: String, default: String, setListener: ((String) -> Unit)? = null) =
+    RWStringPref(this, key, default, setListener)
 
 /** Enum preference - mapped to ENUM NAME string. [setBlock] can be run before changing the value in preferences.*/
 inline fun <reified T : Enum<T>> ContextDelegate.enum(

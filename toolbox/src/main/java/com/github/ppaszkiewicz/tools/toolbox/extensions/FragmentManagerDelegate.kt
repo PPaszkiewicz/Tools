@@ -10,7 +10,9 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
 /*
-  Methods to use.
+  Those delegates can be used to lazily create or find fragments in the FragmentManager.
+  They do not add the fragment itself to the FragmentManager, it's up to user to do so.
+  Delegate factory functions below.
  */
 
 /**
@@ -38,7 +40,7 @@ inline fun <reified T : Fragment> AppCompatActivity.fragmentManager(tag: String?
  * @param tag Tag used to identify this fragment in the fragment manager. If null this property name
  * will be used
  * */
-inline fun <reified T : Fragment> Fragment.parentFragmentManager() =
+inline fun <reified T : Fragment> Fragment.parentFragmentManager(tag: String? = null) =
     FragmentManagerProvider.Parent(this).createDelegate<T>(tag)
 
 /**

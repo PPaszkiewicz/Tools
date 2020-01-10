@@ -43,7 +43,7 @@ inline fun <reified F : Fragment> FragmentManager.getFragment(allowCreate: Boole
  *
  * [fragment] must have unique static reflectable [Fragment.TAG] field.
  * */
-fun FragmentManager.swap(fragment: Fragment?, containerId: Int) =
+fun FragmentManager.swapByStaticTag(fragment: Fragment?, containerId: Int) =
     if (fragment != null) swap(fragment, containerId, fragment.TAG) else false
 
 /**
@@ -59,7 +59,7 @@ fun FragmentManager.swap(fragment: Fragment?, containerId: Int) =
 fun FragmentManager.swap(fragment: Fragment?, containerId: Int, tag: String): Boolean {
     return if (fragment != null) {
         val currentFragment = findFragmentById(containerId)
-        // same button clicked, don't replace
+        // fragment tries to replace itself, ignore
         if (fragment == currentFragment) return false
 
         beginTransaction().apply {
@@ -71,11 +71,14 @@ fun FragmentManager.swap(fragment: Fragment?, containerId: Int, tag: String): Bo
                 // re-attach previously detached fragment, recreating view hierarchy
                 attach(fragment)
             } else {
-                // add fragment triggering its onCreate etc
+                // add new fragment triggering its onCreate etc
                 add(containerId, fragment, tag)
             }
             commit()
         }
         true
-    } else false
+    } else {
+        // no fragment provided, ignore and return false
+        false
+    }
 }
