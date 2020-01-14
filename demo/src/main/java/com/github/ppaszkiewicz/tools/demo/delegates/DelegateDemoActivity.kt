@@ -49,14 +49,35 @@ class MyFragmentOne : Fragment() {
     }
 
     /** this uses property name (f1) as tag **/
-    val f1 by childFragmentManager<MyFragmentOne>()
+    val nestedF1 by childFragmentManager<MyFragmentTwo>()
 
     /** this references f2 of parent activity fragment manager */
-    val f2 by parentFragmentManager<MyFragmentOne>("CustomTag")
+    val parentF1 by parentFragmentManager<MyFragmentTwo>("CustomTag")
+
+    /** Invalid call that will crash (MyFragmentTwo does not have a static TAG) */
+    val nestedFragment2 by childFragmentManager<MyFragmentTwo>().useTag()
 
     // preference delegates
     val prop by preferences.string("PREF_1", "novalue")
     val prop2 by preferences.enum("PREF_2", MyTestEnum.VAL1)
+}
+
+class MyFragmentTwo : Fragment(){
+    /** Fragment inside parent (FragmentOne) fragment manager. */
+    val nestedFragment by parentFragmentManager<MyFragmentThree>("NestedCustomTag")
+    /** Even deeper fragment nesting. */
+    val nestedNestedFragment by childFragmentManager<MyFragmentThree>()
+    /** Fragment from parent activity. */
+    val activityFragment by activityFragmentManager<MyFragmentThree>()
+}
+
+// final dummy fragment
+class MyFragmentThree : Fragment(){
+    // some more options to find fragments
+    val childF by parentFragmentManager<MyFragmentThree>().findOnly()
+    val childF2 by parentFragmentManager<MyFragmentThree>().findNullable()
+    val parentRoot by activityFragmentManager<MyFragmentOne>().useTagFindOnly()
+    val parentNotExisting by activityFragmentManager<MyFragmentOne>().useTagFindNullable()
 }
 
 enum class MyTestEnum{

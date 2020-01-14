@@ -10,6 +10,8 @@ import kotlin.reflect.KProperty
 
 /*
     Yet another preferences extensions. Implemented as delegates.
+
+    Requires ContextDelegate.kt
  */
 
 /** Returns default sharedPreferences for this context. Assumes context is not null.*/

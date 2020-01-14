@@ -31,8 +31,31 @@ inline fun <reified T : Fragment> AppCompatActivity.fragmentManager(tag: String?
  * will be used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager
  * */
-inline fun <reified T : Fragment> AppCompatActivity.fragmentManager(tag: String? = null, noinline fragmentFactory: () -> T) =
-    supportFragmentManager.provider.createDelegate(tag, fragmentFactory)
+inline fun <reified T : Fragment> AppCompatActivity.fragmentManager(
+    tag: String? = null,
+    noinline fragmentFactory: () -> T
+) = supportFragmentManager.provider.createDelegate(tag, fragmentFactory)
+
+/**
+ * Obtain fragment of this type from parent fragment manager (one this fragment is in).
+ *
+ * @param tag Tag used to identify this fragment in the fragment manager. If null this property name
+ * will be used
+ * */
+inline fun <reified T : Fragment> Fragment.parentFragmentManager(tag: String? = null) =
+    FragmentManagerProvider.Activity(this).createDelegate<T>(tag)
+
+/**
+ * Obtain fragment of this type from parent fragment manager (one this fragment is in).
+ *
+ * @param tag Tag used to identify this fragment in the fragment manager. If null this property name
+ * will be used
+ * @param fragmentFactory factory used if fragment is not found in the fragment manager
+ * */
+inline fun <reified T : Fragment> Fragment.parentFragmentManager(
+    tag: String? = null,
+    noinline fragmentFactory: () -> T
+) = FragmentManagerProvider.Activity(this).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from host activity fragment manager.
@@ -40,7 +63,7 @@ inline fun <reified T : Fragment> AppCompatActivity.fragmentManager(tag: String?
  * @param tag Tag used to identify this fragment in the fragment manager. If null this property name
  * will be used
  * */
-inline fun <reified T : Fragment> Fragment.parentFragmentManager(tag: String? = null) =
+inline fun <reified T : Fragment> Fragment.activityFragmentManager(tag: String? = null) =
     FragmentManagerProvider.Parent(this).createDelegate<T>(tag)
 
 /**
@@ -50,8 +73,10 @@ inline fun <reified T : Fragment> Fragment.parentFragmentManager(tag: String? = 
  * will be used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager
  * */
-inline fun <reified T : Fragment> Fragment.parentFragmentManager(tag: String? = null, noinline fragmentFactory: () -> T) =
-    FragmentManagerProvider.Parent(this).createDelegate(tag, fragmentFactory)
+inline fun <reified T : Fragment> Fragment.activityFragmentManager(
+    tag: String? = null,
+    noinline fragmentFactory: () -> T
+) = FragmentManagerProvider.Parent(this).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from this fragments child fragment manager.
@@ -69,8 +94,10 @@ inline fun <reified T : Fragment> Fragment.childFragmentManager(tag: String? = n
  * will be used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager
  * */
-inline fun <reified T : Fragment> Fragment.childFragmentManager(tag: String? = null, noinline fragmentFactory: () -> T) =
-    FragmentManagerProvider.Child(this).createDelegate(tag, fragmentFactory)
+inline fun <reified T : Fragment> Fragment.childFragmentManager(
+    tag: String? = null,
+    noinline fragmentFactory: () -> T
+) = FragmentManagerProvider.Child(this).createDelegate(tag, fragmentFactory)
 
 /*  Internal - backing delegates. */
 
@@ -80,6 +107,10 @@ sealed class FragmentManagerProvider {
     // returns provide value
     class Direct(private val fm: FragmentManager) : FragmentManagerProvider() {
         override fun get() = fm
+    }
+
+    class Activity(private val f: Fragment) : FragmentManagerProvider() {
+        override fun get() = f.requireActivity().supportFragmentManager
     }
 
     class Parent(private val f: Fragment) : FragmentManagerProvider() {
@@ -97,8 +128,8 @@ sealed class FragmentManagerProvider {
     inline fun <reified T : Fragment> createDelegate(
         tag: String? = null,
         noinline buildImpl: () -> T
-    ): FragmentManagerDelegateByPropName<T> {
-        return FragmentManagerDelegateByPropName(this, tag, buildImpl, T::class.java)
+    ): FragmentManagerDelegatePrimary<T> {
+        return FragmentManagerDelegatePrimary(this, tag, buildImpl, T::class.java)
     }
 }
 
@@ -106,9 +137,8 @@ sealed class FragmentManagerProvider {
 sealed class FragmentDelegate<T : Fragment>(
     val manager: FragmentManagerProvider,
     val tag: String?,
-    buildImpl: () -> T
+    protected var buildImpl: (() -> T)?
 ) : ReadOnlyProperty<Any, T> {
-    protected var buildImpl: (() -> T)? = buildImpl
     protected var value: T? = null
 
     override fun getValue(thisRef: Any, property: KProperty<*>): T {
@@ -121,6 +151,7 @@ sealed class FragmentDelegate<T : Fragment>(
             value = f
             return f
         }
+        check(buildImpl != null) { "Fragment not found and creation in this delegate is disabled." }
         val f2 = buildImpl!!()
         buildImpl = null
         value = f2
@@ -128,33 +159,66 @@ sealed class FragmentDelegate<T : Fragment>(
     }
 }
 
-/** Lazy fragment delegate object that uses provided tag or property name if tag is null. */
-class FragmentManagerDelegateByPropName<T : Fragment>(
+/**
+ * Fragment delegate object that uses provided tag or property name if tag is null.
+ *
+ * Also provides factory methods to alter how it works by altering self parameters.
+ * */
+class FragmentManagerDelegatePrimary<T : Fragment>(
     manager: FragmentManagerProvider,
     tag: String?,
     buildImpl: () -> T,
     // class that can be optionally consumed by useTag()
     var fClass: Class<T>?
-) : FragmentDelegate<T>(manager, tag, buildImpl){
+) : FragmentDelegate<T>(manager, tag, buildImpl) {
     /** Use fragments static TAG field instead of property name. */
-    fun useTag() = FragmentManagerDelegateByTag(manager, fClass!!.TAG, getBuildImpl)
+    fun useTag(): FragmentDelegate<T> =
+        FragmentManagerDelegateExtended(manager, fClass!!.TAG, buildImpl!!)
+
+    /** Throws exception if fragment is missing instead of instantiating it. */
+    fun findOnly(): FragmentDelegate<T> = FragmentManagerDelegateExtended(manager, tag, null)
+
+    /** Throws exception if fragment is missing instead of instantiating it. Use fragments static TAG field instead of property name. */
+    fun useTagFindOnly(): FragmentDelegate<T> =
+        FragmentManagerDelegateExtended(manager, fClass!!.TAG, null)
+
+    /** Return null if fragment is missing instead of instantiating it.. */
+    fun findNullable() = FragmentDelegateNullable<T>(manager, tag)
+
+    /** Return null if fragment is missing instead of instantiating it. Use fragments static TAG field instead of property name. */
+    fun useTagFindNullable() = FragmentDelegateNullable<T>(manager, fClass!!.TAG)
 
     override fun getValue(thisRef: Any, property: KProperty<*>): T {
         fClass = null
         return super.getValue(thisRef, property)
     }
-
-    @PublishedApi
-    internal val getBuildImpl
-        get() = buildImpl!!
 }
 
-/** Lazy fragment delegate object that uses [Fragment.TAG]. */
-class FragmentManagerDelegateByTag<T : Fragment>(
+/** Fragment delegate spawned by [FragmentManagerDelegatePrimary]. */
+class FragmentManagerDelegateExtended<T : Fragment>(
     manager: FragmentManagerProvider,
     tag: String?,
-    buildImpl: () -> T
+    buildImpl: (() -> T)?
 ) : FragmentDelegate<T>(manager, tag, buildImpl)
+
+/** Fragment delegate that returns null if target fragment is not found. */
+class FragmentDelegateNullable<T : Fragment>(
+    val manager: FragmentManagerProvider,
+    val tag: String?
+) : ReadOnlyProperty<Any, T?> {
+    private var value: T? = null
+
+    override fun getValue(thisRef: Any, property: KProperty<*>): T? {
+        if (value != null) {
+            return value!!
+        }
+        val f = manager.get().findFragmentByTag(tag ?: (property.name)) as T?
+        if (f != null) {
+            value = f
+        }
+        return f
+    }
+}
 
 /*
     Internal - helper extensions.
