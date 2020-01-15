@@ -21,7 +21,7 @@ import kotlin.reflect.KProperty
  * @param tag Tag used to identify this fragment in the fragment manager. If null this property name
  * will be used
  * */
-inline fun <reified T : Fragment> AppCompatActivity.fragmentManager(tag: String? = null) =
+inline fun <reified T : Fragment> AppCompatActivity.fragments(tag: String? = null) =
     supportFragmentManager.provider.createDelegate<T>(tag)
 
 /**
@@ -31,7 +31,7 @@ inline fun <reified T : Fragment> AppCompatActivity.fragmentManager(tag: String?
  * will be used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager
  * */
-inline fun <reified T : Fragment> AppCompatActivity.fragmentManager(
+inline fun <reified T : Fragment> AppCompatActivity.fragments(
     tag: String? = null,
     noinline fragmentFactory: () -> T
 ) = supportFragmentManager.provider.createDelegate(tag, fragmentFactory)
@@ -42,7 +42,7 @@ inline fun <reified T : Fragment> AppCompatActivity.fragmentManager(
  * @param tag Tag used to identify this fragment in the fragment manager. If null this property name
  * will be used
  * */
-inline fun <reified T : Fragment> Fragment.parentFragmentManager(tag: String? = null) =
+inline fun <reified T : Fragment> Fragment.parentFragments(tag: String? = null) =
     FragmentManagerProvider.Activity(this).createDelegate<T>(tag)
 
 /**
@@ -52,7 +52,7 @@ inline fun <reified T : Fragment> Fragment.parentFragmentManager(tag: String? = 
  * will be used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager
  * */
-inline fun <reified T : Fragment> Fragment.parentFragmentManager(
+inline fun <reified T : Fragment> Fragment.parentFragments(
     tag: String? = null,
     noinline fragmentFactory: () -> T
 ) = FragmentManagerProvider.Activity(this).createDelegate(tag, fragmentFactory)
@@ -63,7 +63,7 @@ inline fun <reified T : Fragment> Fragment.parentFragmentManager(
  * @param tag Tag used to identify this fragment in the fragment manager. If null this property name
  * will be used
  * */
-inline fun <reified T : Fragment> Fragment.activityFragmentManager(tag: String? = null) =
+inline fun <reified T : Fragment> Fragment.activityFragments(tag: String? = null) =
     FragmentManagerProvider.Parent(this).createDelegate<T>(tag)
 
 /**
@@ -73,7 +73,7 @@ inline fun <reified T : Fragment> Fragment.activityFragmentManager(tag: String? 
  * will be used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager
  * */
-inline fun <reified T : Fragment> Fragment.activityFragmentManager(
+inline fun <reified T : Fragment> Fragment.activityFragments(
     tag: String? = null,
     noinline fragmentFactory: () -> T
 ) = FragmentManagerProvider.Parent(this).createDelegate(tag, fragmentFactory)
@@ -84,7 +84,7 @@ inline fun <reified T : Fragment> Fragment.activityFragmentManager(
  * @param tag Tag used to identify this fragment in the fragment manager. If null this property name
  * will be used
  * */
-inline fun <reified T : Fragment> Fragment.childFragmentManager(tag: String? = null) =
+inline fun <reified T : Fragment> Fragment.fragments(tag: String? = null) =
     FragmentManagerProvider.Child(this).createDelegate<T>(tag)
 
 /**
@@ -94,7 +94,7 @@ inline fun <reified T : Fragment> Fragment.childFragmentManager(tag: String? = n
  * will be used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager
  * */
-inline fun <reified T : Fragment> Fragment.childFragmentManager(
+inline fun <reified T : Fragment> Fragment.fragments(
     tag: String? = null,
     noinline fragmentFactory: () -> T
 ) = FragmentManagerProvider.Child(this).createDelegate(tag, fragmentFactory)
@@ -141,6 +141,7 @@ sealed class FragmentDelegate<T : Fragment>(
 ) : ReadOnlyProperty<Any, T> {
     protected var value: T? = null
 
+    @Suppress("UNCHECKED_CAST")
     override fun getValue(thisRef: Any, property: KProperty<*>): T {
         if (value != null) {
             buildImpl = null
@@ -172,21 +173,21 @@ class FragmentManagerDelegatePrimary<T : Fragment>(
     var fClass: Class<T>?
 ) : FragmentDelegate<T>(manager, tag, buildImpl) {
     /** Use fragments static TAG field instead of property name. */
-    fun useTag(): FragmentDelegate<T> =
+    fun byTag(): FragmentDelegate<T> =
         FragmentManagerDelegateExtended(manager, fClass!!.TAG, buildImpl!!)
 
     /** Throws exception if fragment is missing instead of instantiating it. */
     fun findOnly(): FragmentDelegate<T> = FragmentManagerDelegateExtended(manager, tag, null)
 
     /** Throws exception if fragment is missing instead of instantiating it. Use fragments static TAG field instead of property name. */
-    fun useTagFindOnly(): FragmentDelegate<T> =
+    fun findOnlyByTag(): FragmentDelegate<T> =
         FragmentManagerDelegateExtended(manager, fClass!!.TAG, null)
 
     /** Return null if fragment is missing instead of instantiating it.. */
     fun findNullable() = FragmentDelegateNullable<T>(manager, tag)
 
     /** Return null if fragment is missing instead of instantiating it. Use fragments static TAG field instead of property name. */
-    fun useTagFindNullable() = FragmentDelegateNullable<T>(manager, fClass!!.TAG)
+    fun findNullableByTag() = FragmentDelegateNullable<T>(manager, fClass!!.TAG)
 
     override fun getValue(thisRef: Any, property: KProperty<*>): T {
         fClass = null
@@ -208,6 +209,7 @@ class FragmentDelegateNullable<T : Fragment>(
 ) : ReadOnlyProperty<Any, T?> {
     private var value: T? = null
 
+    @Suppress("UNCHECKED_CAST")
     override fun getValue(thisRef: Any, property: KProperty<*>): T? {
         if (value != null) {
             return value!!
@@ -237,4 +239,4 @@ internal inline fun <reified T : Fragment> NewInstanceFragmentFactory() =
 /** Default fragment factory. */
 @PublishedApi
 internal fun <T : Fragment> NewInstanceFragmentFactory(fClass: Class<T>): () -> T =
-    { fClass.newInstance() as T }
+    fClass::newInstance

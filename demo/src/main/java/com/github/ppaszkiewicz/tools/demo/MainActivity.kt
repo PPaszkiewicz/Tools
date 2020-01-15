@@ -40,8 +40,8 @@ class MainActivity : AppCompatActivity() {
     )
 
     // boolean stored in shared preferences. maybe add test for this later.
-    var storedPreference by preferences.boolean("Bool", false)
-    var storedPrefEnum by preferences.enum("EnumPref", TestEnum.OFF)
+    var storedPreference by preferences().boolean("Bool", false)
+    var storedPrefEnum by preferences().enum("EnumPref", TestEnum.OFF)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
