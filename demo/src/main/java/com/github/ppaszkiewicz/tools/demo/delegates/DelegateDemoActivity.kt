@@ -13,7 +13,7 @@ class DelegateDemoActivity : AppCompatActivity() {
     /** this uses argument (CustomTag) as tag **/
     val f2 by fragments<MyFragmentOne>("CustomTag")
     /** this uses [MyFragmentOne.TAG] as tag **/
-    val f3 by fragments<MyFragmentOne>().byTag()
+    val f3 by fragments<MyFragmentOne>(true)
 
     // with builders
     /** this uses property name (no tag argument) as tag with custom fragment builder. */
@@ -25,9 +25,9 @@ class DelegateDemoActivity : AppCompatActivity() {
         MyFragmentOne.newInstance("testArgument")
     }
     /** this uses [MyFragmentOne.TAG] as tag with custom fragment builder. */
-    val f30 by fragments {
+    val f30 by fragments(true) {
         MyFragmentOne.newInstance("testArgument")
-    }.byTag()
+    }
 
     // preference delegates
     val prop by preferences().string("PREF_1", "novalue")
@@ -55,7 +55,7 @@ class MyFragmentOne : Fragment() {
     val parentF1 by parentFragments<MyFragmentTwo>("CustomTag")
 
     /** Invalid call that will crash (MyFragmentTwo does not have a static TAG) */
-    val nestedFragment2 by fragments<MyFragmentTwo>().byTag()
+    val nestedFragment2 by fragments<MyFragmentTwo>(true)
 
     // preference delegates
     val prop by preferences().string("PREF_1", "novalue")
@@ -76,8 +76,8 @@ class MyFragmentThree : Fragment(){
     // some more options to find fragments
     val childF by parentFragments<MyFragmentThree>().findOnly()
     val childF2 by parentFragments<MyFragmentThree>().findNullable()
-    val parentRoot by activityFragments<MyFragmentOne>().findOnlyByTag()
-    val parentNotExisting by activityFragments<MyFragmentOne>().findNullableByTag()
+    val parentRoot by activityFragments<MyFragmentOne>(true).findOnly()
+    val parentNotExisting by activityFragments<MyFragmentOne>(false).findNullable()
 }
 
 enum class MyTestEnum{

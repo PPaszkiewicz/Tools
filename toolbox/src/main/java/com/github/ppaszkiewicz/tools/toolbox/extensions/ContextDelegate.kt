@@ -6,8 +6,8 @@ import androidx.fragment.app.Fragment
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
-// helper class needed to lazily obtain a context, needed to safely provide a lazy delegate
-// in fragments
+// helper class needed to lazily obtain a context to safely provide a lazy delegate
+// in fragments etc
 /** Context delegate for classes that can return a [Context]. */
 sealed class ContextDelegate : ReadOnlyProperty<Any, Context> {
     /** Returns self. */
