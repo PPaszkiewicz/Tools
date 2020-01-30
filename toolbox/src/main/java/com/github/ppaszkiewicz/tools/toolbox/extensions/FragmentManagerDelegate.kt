@@ -202,11 +202,11 @@ class FragmentManagerDelegatePrimary<T : Fragment>(
     tag: String?,
     buildImpl: () -> T
 ) : FragmentDelegate<T>(manager, tag, buildImpl) {
-    /** Throws exception if fragment is missing instead of instantiating it. */
-    fun findOnly(): FragmentDelegate<T> = FragmentManagerDelegateSecondary(manager, tag, null)
+    /** Assumes fragment is initialized elsewhere, throws exception if it's is missing instead of instantiating it. */
+    fun required(): FragmentDelegate<T> = FragmentManagerDelegateSecondary(manager, tag, null)
 
-    /** Return null if fragment is missing instead of instantiating it. */
-    fun findNullable() = FragmentDelegateNullable<T>(manager, tag)
+    /** Assume fragment might not exist, return null if it's is missing instead of instantiating it. */
+    fun nullable() = FragmentDelegateNullable<T>(manager, tag)
 }
 
 /** Fragment delegate spawned by [FragmentManagerDelegatePrimary]. */
