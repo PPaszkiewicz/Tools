@@ -22,7 +22,7 @@ sealed class ContextDelegate : ReadOnlyProperty<Any, Context> {
 
     /** Returns views context. */
     class OfView(private val view: View) : ContextDelegate() {
-        override fun getValue(thisRef: Any, property: KProperty<*>) = view.context
+        override fun getValue(thisRef: Any, property: KProperty<*>) : Context = view.context
     }
 }
 

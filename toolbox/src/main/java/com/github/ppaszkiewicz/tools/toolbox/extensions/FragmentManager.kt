@@ -6,11 +6,11 @@ import androidx.fragment.app.FragmentManager
 
 
 /** Reflect static TAG value of this class. */
-val Fragment.TAG
+val Fragment.classTAG
     get() = javaClass.getDeclaredField("TAG").get(null) as String
 
 /** Reflect static TAG value of this class. */
-val Class<*>.TAG
+val Class<*>.classTAG
     get() = getDeclaredField("TAG").get(null) as String
 
 /**
@@ -20,7 +20,7 @@ val Class<*>.TAG
  * true new instance of that fragment is created using default (empty) constructor.
  * */
 inline fun <reified F : Fragment> FragmentManager.getFragment(allowCreate: Boolean): F? {
-    val tag = F::class.java.TAG
+    val tag = F::class.java.classTAG
     (findFragmentByTag(tag))?.let {
         Log.d(
             "FragmentManager",
@@ -41,10 +41,10 @@ inline fun <reified F : Fragment> FragmentManager.getFragment(allowCreate: Boole
  * This runs a fragment transaction internally, and unlike [FragmentTransaction.replace] this does not
  * destroy previous fragment (only its view hierarchy).
  *
- * [fragment] must have unique static reflectable [Fragment.TAG] field.
+ * [fragment] must have unique static reflectable TAG field.
  * */
 fun FragmentManager.swapByStaticTag(fragment: Fragment?, containerId: Int) =
-    if (fragment != null) swap(fragment, containerId, fragment.TAG) else false
+    if (fragment != null) swap(fragment, containerId, fragment.classTAG) else false
 
 /**
  * Load [fragment] into view with [containerId]. This will detach current fragment and reattach or add new one.

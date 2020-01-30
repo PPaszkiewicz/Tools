@@ -12,7 +12,7 @@ class DelegateDemoActivity : AppCompatActivity() {
     val f1 by fragments<MyFragmentOne>()
     /** this uses argument (CustomTag) as tag **/
     val f2 by fragments<MyFragmentOne>("CustomTag")
-    /** this uses [MyFragmentOne.TAG] as tag **/
+    /** this uses [MyFragmentOne.classTAG] as tag **/
     val f3 by fragments<MyFragmentOne>(true)
 
     // with builders
@@ -24,7 +24,7 @@ class DelegateDemoActivity : AppCompatActivity() {
     val f20 by fragments("CustomTag2") {
         MyFragmentOne.newInstance("testArgument")
     }
-    /** this uses [MyFragmentOne.TAG] as tag with custom fragment builder. */
+    /** this uses [MyFragmentOne.classTAG] as tag with custom fragment builder. */
     val f30 by fragments(true) {
         MyFragmentOne.newInstance("testArgument")
     }

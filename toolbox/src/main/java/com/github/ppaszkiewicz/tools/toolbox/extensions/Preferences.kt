@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.preference.PreferenceManager
 import android.view.View
 import androidx.fragment.app.Fragment
+import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
@@ -50,8 +51,10 @@ private typealias SPEditor = SharedPreferences.Editor
 
 
 /** Provider of preference manager and delegate factory. */
-sealed class SharedPreferencesProvider {
+sealed class SharedPreferencesProvider : ReadOnlyProperty<Any, SharedPreferences> {
+    final override fun getValue(thisRef: Any, property: KProperty<*>) = get()
     abstract fun get(): SharedPreferences
+
     class Direct(private val prefs: SharedPreferences) : SharedPreferencesProvider() {
         override fun get() = prefs
     }
@@ -61,7 +64,7 @@ sealed class SharedPreferencesProvider {
         val preferencesKey: String,
         val mode: Int
     ) : SharedPreferencesProvider() {
-        override fun get() = context.getSharedPreferences(preferencesKey, mode)
+        override fun get(): SharedPreferences = context.getSharedPreferences(preferencesKey, mode)
     }
 
     class ContextDef(private val context: android.content.Context) : SharedPreferencesProvider() {
@@ -73,7 +76,8 @@ sealed class SharedPreferencesProvider {
         val preferencesKey: String,
         val mode: Int
     ) : SharedPreferencesProvider() {
-        override fun get() = fragment.requireContext().getSharedPreferences(preferencesKey, mode)
+        override fun get(): SharedPreferences =
+            fragment.requireContext().getSharedPreferences(preferencesKey, mode)
     }
 
     class FragmentDef(private val fragment: androidx.fragment.app.Fragment) :
@@ -110,9 +114,20 @@ sealed class SharedPreferencesProvider {
     fun int(key: String, default: Int, setListener: ((Int) -> Unit)? = null) =
         RWIntPref(this, key, default, setListener)
 
+    /** Float preference. [setListener] can be run before changing value in preferences.*/
+    fun float(key: String, default: Float, setListener: ((Float) -> Unit)? = null) =
+        RWFloatPref(this, key, default, setListener)
+
     /** String preference. [setListener] can be run before changing value in preferences.*/
     fun string(key: String, default: String, setListener: ((String) -> Unit)? = null) =
         RWStringPref(this, key, default, setListener)
+
+    /** String set preference. If [default] is not set returns empty set by default. [setListener] can be run before changing value in preferences.*/
+    fun stringSet(
+        key: String,
+        default: Set<String> = emptySet(),
+        setListener: ((Set<String>) -> Unit)? = null
+    ) = RWStringSetPref(this, key, default, setListener)
 
     /** Enum preference - mapped to ENUM NAME string. [setBlock] can be run before changing the value in preferences.*/
     inline fun <reified T : Enum<T>> enum(
@@ -135,14 +150,14 @@ abstract class RWPref<T>(
 ) : ReadWriteProperty<Any, T> {
     override fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
         setBlock?.invoke(value)
-        prefsProvider.get().edit { invokeSetter(this, key, value) }
+        prefsProvider.get().edit { set(key, value) }
     }
 
     override fun getValue(thisRef: Any, property: KProperty<*>): T =
-        invokeGetter(prefsProvider.get(), key, default)
+        prefsProvider.get().get(key, default)
 
-    protected abstract fun invokeSetter(editor: SPEditor, key: String, value: T): SPEditor
-    protected abstract fun invokeGetter(prefs: SP, key: String, default: T): T
+    protected abstract fun SPEditor.set(key: String, value: T): SPEditor
+    protected abstract fun SP.get(key: String, default: T): T
 }
 
 /** Boolean preference. [setBlock] can be run before changing value in preferences.*/
@@ -152,11 +167,8 @@ class RWBooleanPref(
     default: Boolean,
     setBlock: ((Boolean) -> Unit)? = null
 ) : RWPref<Boolean>(prefsProvider, key, default, setBlock) {
-    override fun invokeSetter(editor: SPEditor, key: String, value: Boolean) =
-        editor.putBoolean(key, value)
-
-    override fun invokeGetter(prefs: SP, key: String, default: Boolean) =
-        prefs.getBoolean(key, default)
+    override fun SPEditor.set(key: String, value: Boolean): SPEditor = putBoolean(key, value)
+    override fun SP.get(key: String, default: Boolean) = getBoolean(key, default)
 }
 
 /** Long preference. [setBlock] can be run before changing value in preferences.*/
@@ -166,10 +178,8 @@ class RWLongPref(
     default: Long,
     setBlock: ((Long) -> Unit)? = null
 ) : RWPref<Long>(prefsProvider, key, default, setBlock) {
-    override fun invokeSetter(editor: SPEditor, key: String, value: Long) =
-        editor.putLong(key, value)
-
-    override fun invokeGetter(prefs: SP, key: String, default: Long) = prefs.getLong(key, default)
+    override fun SPEditor.set(key: String, value: Long): SPEditor = putLong(key, value)
+    override fun SP.get(key: String, default: Long) = getLong(key, default)
 }
 
 /** Int preference. [setBlock] can be run before changing the value in preferences.*/
@@ -179,8 +189,19 @@ class RWIntPref(
     default: Int,
     setBlock: ((Int) -> Unit)? = null
 ) : RWPref<Int>(prefsProvider, key, default, setBlock) {
-    override fun invokeSetter(editor: SPEditor, key: String, value: Int) = editor.putInt(key, value)
-    override fun invokeGetter(prefs: SP, key: String, default: Int) = prefs.getInt(key, default)
+    override fun SPEditor.set(key: String, value: Int): SPEditor = putInt(key, value)
+    override fun SP.get(key: String, default: Int) = getInt(key, default)
+}
+
+/** Float preference. [setBlock] can be run before changing the value in preferences.*/
+class RWFloatPref(
+    prefsProvider: SharedPreferencesProvider,
+    key: String,
+    default: Float,
+    setBlock: ((Float) -> Unit)? = null
+) : RWPref<Float>(prefsProvider, key, default, setBlock) {
+    override fun SPEditor.set(key: String, value: Float): SPEditor = putFloat(key, value)
+    override fun SP.get(key: String, default: Float) = getFloat(key, default)
 }
 
 /** String preference. [setBlock] can be run before changing the value in preferences.*/
@@ -190,11 +211,20 @@ class RWStringPref(
     default: String,
     setBlock: ((String) -> Unit)? = null
 ) : RWPref<String>(prefsProvider, key, default, setBlock) {
-    override fun invokeSetter(editor: SPEditor, key: String, value: String) =
-        editor.putString(key, value)
+    override fun SPEditor.set(key: String, value: String): SPEditor = putString(key, value)
+    override fun SP.get(key: String, default: String): String = getString(key, default)!!
+}
 
-    override fun invokeGetter(prefs: SP, key: String, default: String) =
-        prefs.getString(key, default)
+/** String set preference. [setBlock] can be run before changing the value in preferences.*/
+class RWStringSetPref(
+    prefsProvider: SharedPreferencesProvider,
+    key: String,
+    default: Set<String>,
+    setBlock: ((Set<String>) -> Unit)? = null
+) : RWPref<Set<String>>(prefsProvider, key, default, setBlock) {
+    override fun SPEditor.set(key: String, value: Set<String>): SPEditor = putStringSet(key, value)
+    override fun SP.get(key: String, default: Set<String>): Set<String> =
+        getStringSet(key, default)!!
 }
 
 /** Enum preference - mapped to ENUM NAME string. [setBlock] can be run before changing the value in preferences.*/
@@ -205,11 +235,10 @@ class RWEnumPref<T : Enum<T>>(
     val enumClass: Class<T>,
     setBlock: ((T) -> Unit)? = null
 ) : RWPref<T>(prefsProvider, key, default, setBlock) {
-    override fun invokeSetter(editor: SPEditor, key: String, value: T) =
-        editor.putString(key, value.name)
+    override fun SPEditor.set(key: String, value: T): SPEditor = putString(key, value.name)
 
-    override fun invokeGetter(prefs: SP, key: String, default: T): T {
-        val s = prefs.getString(key, null) ?: return default
+    override fun SP.get(key: String, default: T): T {
+        val s = getString(key, null) ?: return default
         val enum = enumClass.enumConstants.find { it.name == s }
         return enum ?: default
     }

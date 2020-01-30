@@ -31,7 +31,7 @@ inline fun <reified T : Fragment> AppCompatActivity.fragments(
 /**
  * Obtain fragment of this type from fragment manager.
  *
- * @param reflectTag if true then reflected static [Fragment.TAG] is used to identify this fragment
+ * @param reflectTag if true then reflected static TAG is used to identify this fragment
  * in the fragment manager. If false property name is used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager. If null
  * then no-arg constructor is invoked
@@ -57,7 +57,7 @@ inline fun <reified T : Fragment> Fragment.parentFragments(
 /**
  * Obtain fragment of this type from parent fragment manager (one this fragment is in).
  *
- * @param reflectTag if true then reflected static [Fragment.TAG] is used to identify this fragment
+ * @param reflectTag if true then reflected static TAG is used to identify this fragment
  * in the fragment manager. If false property name is used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager. If null
  * then no-arg constructor is invoked
@@ -83,7 +83,7 @@ inline fun <reified T : Fragment> Fragment.activityFragments(
 /**
  * Obtain fragment of this type from host activity fragment manager.
  *
- * @param reflectTag if true then reflected static [Fragment.TAG] is used to identify this fragment
+ * @param reflectTag if true then reflected static TAG is used to identify this fragment
  * in the fragment manager. If false property name is used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager. If null
  * then no-arg constructor is invoked
@@ -109,7 +109,7 @@ inline fun <reified T : Fragment> Fragment.fragments(
 /**
  * Obtain fragment of this type from this fragments child fragment manager.
  *
- * @param reflectTag if true then reflected static [Fragment.TAG] is used to identify this fragment
+ * @param reflectTag if true then reflected static TAG is used to identify this fragment
  * in the fragment manager. If false property name is used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager. If null
  * then no-arg constructor is invoked
@@ -148,7 +148,7 @@ sealed class FragmentManagerProvider {
     ): FragmentManagerDelegatePrimary<T> {
         return FragmentManagerDelegatePrimary(
             this,
-            if(useTag) T::class.java.TAG else null,
+            if(useTag) T::class.java.classTAG else null,
             buildImpl ?: NewInstanceFragmentFactory()
         )
     }
