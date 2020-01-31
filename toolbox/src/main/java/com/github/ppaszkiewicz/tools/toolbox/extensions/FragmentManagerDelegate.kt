@@ -122,7 +122,8 @@ inline fun <reified T : Fragment> Fragment.fragments(
 /*  Internal - backing delegates. */
 
 /** Provider of fragment manager and delegates. */
-sealed class FragmentManagerProvider {
+sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager>{
+    override fun getValue(thisRef: Any, property: KProperty<*>) = get()
     abstract fun get(): FragmentManager
     // returns provide value
     class Direct(private val fm: FragmentManager) : FragmentManagerProvider() {

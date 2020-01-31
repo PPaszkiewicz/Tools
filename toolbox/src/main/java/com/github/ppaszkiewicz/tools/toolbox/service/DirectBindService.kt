@@ -156,19 +156,22 @@ open class DirectServiceConnection<T : DirectBindService>(
 // either uncomment this or copy extensions.ContextDelegate
 ///** Context delegate for classes that can return a [Context]. */
 //sealed class ContextDelegate : ReadOnlyProperty<Any, Context> {
+//    override fun getValue(thisRef: Any, property: KProperty<*>) = get()
+//    abstract fun get() : Context
+//
 //    /** Returns self. */
 //    class OfContext(private val context: Context) : ContextDelegate() {
-//        override fun getValue(thisRef: Any, property: KProperty<*>) = context
+//        override fun get() = context
 //    }
 //
 //    /** Returns fragments context. Fragment might not have context attached when this wrapper is created. */
 //    class OfFragment(private val fragment: Fragment) : ContextDelegate() {
-//        override fun getValue(thisRef: Any, property: KProperty<*>) = fragment.requireContext()
+//        override fun get() = fragment.requireContext()
 //    }
 //
 //    /** Returns views context. */
 //    class OfView(private val view: View) : ContextDelegate() {
-//        override fun getValue(thisRef: Any, property: KProperty<*>) = view.context
+//        override fun get() : Context = view.context
 //    }
 //}
 //
