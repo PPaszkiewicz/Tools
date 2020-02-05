@@ -140,6 +140,7 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager> {
         override fun get() = f.childFragmentManager
     }
 
+    // builder for delegate
     inline fun <reified T : Fragment> createDelegate(
         usePropName: Boolean,
         noinline buildImpl: (() -> T)?
@@ -151,8 +152,9 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager> {
         )
     }
 
+    // builder for delegate
     inline fun <reified T : Fragment> createDelegate(
-        tag: String? = T::class.java.name,
+        tag: String?,
         noinline buildImpl: (() -> T)?
     ): FragmentManagerDelegatePrimary<T> {
         return FragmentManagerDelegatePrimary(
