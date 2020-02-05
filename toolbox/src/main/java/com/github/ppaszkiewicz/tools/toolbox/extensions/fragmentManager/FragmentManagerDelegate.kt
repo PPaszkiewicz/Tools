@@ -143,13 +143,23 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager> {
     inline fun <reified T : Fragment> createDelegate(
         usePropName: Boolean,
         noinline buildImpl: (() -> T)?
-    ) = createDelegate(if (usePropName) null else T::class.java.name, buildImpl)
+    ): FragmentManagerDelegatePrimary<T> {
+        return FragmentManagerDelegatePrimary(
+            this,
+            if (usePropName) null else T::class.java.name,
+            buildImpl ?: NewInstanceFragmentFactory()
+        )
+    }
 
     inline fun <reified T : Fragment> createDelegate(
-        tag: String? = null,
+        tag: String? = T::class.java.name,
         noinline buildImpl: (() -> T)?
     ): FragmentManagerDelegatePrimary<T> {
-        return FragmentManagerDelegatePrimary(this, tag, buildImpl ?: NewInstanceFragmentFactory())
+        return FragmentManagerDelegatePrimary(
+            this,
+            tag ?: T::class.java.name,
+            buildImpl ?: NewInstanceFragmentFactory()
+        )
     }
 }
 
