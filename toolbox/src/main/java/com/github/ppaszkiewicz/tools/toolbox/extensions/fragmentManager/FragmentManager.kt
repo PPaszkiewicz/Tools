@@ -1,37 +1,19 @@
-package com.github.ppaszkiewicz.tools.toolbox.extensions
+package com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager
 
-import android.util.Log
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 
-
-/** Reflect static TAG value of this class. */
-val Fragment.classTAG
-    get() = javaClass.getDeclaredField("TAG").get(null) as String
-
-/** Reflect static TAG value of this class. */
-val Class<*>.classTAG
-    get() = getDeclaredField("TAG").get(null) as String
+/**
+ * Find fragment that identifies itself by its class name as tag.
+ */
+inline fun <reified F : Fragment> FragmentManager.findFragmentByClass() =
+    findFragmentByClass(F::class.java)
 
 /**
- * Get fragment of given type. It must contain static TAG field.
- *
- * If [allowCreate] is false this will only check fragment manager for existing one, if it's
- * true new instance of that fragment is created using default (empty) constructor.
- * */
-inline fun <reified F : Fragment> FragmentManager.getFragment(allowCreate: Boolean): F? {
-    val tag = F::class.java.classTAG
-    (findFragmentByTag(tag))?.let {
-        Log.d(
-            "FragmentManager",
-            "getFragment: found ${F::class.java.name} : tag = $tag, isAdded=${it.isAdded}, isDetached=${it.isDetached}"
-        )
-        return it as F
-    }
-    Log.d("FragmentManager", "getFragment: creating ${F::class.java.name} : tag = $tag")
-    if (!allowCreate) return null
-    return F::class.java.newInstance()
-}
+ * Find fragment that identifies itself by it's class name as tag.
+ */
+fun <F : Fragment> FragmentManager.findFragmentByClass(clazz: Class<F>) =
+    findFragmentByTag(clazz.name) as F?
 
 /**
  * Load [fragment] into view with [containerId]. This will detach current fragment and reattach or add new one.
@@ -41,10 +23,11 @@ inline fun <reified F : Fragment> FragmentManager.getFragment(allowCreate: Boole
  * This runs a fragment transaction internally, and unlike [FragmentTransaction.replace] this does not
  * destroy previous fragment (only its view hierarchy).
  *
- * [fragment] must have unique static reflectable TAG field.
+ * Uses [fragment] class name as tag, so it must be unique in this fragment manager scope, otherwise
+ * [IllegalStateException] will be thrown.
  * */
-fun FragmentManager.swapByStaticTag(fragment: Fragment?, containerId: Int) =
-    if (fragment != null) swap(fragment, containerId, fragment.classTAG) else false
+fun FragmentManager.swap(fragment: Fragment?, containerId: Int) =
+    if (fragment != null) swapImpl(fragment, containerId, fragment.javaClass.name, true) else false
 
 /**
  * Load [fragment] into view with [containerId]. This will detach current fragment and reattach or add new one.
@@ -56,11 +39,22 @@ fun FragmentManager.swapByStaticTag(fragment: Fragment?, containerId: Int) =
  *
  * If fragment is added for the first time then [tag] is used in transaction.
  * */
-fun FragmentManager.swap(fragment: Fragment?, containerId: Int, tag: String): Boolean {
+fun FragmentManager.swap(fragment: Fragment?, containerId: Int, tag: String) =
+    swapImpl(fragment, containerId, tag, false)
+
+// implementation for swap
+private fun FragmentManager.swapImpl(
+    fragment: Fragment?,
+    containerId: Int,
+    tag: String,
+    checkClassCollision: Boolean
+): Boolean {
     return if (fragment != null) {
         val currentFragment = findFragmentById(containerId)
         // fragment tries to replace itself, ignore
         if (fragment == currentFragment) return false
+        if (checkClassCollision && fragment.javaClass == currentFragment?.javaClass)
+            throw IllegalStateException("swap(Fragment?, Int): duplicate fragment class encountered: ${fragment.javaClass.name}.")
 
         beginTransaction().apply {
             if (currentFragment != null) {

@@ -5,6 +5,9 @@ import androidx.annotation.Keep
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.github.ppaszkiewicz.tools.toolbox.extensions.*
+import com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager.activityFragments
+import com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager.fragments
+import com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager.parentFragments
 
 class DelegateDemoActivity : AppCompatActivity() {
     // with no arg constructor
@@ -12,7 +15,7 @@ class DelegateDemoActivity : AppCompatActivity() {
     val f1 by fragments<MyFragmentOne>()
     /** this uses argument (CustomTag) as tag **/
     val f2 by fragments<MyFragmentOne>("CustomTag")
-    /** this uses [MyFragmentOne.classTAG] as tag **/
+    /** this uses [MyFragmentOne.javaClass.name] as tag **/
     val f3 by fragments<MyFragmentOne>(true)
 
     // with builders
@@ -39,9 +42,6 @@ class DelegateDemoActivity : AppCompatActivity() {
 
 class MyFragmentOne : Fragment() {
     companion object {
-        @Keep
-        const val TAG = "MyFragmentOneTag"
-
         // new instance builder
         fun newInstance(argument: String) = MyFragmentOne().withArguments {
             putString("ARG", argument)
@@ -54,7 +54,7 @@ class MyFragmentOne : Fragment() {
     /** this references f2 of parent activity fragment manager */
     val parentF1 by parentFragments<MyFragmentTwo>("CustomTag")
 
-    /** Invalid call that will crash (MyFragmentTwo does not have a static TAG) */
+    /** nested using class name */
     val nestedFragment2 by fragments<MyFragmentTwo>(true)
 
     // preference delegates

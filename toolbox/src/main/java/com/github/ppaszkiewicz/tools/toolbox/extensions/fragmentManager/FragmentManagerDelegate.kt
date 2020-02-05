@@ -1,8 +1,5 @@
-package com.github.ppaszkiewicz.tools.toolbox.extensions
+package com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager
 
-/*
-    Requires FragmentManager.kt
- */
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
@@ -31,15 +28,15 @@ inline fun <reified T : Fragment> AppCompatActivity.fragments(
 /**
  * Obtain fragment of this type from fragment manager.
  *
- * @param reflectTag if true then reflected static TAG is used to identify this fragment
+ * @param reflectTag if true then fragments class name is used to identify this fragment
  * in the fragment manager. If false property name is used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager. If null
  * then no-arg constructor is invoked
  * */
 inline fun <reified T : Fragment> AppCompatActivity.fragments(
-    reflectTag: Boolean,
+    useClassName: Boolean,
     noinline fragmentFactory: (() -> T)? = null
-) = supportFragmentManager.provider.createDelegate(reflectTag, fragmentFactory)
+) = supportFragmentManager.provider.createDelegate(useClassName, fragmentFactory)
 
 /**
  * Obtain fragment of this type from parent fragment manager (one this fragment is in).
@@ -52,20 +49,24 @@ inline fun <reified T : Fragment> AppCompatActivity.fragments(
 inline fun <reified T : Fragment> Fragment.parentFragments(
     tag: String? = null,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Activity(this).createDelegate(tag, fragmentFactory)
+) = FragmentManagerProvider.Activity(
+    this
+).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from parent fragment manager (one this fragment is in).
  *
- * @param reflectTag if true then reflected static TAG is used to identify this fragment
+ * @param useClassName if true then fragments class name is used to identify this fragment
  * in the fragment manager. If false property name is used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager. If null
  * then no-arg constructor is invoked
  * */
 inline fun <reified T : Fragment> Fragment.parentFragments(
-    reflectTag: Boolean,
+    useClassName: Boolean,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Activity(this).createDelegate(reflectTag, fragmentFactory)
+) = FragmentManagerProvider.Activity(
+    this
+).createDelegate(useClassName, fragmentFactory)
 
 /**
  * Obtain fragment of this type from host activity fragment manager.
@@ -78,20 +79,24 @@ inline fun <reified T : Fragment> Fragment.parentFragments(
 inline fun <reified T : Fragment> Fragment.activityFragments(
     tag: String? = null,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Parent(this).createDelegate(tag, fragmentFactory)
+) = FragmentManagerProvider.Parent(
+    this
+).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from host activity fragment manager.
  *
- * @param reflectTag if true then reflected static TAG is used to identify this fragment
+ * @param useClassName if true then fragments class name is used to identify this fragment
  * in the fragment manager. If false property name is used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager. If null
  * then no-arg constructor is invoked
  * */
 inline fun <reified T : Fragment> Fragment.activityFragments(
-    reflectTag: Boolean,
+    useClassName: Boolean,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Parent(this).createDelegate(reflectTag, fragmentFactory)
+) = FragmentManagerProvider.Parent(
+    this
+).createDelegate(useClassName, fragmentFactory)
 
 /**
  * Obtain fragment of this type from this fragments child fragment manager.
@@ -104,20 +109,24 @@ inline fun <reified T : Fragment> Fragment.activityFragments(
 inline fun <reified T : Fragment> Fragment.fragments(
     tag: String? = null,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Child(this).createDelegate(tag, fragmentFactory)
+) = FragmentManagerProvider.Child(
+    this
+).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from this fragments child fragment manager.
  *
- * @param reflectTag if true then reflected static TAG is used to identify this fragment
+ * @param useClassName if true then fragments class name is used to identify this fragment
  * in the fragment manager. If false property name is used
  * @param fragmentFactory factory used if fragment is not found in the fragment manager. If null
  * then no-arg constructor is invoked
  * */
 inline fun <reified T : Fragment> Fragment.fragments(
-    reflectTag: Boolean,
+    useClassName: Boolean,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Child(this).createDelegate(reflectTag, fragmentFactory)
+) = FragmentManagerProvider.Child(
+    this
+).createDelegate(useClassName, fragmentFactory)
 
 /*  Internal - backing delegates. */
 
@@ -149,8 +158,9 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager>{
     ): FragmentManagerDelegatePrimary<T> {
         return FragmentManagerDelegatePrimary(
             this,
-            if(useTag) T::class.java.classTAG else null,
-            buildImpl ?: NewInstanceFragmentFactory()
+            if (useTag) T::class.java.name else null,
+            buildImpl
+                ?: NewInstanceFragmentFactory()
         )
     }
 
@@ -161,7 +171,8 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager>{
         return FragmentManagerDelegatePrimary(
             this,
             tag,
-            buildImpl ?: NewInstanceFragmentFactory()
+            buildImpl
+                ?: NewInstanceFragmentFactory()
         )
     }
 }
@@ -204,10 +215,19 @@ class FragmentManagerDelegatePrimary<T : Fragment>(
     buildImpl: () -> T
 ) : FragmentDelegate<T>(manager, tag, buildImpl) {
     /** Assumes fragment is initialized elsewhere, throws exception if it's is missing instead of instantiating it. */
-    fun required(): FragmentDelegate<T> = FragmentManagerDelegateSecondary(manager, tag, null)
+    fun required(): FragmentDelegate<T> =
+        FragmentManagerDelegateSecondary(
+            manager,
+            tag,
+            null
+        )
 
     /** Assume fragment might not exist, return null if it's is missing instead of instantiating it. */
-    fun nullable() = FragmentDelegateNullable<T>(manager, tag)
+    fun nullable() =
+        FragmentDelegateNullable<T>(
+            manager,
+            tag
+        )
 }
 
 /** Fragment delegate spawned by [FragmentManagerDelegatePrimary]. */
@@ -242,12 +262,16 @@ class FragmentDelegateNullable<T : Fragment>(
 /** Get object that returns this fragment manager. */
 @PublishedApi
 internal val FragmentManager.provider: FragmentManagerProvider
-    get() = FragmentManagerProvider.Direct(this)
+    get() = FragmentManagerProvider.Direct(
+        this
+    )
 
 /** Default fragment factory. */
 @PublishedApi
 internal inline fun <reified T : Fragment> NewInstanceFragmentFactory() =
-    NewInstanceFragmentFactory(T::class.java)
+    NewInstanceFragmentFactory(
+        T::class.java
+    )
 
 /** Default fragment factory. */
 @PublishedApi
