@@ -11,15 +11,15 @@ import com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager.parentFr
 
 class DelegateDemoActivity : AppCompatActivity() {
     // with no arg constructor
-    /** this uses property name (f1) as tag **/
+    /** this uses class name of [MyFragmentOne] as tag **/
     val f1 by fragments<MyFragmentOne>()
     /** this uses argument (CustomTag) as tag **/
     val f2 by fragments<MyFragmentOne>("CustomTag")
-    /** this uses [MyFragmentOne.javaClass.name] as tag **/
+    /** this uses propertny name (f3) as tag **/
     val f3 by fragments<MyFragmentOne>(true)
 
     // with builders
-    /** this uses property name (no tag argument) as tag with custom fragment builder. */
+    /** this uses class name (no tag argument) as tag with custom fragment builder. */
     val f10 by fragments {
         MyFragmentOne.newInstance("testArgument")
     }
@@ -27,7 +27,7 @@ class DelegateDemoActivity : AppCompatActivity() {
     val f20 by fragments("CustomTag2") {
         MyFragmentOne.newInstance("testArgument")
     }
-    /** this uses [MyFragmentOne.classTAG] as tag with custom fragment builder. */
+    /** this uses propertny name (f30) as tag with custom fragment builder. */
     val f30 by fragments(true) {
         MyFragmentOne.newInstance("testArgument")
     }
@@ -48,13 +48,13 @@ class MyFragmentOne : Fragment() {
         }
     }
 
-    /** this uses property name (f1) as tag **/
+    /** this uses class name (nestedF1) as tag **/
     val nestedF1 by fragments<MyFragmentTwo>()
 
     /** this references f2 of parent activity fragment manager */
     val parentF1 by parentFragments<MyFragmentTwo>("CustomTag")
 
-    /** nested using class name */
+    /** nested using property name */
     val nestedFragment2 by fragments<MyFragmentTwo>(true)
 
     // preference delegates
