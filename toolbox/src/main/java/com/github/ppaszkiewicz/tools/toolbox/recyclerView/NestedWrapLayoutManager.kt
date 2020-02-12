@@ -49,7 +49,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     private val singleItemType = true
 
     /**
-     * Extra views bound and laid outside the visible area (default: 1).
+     * Extra views bound and laid outside the visible area (default: 0).
      *
      * Increase this value if you encounter flickering edge layouts during fast scroll and flings.
      * */
