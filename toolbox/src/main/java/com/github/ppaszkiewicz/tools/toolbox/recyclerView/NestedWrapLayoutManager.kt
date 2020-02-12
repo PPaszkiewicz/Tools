@@ -101,7 +101,7 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
         if (childCount == 0 && state.isPreLayout) {
             return
         }
-        recyclesOnScroll = height - (outOfBoundsViews + 1) * itemHeight > scrollParent.height
+        recyclesOnScroll = heightNoPadding() - ((outOfBoundsViews + 2) * itemHeight) > scrollParent.height
         layoutChildrenInLayout(recycler, state, null, 0)
     }
 
@@ -282,6 +282,9 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
 
     // content width (without padding)
     private fun widthNoPadding() = width - paddingLeft - paddingRight
+
+    // content height (without padding)
+    private fun heightNoPadding() = height - paddingTop - paddingBottom
 
     // use default layout params
     override fun generateDefaultLayoutParams(): RecyclerView.LayoutParams {
