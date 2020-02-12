@@ -221,7 +221,7 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
         if (!recyclesOnScroll) return 0 until itemCount
         check(childCount > 0) { "Cannot determine range without any children" }
         val child = getChildAt(0)!!
-        val recyclerTop = (child.parent as View).nestedTop() - paddingTop - dy
+        val recyclerTop = (child.parent as View).nestedTop() + paddingTop - dy
         val firstItem = max((-recyclerTop) / itemHeight, 0)
         val visibleItems = min(scrollParent.height / itemHeight + 1, itemCount-1)
         return if (firstItem <= 0) {
