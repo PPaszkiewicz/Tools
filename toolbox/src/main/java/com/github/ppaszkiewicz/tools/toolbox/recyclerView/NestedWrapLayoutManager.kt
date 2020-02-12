@@ -1,5 +1,6 @@
 package com.github.ppaszkiewicz.tools.toolbox.recyclerView
 
+import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
 import android.util.Log
@@ -21,8 +22,12 @@ import kotlin.math.min
  * Only supports single viewtype and items must have identical height unaffected by binding content.
  *
  * @param scrollParent scroll view this layoutmanager observes.
+ * @param forceListener attach listener to [scrollParent] so scrolls started outside recyclerView work
  */
-class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView.LayoutManager() {
+class NestedWrapLayoutManager @JvmOverloads constructor(
+    val scrollParent: NestedScrollView,
+    val forceListener: Boolean = true
+) : RecyclerView.LayoutManager(), NestedScrollView.OnScrollChangeListener {
     companion object {
         const val TAG = "NWLayoutM"
     }
@@ -31,9 +36,9 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
      * Determines if anything will be recycled on scroll. If false it means entire RecyclerView content
      * fits within viewport of parent scroll view.
      *
-     * Raised during measuring phase.
+     * Raised during layout phase.
      * */
-    var recyclesOnScroll = true
+    var isEntireContentInViewPort = false
         private set
 
     /** If true only one item view type is supported. */
@@ -44,7 +49,7 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
      *
      * Increase this value if you encounter flickering edge layouts during fast scroll and flings.
      * */
-    var outOfBoundsViews = 1
+    var outOfBoundsViews = 0
         set(value) {
             require(value >= 0)
             check(childCount == 0) { "outOfBoundsViews have to be set before layout" }
@@ -55,8 +60,18 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
     var currentlyVisibleItemRange: IntRange = IntRange.EMPTY
         private set
 
-    // raised only if restore state was invoked
+    /** Raised only if restore state was invoked, that means [currentlyVisibleItemRange] should be valid. */
     private var mRangeWasRestored = false
+
+    /** Raised if this is currently in nested scroll. In that case ignore scroll listener on scroll parent. */
+    private var isInNestedScroll = false
+
+    /** RecyclerView this layoutmanager is attached to. Use [recyclerView] for null fallback. */
+    private var mRecyclerView: RecyclerView? = null
+
+    /** Currently managed recyclerView. */
+    private val recyclerView: RecyclerView
+        get() = mRecyclerView ?: getChildAt(0)!!.parent as RecyclerView
 
     /** Measured item view type sizes (right now only 1 type is supported) */
     private val itemSizes = SparseArray<Size>()
@@ -77,9 +92,11 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
             val v0 = recycler.getViewForPosition(0)
             measureWith(v0, state.itemCount, widthSpec)
             recycler.recycleView(v0)
+            //Log.d(TAG, "onMeasure done (recycled), $itemWidth:$itemHeight!")
         } else {
             val v0 = getChildAt(0)!!
             measureWith(v0, state.itemCount, widthSpec)
+            //Log.d(TAG, "onMeasure done (existed) $itemWidth:$itemHeight!")
         }
     }
 
@@ -101,7 +118,6 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
         if (childCount == 0 && state.isPreLayout) {
             return
         }
-        recyclesOnScroll = heightNoPadding() - ((outOfBoundsViews + 2) * itemHeight) > scrollParent.height
         layoutChildrenInLayout(recycler, state, null, 0)
     }
 
@@ -109,7 +125,7 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
     //
     private fun layoutChildrenInLayout(
         recycler: RecyclerView.Recycler,
-        state: RecyclerView.State,
+        state: RecyclerView.State?,
         removedViews: SparseIntArray?,
         dy: Int) {
         val viewCache = SparseArray<View>(childCount)
@@ -129,15 +145,14 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
         } else if (mRangeWasRestored) {
             // restoring the item range
             mRangeWasRestored = false
-            // clamp size of restored range for safety
-            currentlyVisibleItemRange.first..min(currentlyVisibleItemRange.last, itemCount - 1)
-        } else {
-            // no children so add a view that will be used to determine recyclerviews scroll
-            val view0 = addView(recycler, state, viewCache, 0)!!
-            val range = getVisibleItemRange(dy, state)
-            viewCache.put(0, view0)
-            detachView(view0)
+            var range = currentlyVisibleItemRange.first..currentlyVisibleItemRange.last
+            if (range.last >= state?.itemCount ?: itemCount) {
+                // item count was reduced, clamp to max current possible size
+                range = max(itemCount - 1 - viewCountToFitViewPort() - outOfBoundsViews, 0) until itemCount
+            }
             range
+        } else {
+            getVisibleItemRange(dy, state)
         }
 
         // layout visible items
@@ -150,6 +165,8 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
             recycler.recycleView(removingView)
         }
         currentlyVisibleItemRange = visibleItemRange
+        // optimization flag that will prevent
+        isEntireContentInViewPort = visibleItemRange.first == 0 && visibleItemRange.last == (state?.itemCount ?: itemCount) - 1
     }
 
     override fun onRestoreInstanceState(state: Parcelable?) {
@@ -166,7 +183,7 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
     }
 
     // add new view from recycler or reattach view from viewCache
-    private fun addView(recycler: RecyclerView.Recycler, state: RecyclerView.State, viewCache: SparseArray<View>, position: Int): View? {
+    private fun addView(recycler: RecyclerView.Recycler, state: RecyclerView.State?, viewCache: SparseArray<View>, position: Int): View? {
         var view = viewCache[position]
         if (view == null) {
             // this try catch is copied because this internally crashes?
@@ -183,7 +200,7 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
                     return null
                 }
             }
-            if (state.isPreLayout) {
+            if (state?.isPreLayout == true) {
                 // not supported?
             }
             measureChildWithMargins(view, 0, 0)
@@ -218,12 +235,11 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
      * */
     fun getVisibleItemRange(dy: Int = 0, state: RecyclerView.State? = null): IntRange {
         val itemCount = state?.itemCount ?: itemCount
-        if (!recyclesOnScroll) return 0 until itemCount
-        check(childCount > 0) { "Cannot determine range without any children" }
-        val child = getChildAt(0)!!
-        val recyclerTop = (child.parent as View).nestedTop() + paddingTop - dy
+        // if this was dispatched from nested scroll listener fallback ignore dy
+        val dyToUse = if(isInNestedScroll) dy else 0
+        val recyclerTop = recyclerView.nestedTop() + paddingTop - dyToUse
         val firstItem = max((-recyclerTop) / itemHeight, 0)
-        val visibleItems = min(scrollParent.height / itemHeight + 1, itemCount-1)
+        val visibleItems = viewCountToFitViewPort()
         return if (firstItem <= 0) {
             // top of recycler is visible
             0..visibleItems + outOfBoundsViews
@@ -231,7 +247,6 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
             // bottom of recycler is visible
             itemCount - 1 - visibleItems - outOfBoundsViews until itemCount
         } else {
-            // middle of recycler is visible
             val r = firstItem..firstItem + visibleItems
             // clamp the range to valid values
             max(r.first - outOfBoundsViews / 2, 0)..min(r.last + outOfBoundsViews / 2 + outOfBoundsViews % 2, itemCount - 1)
@@ -250,14 +265,36 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
         currentlyVisibleItemRange = range
     }
 
-    override fun scrollVerticallyBy(dy: Int, recycler: RecyclerView.Recycler, state: RecyclerView.State): Int {
-        if (!recyclesOnScroll) return 0    // no recycling will happen
+
+    override fun scrollVerticallyBy(dy: Int, recycler: RecyclerView.Recycler, state: RecyclerView.State?): Int {
+        if (isEntireContentInViewPort) return 0    // no recycling will happen
         layoutChildrenInLayout(recycler, state, null, dy)
         return 0
     }
 
+    override fun onAttachedToWindow(view: RecyclerView?) {
+        super.onAttachedToWindow(view)
+        mRecyclerView = view
+        if (forceListener) scrollParent.setOnScrollChangeListener(this)
+    }
+
+    override fun onScrollChange(v: NestedScrollView?, scrollX: Int, scrollY: Int, oldScrollX: Int, oldScrollY: Int) {
+        if(!isInNestedScroll) recyclerView.scrollBy(0, (scrollY - oldScrollY))
+    }
+
+    override fun onScrollStateChanged(state: Int) {
+        isInNestedScroll = when (state) {
+            RecyclerView.SCROLL_STATE_DRAGGING -> true
+            RecyclerView.SCROLL_STATE_IDLE, RecyclerView.SCROLL_STATE_SETTLING -> {
+                false
+            }
+            else -> false
+        }
+    }
+
     override fun onAdapterChanged(oldAdapter: RecyclerView.Adapter<*>?, newAdapter: RecyclerView.Adapter<*>?) {
         itemSizes.clear()
+        currentlyVisibleItemRange = IntRange.EMPTY
         removeAllViews()
     }
 
@@ -271,20 +308,41 @@ class NestedWrapLayoutManager(val scrollParent: NestedScrollView) : RecyclerView
 
     private fun View.params() = layoutParams as RecyclerView.LayoutParams
 
-    // TOP position relative to nested scroll view parent
+    /** TOP position relative to nested scroll view parent */
     private tailrec fun View.nestedTop(current: Int = 0): Int = when (val p = parent) {
         scrollParent -> {
-            top + current - scrollParent.scrollY
+            top + current - scrollParent.scrollY - parentTopPadding()
         }
         is ViewGroup -> p.nestedTop(top + current)
         else -> throw IllegalStateException("Invalid scrollParent provided!!")
     }
 
-    // content width (without padding)
+    /** content width (without padding) */
     private fun widthNoPadding() = width - paddingLeft - paddingRight
 
-    // content height (without padding)
+    /** content height (without padding) */
     private fun heightNoPadding() = height - paddingTop - paddingBottom
+
+    /** height of parent scroll views content (without padding unless clipping is disabled)**/
+    private fun parentContentHeight() = scrollParent.run {
+        if (Build.VERSION.SDK_INT >= 21 && !clipToPadding) {
+            height
+        } else {
+            height - paddingTop - paddingBottom
+        }
+    }
+
+    /** relevant top padding of parent scroll view - value depends if it clips. */
+    private fun parentTopPadding() = scrollParent.run {
+        if (Build.VERSION.SDK_INT >= 21 && !clipToPadding) {
+            0
+        } else {
+            scrollParent.paddingTop
+        }
+    }
+
+    /** amount of views that can need to be laid out to completely fill 1 parent viewport */
+    private fun viewCountToFitViewPort() = min(parentContentHeight() / itemHeight + 1, itemCount - 1)
 
     // use default layout params
     override fun generateDefaultLayoutParams(): RecyclerView.LayoutParams {
