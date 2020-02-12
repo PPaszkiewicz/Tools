@@ -21,8 +21,12 @@ import kotlin.math.min
  *
  * Only supports single viewtype and items must have identical height unaffected by binding content.
  *
+ * If you're using custom scroll listener on [scrollParent] already and don't want it overridden,
+ * manually dispatch all scroll events to [onScrollChange] of this layout manager.
+ *
  * @param scrollParent scroll view this layoutmanager observes.
- * @param forceListener attach listener to [scrollParent] so scrolls started outside recyclerView work
+ * @param forceListener attach this as listener to [scrollParent] so scrolls performed
+ *              outside recyclerView work
  */
 class NestedWrapLayoutManager @JvmOverloads constructor(
     val scrollParent: NestedScrollView,
