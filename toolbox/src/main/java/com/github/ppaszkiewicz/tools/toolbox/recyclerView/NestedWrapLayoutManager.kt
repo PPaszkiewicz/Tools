@@ -270,7 +270,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
 
         // see if layout manager is configured to skip laying out if recycler view is not within
         // visible bounds
-        if (layoutStrategy != LAYOUT_FIXED && !orientationHelper.isRecyclerViewVisible(recyclerLocation, parentContentSize)) {
+        if (layoutStrategy != LAYOUT_FIXED && !isRecyclerViewVisible(recyclerLocation, parentContentSize)) {
             return IntRange.EMPTY
         }
         // recycler view is within bounds, calculate visible items
@@ -397,6 +397,13 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     /** Amount of views that need to be laid out to completely fill 1 viewport of [size]. */
     private fun viewCountToFit(size: Int) = min(size / orientationHelper.itemSize + 1, itemCount - 1)
 
+    /** Check if recycler is visible at all. Pass current [recyclerScrollLocation], optionally altered by
+     * scroll diff, and freshly calculated [parentContentSize]. */
+    private fun isRecyclerViewVisible(recyclerScrollLocation: Int, parentContentSize: Int): Boolean {
+        return recyclerScrollLocation < parentContentSize &&
+                recyclerScrollLocation > -orientationHelper.recyclerViewContentSize
+    }
+
     // reflect recycler, used when listening to non-nested scroll
     private val reflectRecycler: RecyclerView.Recycler
         get() {
@@ -424,10 +431,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
 
         /** Unspecified layout params.*/
         abstract fun generateDefaultLayoutParams(): RecyclerView.LayoutParams
-
-        /** Check if recycler is visible at all. Pass current [recyclerScrollLocation], optionally altered by
-         * scroll diff, and freshly calculated [parentContentSize]. */
-        abstract fun isRecyclerViewVisible(recyclerScrollLocation: Int, parentContentSize: Int): Boolean
 
         /** Relevant content size (without paddings). */
         abstract val recyclerViewContentSize: Int
@@ -473,10 +476,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             RecyclerView.LayoutParams.MATCH_PARENT,
             RecyclerView.LayoutParams.WRAP_CONTENT
         )
-
-        override fun isRecyclerViewVisible(recyclerScrollLocation: Int, parentContentSize: Int): Boolean {
-            return recyclerScrollLocation < parentContentSize && recyclerScrollLocation > -recyclerViewContentSize
-        }
 
         // top padding is already removed when calculating first item position
         override val recyclerViewContentSize: Int
@@ -539,10 +538,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             RecyclerView.LayoutParams.WRAP_CONTENT,
             RecyclerView.LayoutParams.MATCH_PARENT
         )
-
-        override fun isRecyclerViewVisible(recyclerScrollLocation: Int, parentContentSize: Int): Boolean {
-            return recyclerScrollLocation < parentContentSize && recyclerScrollLocation > -recyclerViewContentSize
-        }
 
         // left padding is already removed when calculating first item position
         override val recyclerViewContentSize: Int
