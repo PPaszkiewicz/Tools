@@ -79,11 +79,12 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
      */
     var layoutStrategy = LAYOUT_FIXED
 
+    /// ---- end -----------------------------------------------------------------------------------
+
     /** Currently displayed list of items. */
     var currentlyVisibleItemRange: IntRange = IntRange.EMPTY
         private set
 
-    /// ---- end -----------------------------------------------------------------------------------
 
     /**
      * Determines if anything will be recycled on scroll. If false it means entire RecyclerView content
