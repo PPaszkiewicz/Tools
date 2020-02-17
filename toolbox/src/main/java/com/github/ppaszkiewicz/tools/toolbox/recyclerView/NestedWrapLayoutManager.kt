@@ -10,7 +10,7 @@ import android.util.SparseIntArray
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
-import androidx.core.util.set
+import androidx.core.math.MathUtils
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 import kotlin.math.max
@@ -71,6 +71,14 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             check(childCount == 0) { "outOfBoundsViews have to be set before layout" }
             field = value
         }
+
+    /**
+     * Maximum amount of viewholders prefetched while scrolling/flinging (default: 5).
+     *
+     * Note: this only works if RecyclerView is within nested scroll view, and RecyclerView itself
+     * has initiated the scroll event.
+     * */
+    var prefetchItemCount = 5
 
     /**
      * Layout strategy to use.
@@ -162,8 +170,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         layoutChildrenInLayout(recycler, state, null, 0)
     }
 
-    lateinit var debugView: View
-    //
     private fun layoutChildrenInLayout(
         recycler: RecyclerView.Recycler,
         state: RecyclerView.State?,
@@ -288,6 +294,27 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         }
         // clamp the range to valid values
         return max(0, r.first)..min(r.last, itemCount - 1)
+    }
+
+    override fun collectAdjacentPrefetchPositions(dx: Int, dy: Int, state: RecyclerView.State, layoutPrefetchRegistry: LayoutPrefetchRegistry) {
+        // prefetch items only is there's any momentum
+        val scroll = state.remainingScroll
+        if(scroll == 0) return
+        val itemsToScroll = absClamp(state.remainingScroll / orientationHelper.itemSize,prefetchItemCount)
+        if(itemsToScroll == 0) return
+        val prefetchList = when{
+            itemsToScroll > 0 -> {
+                currentlyVisibleItemRange.last..min(currentlyVisibleItemRange.last+itemsToScroll, itemCount-1)
+            }
+            else -> {
+                (max(currentlyVisibleItemRange.first+itemsToScroll, 0)..currentlyVisibleItemRange.first).reversed()
+            }
+        }
+        var prefetchDist = 0
+        prefetchList.forEach {
+            prefetchDist+=orientationHelper.itemSize
+            layoutPrefetchRegistry.addPosition(it, prefetchDist)
+        }
     }
 
     override fun requestLayout() {
@@ -455,7 +482,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             val h = v0.measuredHeight * itemCount + paddingTop + paddingBottom
             require(h > 0) { "item height of match_parent not supported in vertical orientation" }
             setMeasuredDimension(w, h)
-            itemSizes[getItemViewType(v0)] = Point(v0.measuredWidth, v0.measuredHeight)
+            itemSizes.setValueAt(getItemViewType(v0), Point(v0.measuredWidth, v0.measuredHeight))
         }
 
         override fun layoutViewForPosition(v: View, position: Int) {
@@ -517,7 +544,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             )
             require(w > 0) { "item width of match_parent not supported in horizontal orientation" }
             setMeasuredDimension(w, h)
-            itemSizes[getItemViewType(v0)] = Point(v0.measuredWidth, v0.measuredHeight)
+            itemSizes.setValueAt(getItemViewType(v0), Point(v0.measuredWidth, v0.measuredHeight))
         }
 
         override fun layoutViewForPosition(v: View, position: Int) {
@@ -564,5 +591,15 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     /** Return result of [padding] if clip to padding is true, otherwise 0. */
     private inline fun ViewGroup.takeIfPaddingClips(padding: View.() -> Int) = run {
         if(!clipToPadding) 0 else padding()
+    }
+    /** Remaining scroll valid for current orientation. */
+    private val RecyclerView.State.remainingScroll
+        get() = if(orientation == VERTICAL) remainingScrollVertical else remainingScrollHorizontal
+
+    /** Clamp [value] between -minMax and minMax. */
+    private fun absClamp(value: Int, minMax : Int) = when{
+        value < -minMax -> -minMax
+        value > minMax -> minMax
+        else -> value
     }
 }
