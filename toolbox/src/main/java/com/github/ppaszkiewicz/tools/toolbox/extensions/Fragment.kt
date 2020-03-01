@@ -56,7 +56,6 @@ private class LazyViewBinding<T : ViewBinding>(private val createBinding: (View)
     @Suppress("Unused")
     fun onDestroyView(){
         value = null
-        Log.d("delegate", "view destroyed")
     }
 }
 
