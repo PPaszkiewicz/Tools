@@ -12,6 +12,10 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import androidx.core.math.MathUtils
 import androidx.core.util.set
+import androidx.core.view.marginBottom
+import androidx.core.view.marginLeft
+import androidx.core.view.marginRight
+import androidx.core.view.marginTop
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 import kotlin.math.max
@@ -475,15 +479,17 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
 
         override fun measure(v0: View, itemCount: Int, widthSpec: Int, heightSpec: Int) {
             withMockedScroll { measureChildWithMargins(v0, 0, 0) }
+            val itemW = v0.measuredWidthWithMargins()
+            val itemH = v0.measuredHeightWithMargins()
             val w = chooseSize(
                 widthSpec,
-                v0.measuredWidth + paddingLeft + paddingRight,
+                itemW + paddingLeft + paddingRight,
                 paddingLeft + paddingRight
             )
-            val h = v0.measuredHeight * itemCount + paddingTop + paddingBottom
-            require(h > 0) { "item height of match_parent not supported in vertical orientation" }
+            val h = itemH * itemCount + paddingTop + paddingBottom
+            require(v0.measuredHeight > 0) { "item height of match_parent not supported in vertical orientation" }
             setMeasuredDimension(w, h)
-            itemSizes[getItemViewType(v0)] = Point(v0.measuredWidth, v0.measuredHeight)
+            itemSizes[getItemViewType(v0)] = Point(itemW, itemH)
         }
 
         override fun layoutViewForPosition(v: View, position: Int) {
@@ -537,15 +543,17 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
 
         override fun measure(v0: View, itemCount: Int, widthSpec: Int, heightSpec: Int) {
             withMockedScroll { measureChildWithMargins(v0, 0, 0) }
-            val w = v0.measuredWidth * itemCount + paddingLeft + paddingRight
+            val itemW = v0.measuredWidthWithMargins()
+            val itemH = v0.measuredHeightWithMargins()
+            val w = itemW * itemCount + paddingLeft + paddingRight
             val h = chooseSize(
                 heightSpec,
-                v0.measuredHeight + paddingTop + paddingBottom,
+                itemH + paddingTop + paddingBottom,
                 paddingTop + paddingBottom
             )
-            require(w > 0) { "item width of match_parent not supported in horizontal orientation" }
+            require(v0.measuredWidth > 0) { "item width of match_parent not supported in horizontal orientation" }
             setMeasuredDimension(w, h)
-            itemSizes[getItemViewType(v0)] = Point(v0.measuredWidth, v0.measuredHeight)
+            itemSizes[getItemViewType(v0)] = Point(itemW, itemH)
         }
 
         override fun layoutViewForPosition(v: View, position: Int) {
@@ -603,4 +611,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         value > minMax -> minMax
         else -> value
     }
+    private fun View.measuredWidthWithMargins() = measuredWidth + marginLeft + marginRight
+    private fun View.measuredHeightWithMargins() = measuredHeight + marginTop + marginBottom
+
 }
