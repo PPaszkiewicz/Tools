@@ -611,7 +611,15 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         value > minMax -> minMax
         else -> value
     }
-    private fun View.measuredWidthWithMargins() = measuredWidth + marginLeft + marginRight
-    private fun View.measuredHeightWithMargins() = measuredHeight + marginTop + marginBottom
+    /** measured width with margins - if width is 0 then margins are ignored and 0 is returned. */
+    private fun View.measuredWidthWithMargins() = when(measuredWidth){
+        0 -> 0
+        else -> measuredWidth + marginLeft + marginRight
+    }
+    /** measured height with margins - if height is 0 then margins are ignored and 0 is returned. */
+    private fun View.measuredHeightWithMargins() = when(measuredHeight){
+        0 -> 0
+        else -> measuredHeight + marginTop + marginBottom
+    }
 
 }
