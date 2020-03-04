@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import androidx.core.math.MathUtils
+import androidx.core.util.set
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 import kotlin.math.max
@@ -120,7 +121,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     private var mScrollListener: ViewTreeObserver.OnScrollChangedListener? = null
 
     /** Measured item view type sizes (right now only 1 type is supported) */
-    private val itemSizes = SparseArray<Point>()
+    private val itemSizes = SparseArray<Point>(1)
     private val itemHeight: Int
         get() = itemSizes.valueAt(0).y
     private val itemWidth: Int
@@ -482,7 +483,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             val h = v0.measuredHeight * itemCount + paddingTop + paddingBottom
             require(h > 0) { "item height of match_parent not supported in vertical orientation" }
             setMeasuredDimension(w, h)
-            itemSizes.setValueAt(getItemViewType(v0), Point(v0.measuredWidth, v0.measuredHeight))
+            itemSizes[getItemViewType(v0)] = Point(v0.measuredWidth, v0.measuredHeight)
         }
 
         override fun layoutViewForPosition(v: View, position: Int) {
@@ -544,7 +545,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             )
             require(w > 0) { "item width of match_parent not supported in horizontal orientation" }
             setMeasuredDimension(w, h)
-            itemSizes.setValueAt(getItemViewType(v0), Point(v0.measuredWidth, v0.measuredHeight))
+            itemSizes[getItemViewType(v0)] = Point(v0.measuredWidth, v0.measuredHeight)
         }
 
         override fun layoutViewForPosition(v: View, position: Int) {
