@@ -150,15 +150,19 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     override fun supportsPredictiveItemAnimations() = false
 
     override fun onMeasure(recycler: RecyclerView.Recycler, state: RecyclerView.State, widthSpec: Int, heightSpec: Int) {
-        if (childCount == 0) {
-            val v0 = recycler.getViewForPosition(0)
-            orientationHelper.measure(v0, state.itemCount, widthSpec, heightSpec)
-            recycler.recycleView(v0)
-            //Log.d(TAG, "onMeasure done (recycled), $itemWidth:$itemHeight!")
-        } else {
-            val v0 = getChildAt(0)!!
-            orientationHelper.measure(v0, state.itemCount, widthSpec, heightSpec)
-            //Log.d(TAG, "onMeasure done (existed) $itemWidth:$itemHeight!")
+        when {
+            state.itemCount == 0 -> super.onMeasure(recycler, state, widthSpec, heightSpec)
+            childCount == 0 -> {
+                val v0 = recycler.getViewForPosition(0)
+                orientationHelper.measure(v0, state.itemCount, widthSpec, heightSpec)
+                recycler.recycleView(v0)
+                //Log.d(TAG, "onMeasure done (recycled), $itemWidth:$itemHeight!")
+            }
+            else -> {
+                val v0 = getChildAt(0)!!
+                orientationHelper.measure(v0, state.itemCount, widthSpec, heightSpec)
+                //Log.d(TAG, "onMeasure done (existed) $itemWidth:$itemHeight!")
+            }
         }
     }
 
