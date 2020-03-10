@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.tools.toolbox.extensions
+package com.github.ppaszkiewicz.tools.toolbox.delegate
 
 import android.content.Context
 import android.view.View
@@ -31,10 +31,16 @@ sealed class ContextDelegate : ReadOnlyProperty<Any, Context> {
 
 /** Delegate that returns context. */
 val Context.contextDelegate
-    get() = ContextDelegate.OfContext(this)
+    get() = ContextDelegate.OfContext(
+        this
+    )
 /** Delegate that returns context. */
 val Fragment.contextDelegate
-    get() = ContextDelegate.OfFragment(this)
+    get() = ContextDelegate.OfFragment(
+        this
+    )
 /** Delegate that returns context. */
 val View.contextDelegate
-    get() = ContextDelegate.OfView(this)
+    get() = ContextDelegate.OfView(
+        this
+    )

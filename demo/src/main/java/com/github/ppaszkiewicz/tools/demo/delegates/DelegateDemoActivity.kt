@@ -1,13 +1,13 @@
 package com.github.ppaszkiewicz.tools.demo.delegates
 
 import android.util.Log
-import androidx.annotation.Keep
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.github.ppaszkiewicz.tools.toolbox.extensions.*
-import com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager.activityFragments
-import com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager.fragments
-import com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager.parentFragments
+import com.github.ppaszkiewicz.tools.toolbox.delegate.activityFragments
+import com.github.ppaszkiewicz.tools.toolbox.delegate.fragments
+import com.github.ppaszkiewicz.tools.toolbox.delegate.parentFragments
+import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences
 
 class DelegateDemoActivity : AppCompatActivity() {
     // with no arg constructor

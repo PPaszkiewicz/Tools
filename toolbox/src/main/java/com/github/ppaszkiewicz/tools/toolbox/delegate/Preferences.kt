@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.tools.toolbox.extensions
+package com.github.ppaszkiewicz.tools.toolbox.delegate
 
 import android.content.Context
 import android.content.SharedPreferences
@@ -20,27 +20,52 @@ val Context?.defaultPrefs: SharedPreferences
 /* Factory methods */
 
 /** Delegates for obtaining data from this shared preferences. */
-fun SharedPreferences.delegates() = SharedPreferencesProvider.Direct(this)
+fun SharedPreferences.delegates() =
+    SharedPreferencesProvider.Direct(
+        this
+    )
 
 /** Delegate for obtaining data from default shared preferences. */
-fun Context.preferences() = SharedPreferencesProvider.ContextDef(this)
+fun Context.preferences() =
+    SharedPreferencesProvider.ContextDef(
+        this
+    )
 
 /** Delegate for obtaining data from shared preferences. */
 fun Context.preferences(key: String, mode: Int = 0) =
-    SharedPreferencesProvider.Context(this, key, mode)
+    SharedPreferencesProvider.Context(
+        this,
+        key,
+        mode
+    )
 
 /** Delegate for obtaining data from default shared preferences. */
-fun Fragment.preferences() = SharedPreferencesProvider.FragmentDef(this)
+fun Fragment.preferences() =
+    SharedPreferencesProvider.FragmentDef(
+        this
+    )
 
 /** Delegate for obtaining data from shared preferences. */
 fun Fragment.preferences(key: String, mode: Int = 0) =
-    SharedPreferencesProvider.Fragment(this, key, mode)
+    SharedPreferencesProvider.Fragment(
+        this,
+        key,
+        mode
+    )
 
 /** Delegate for obtaining data from default shared preferences. */
-fun View.preferences() = SharedPreferencesProvider.ViewDef(this)
+fun View.preferences() =
+    SharedPreferencesProvider.ViewDef(
+        this
+    )
 
 /** Delegate for obtaining data from shared preferences. */
-fun View.preferences(key: String, mode: Int = 0) = SharedPreferencesProvider.View(this, key, mode)
+fun View.preferences(key: String, mode: Int = 0) =
+    SharedPreferencesProvider.View(
+        this,
+        key,
+        mode
+    )
 
 /** Edit with auto [apply] after block. */
 inline fun SharedPreferences.edit(edit: SharedPreferences.Editor.() -> Unit) =
@@ -104,37 +129,73 @@ sealed class SharedPreferencesProvider : ReadOnlyProperty<Any, SharedPreferences
         key: String,
         default: Boolean,
         setListener: ((Boolean) -> Unit)? = null
-    ) = RWBooleanPref(this, key, default, setListener)
+    ) = RWBooleanPref(
+        this,
+        key,
+        default,
+        setListener
+    )
 
     /** Long preference. [setListener] can be run before changing value in preferences.*/
     fun long(key: String, default: Long, setListener: ((Long) -> Unit)? = null) =
-        RWLongPref(this, key, default, setListener)
+        RWLongPref(
+            this,
+            key,
+            default,
+            setListener
+        )
 
     /** Int preference. [setListener] can be run before changing value in preferences.*/
     fun int(key: String, default: Int, setListener: ((Int) -> Unit)? = null) =
-        RWIntPref(this, key, default, setListener)
+        RWIntPref(
+            this,
+            key,
+            default,
+            setListener
+        )
 
     /** Float preference. [setListener] can be run before changing value in preferences.*/
     fun float(key: String, default: Float, setListener: ((Float) -> Unit)? = null) =
-        RWFloatPref(this, key, default, setListener)
+        RWFloatPref(
+            this,
+            key,
+            default,
+            setListener
+        )
 
     /** String preference. [setListener] can be run before changing value in preferences.*/
     fun string(key: String, default: String, setListener: ((String) -> Unit)? = null) =
-        RWStringPref(this, key, default, setListener)
+        RWStringPref(
+            this,
+            key,
+            default,
+            setListener
+        )
 
     /** String set preference. If [default] is not set returns empty set by default. [setListener] can be run before changing value in preferences.*/
     fun stringSet(
         key: String,
         default: Set<String> = emptySet(),
         setListener: ((Set<String>) -> Unit)? = null
-    ) = RWStringSetPref(this, key, default, setListener)
+    ) = RWStringSetPref(
+        this,
+        key,
+        default,
+        setListener
+    )
 
     /** Enum preference - mapped to ENUM NAME string. [setBlock] can be run before changing the value in preferences.*/
     inline fun <reified T : Enum<T>> enum(
         key: String,
         default: T,
         noinline setBlock: ((T) -> Unit)? = null
-    ) = RWEnumPref(this, key, default, T::class.java, setBlock)
+    ) = RWEnumPref(
+        this,
+        key,
+        default,
+        T::class.java,
+        setBlock
+    )
 }
 
 /*

@@ -7,8 +7,8 @@ import android.os.IBinder
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import com.github.ppaszkiewicz.tools.toolbox.extensions.ContextDelegate
-import com.github.ppaszkiewicz.tools.toolbox.extensions.contextDelegate
+import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
+import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 
 /*
  *   Requires DirectBindService.kt
@@ -17,7 +17,7 @@ import com.github.ppaszkiewicz.tools.toolbox.extensions.contextDelegate
 /**
  * [DirectBindService] that gets automatically stopped when it's unbound for [serviceTimeoutMs].
  */
-abstract class LingeringService : DirectBindService() {
+abstract class LingeringService : DirectBindService.Impl() {
     companion object {
         const val TAG = "LingeringService"
         /**

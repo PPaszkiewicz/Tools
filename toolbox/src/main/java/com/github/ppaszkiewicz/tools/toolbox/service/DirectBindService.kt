@@ -8,14 +8,11 @@ import android.content.ServiceConnection
 import android.os.Binder
 import android.os.IBinder
 import android.system.Os.bind
-import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
-import com.github.ppaszkiewicz.tools.toolbox.extensions.ContextDelegate
-import com.github.ppaszkiewicz.tools.toolbox.extensions.contextDelegate
-import kotlin.properties.ReadOnlyProperty
-import kotlin.reflect.KProperty
+import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
+import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 
 /*
     Base for direct binding services.
@@ -24,20 +21,27 @@ import kotlin.reflect.KProperty
 /** Service binder giving direct reference. */
 open class DirectBinder(val service: Service) : Binder()
 
-/** This base has only one purpose: to work with [DirectServiceConnection]. */
-abstract class DirectBindService : Service() {
+/**
+ * This is a marker interface for services handling [BIND_DIRECT_ACTION] and returning [DirectBinder].
+ *
+ * If possible default implementation can be extended: [DirectBindService.Impl].
+ * */
+interface DirectBindService {
     companion object {
         @JvmStatic
         val BIND_DIRECT_ACTION = "DirectBindService.BIND_DIRECT_ACTION"
     }
 
-    @Suppress("LeakingThis")
-    private val binder = DirectBinder(this)
+    /** Default [DirectBindService] implementation.*/
+    abstract class Impl : Service(), DirectBindService {
+        @Suppress("LeakingThis")
+        private val binder = DirectBinder(this)
 
-    override fun onBind(intent: Intent?): IBinder {
-        if (intent?.action == BIND_DIRECT_ACTION)
-            return binder
-        throw IllegalArgumentException("BIND_DIRECT_ACTION required.")
+        override fun onBind(intent: Intent?): IBinder {
+            if (intent?.action == BIND_DIRECT_ACTION)
+                return binder
+            throw IllegalArgumentException("BIND_DIRECT_ACTION required.")
+        }
     }
 }
 

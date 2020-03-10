@@ -13,7 +13,7 @@ import com.github.ppaszkiewicz.tools.demo.coroutines.loaderDemo.LoaderActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.TaskServiceActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParamsDialog
 import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
-import com.github.ppaszkiewicz.tools.toolbox.extensions.*
+import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences
 import kotlinx.android.synthetic.main.activity_main.*
 
 /**

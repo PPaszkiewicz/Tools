@@ -24,7 +24,7 @@ import kotlin.math.max
  *
  * @param R result of tasks
  * */
-abstract class QueuedTaskService<R> : DirectBindService(), CoroutineScope {
+abstract class QueuedTaskService<R> : DirectBindService.Impl(), CoroutineScope {
     companion object {
         @JvmStatic
         val TAG = "QueuedTaskService"

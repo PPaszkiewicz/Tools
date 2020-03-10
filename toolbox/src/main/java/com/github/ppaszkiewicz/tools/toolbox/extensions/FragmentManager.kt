@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager
+package com.github.ppaszkiewicz.tools.toolbox.extensions
 
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager

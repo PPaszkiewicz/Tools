@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.tools.toolbox.extensions.fragmentManager
+package com.github.ppaszkiewicz.tools.toolbox.delegate
 
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -49,7 +49,9 @@ inline fun <reified T : Fragment> AppCompatActivity.fragments(
 inline fun <reified T : Fragment> Fragment.parentFragments(
     tag: String? = null,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Activity(this).createDelegate(tag, fragmentFactory)
+) = FragmentManagerProvider.Activity(
+    this
+).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from parent fragment manager (one this fragment is in).
@@ -62,7 +64,9 @@ inline fun <reified T : Fragment> Fragment.parentFragments(
 inline fun <reified T : Fragment> Fragment.parentFragments(
     usePropName: Boolean,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Activity(this).createDelegate(usePropName, fragmentFactory)
+) = FragmentManagerProvider.Activity(
+    this
+).createDelegate(usePropName, fragmentFactory)
 
 /**
  * Obtain fragment of this type from host activity fragment manager.
@@ -75,7 +79,9 @@ inline fun <reified T : Fragment> Fragment.parentFragments(
 inline fun <reified T : Fragment> Fragment.activityFragments(
     tag: String? = null,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Parent(this).createDelegate(tag, fragmentFactory)
+) = FragmentManagerProvider.Parent(
+    this
+).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from host activity fragment manager.
@@ -88,7 +94,9 @@ inline fun <reified T : Fragment> Fragment.activityFragments(
 inline fun <reified T : Fragment> Fragment.activityFragments(
     usePropName: Boolean,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Parent(this).createDelegate(usePropName, fragmentFactory)
+) = FragmentManagerProvider.Parent(
+    this
+).createDelegate(usePropName, fragmentFactory)
 
 /**
  * Obtain fragment of this type from this fragments child fragment manager.
@@ -101,7 +109,9 @@ inline fun <reified T : Fragment> Fragment.activityFragments(
 inline fun <reified T : Fragment> Fragment.fragments(
     tag: String? = null,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Child(this).createDelegate(tag, fragmentFactory)
+) = FragmentManagerProvider.Child(
+    this
+).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from this fragments child fragment manager.
@@ -114,7 +124,9 @@ inline fun <reified T : Fragment> Fragment.fragments(
 inline fun <reified T : Fragment> Fragment.fragments(
     usePropName: Boolean,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Child(this).createDelegate(usePropName, fragmentFactory)
+) = FragmentManagerProvider.Child(
+    this
+).createDelegate(usePropName, fragmentFactory)
 
 /*  Internal - backing delegates. */
 
@@ -148,7 +160,8 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager> {
         return FragmentManagerDelegatePrimary(
             this,
             if (usePropName) null else T::class.java.name,
-            buildImpl ?: NewInstanceFragmentFactory()
+            buildImpl
+                ?: NewInstanceFragmentFactory()
         )
     }
 
@@ -160,7 +173,8 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager> {
         return FragmentManagerDelegatePrimary(
             this,
             tag ?: T::class.java.name,
-            buildImpl ?: NewInstanceFragmentFactory()
+            buildImpl
+                ?: NewInstanceFragmentFactory()
         )
     }
 }
