@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import androidx.core.math.MathUtils
+import androidx.core.util.isNotEmpty
 import androidx.core.util.set
 import androidx.core.view.marginBottom
 import androidx.core.view.marginLeft
@@ -208,8 +209,10 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                 range = max(itemCount - 1 - viewCountToFit(orientationHelper.parentContentSize()) - outOfBoundsViews, 0) until itemCount
             }
             range
-        } else {
+        } else if(itemSizes.isNotEmpty()){
             getVisibleItemRange(dScroll, state)
+        }else {
+            IntRange.EMPTY
         }
         // layout visible items
         visibleItemRange.forEach {
