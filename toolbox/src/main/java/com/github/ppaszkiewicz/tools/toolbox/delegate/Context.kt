@@ -1,8 +1,10 @@
 package com.github.ppaszkiewicz.tools.toolbox.delegate
 
+import android.app.Application
 import android.content.Context
 import android.view.View
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.AndroidViewModel
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -22,11 +24,6 @@ sealed class ContextDelegate : ReadOnlyProperty<Any, Context> {
     class OfFragment(private val fragment: Fragment) : ContextDelegate() {
         override fun get() = fragment.requireContext()
     }
-
-    /** Returns views context. */
-    class OfView(private val view: View) : ContextDelegate() {
-        override fun get() : Context = view.context
-    }
 }
 
 /** Delegate that returns context. */
@@ -40,7 +37,8 @@ val Fragment.contextDelegate
         this
     )
 /** Delegate that returns context. */
+val AndroidViewModel.contextDelegate
+    get() = getApplication<Application>().contextDelegate
+/** Delegate that returns context. */
 val View.contextDelegate
-    get() = ContextDelegate.OfView(
-        this
-    )
+    get() = context.contextDelegate

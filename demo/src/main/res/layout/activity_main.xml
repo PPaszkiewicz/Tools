@@ -70,13 +70,22 @@
                 android:id="@+id/btnLingeringTest1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Lingering service demo 1 (lfecycle)"/>
+                android:textAllCaps="false"
+                android:text="Lingering service demo 1 (lifecycle)"/>
 
         <Button
                 android:id="@+id/btnLingeringTest2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:textAllCaps="false"
                 android:text="Lingering service demo 2 (manual)"/>
+
+        <Button
+                android:id="@+id/btnLingeringTest3"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAllCaps="false"
+                android:text="Lingering service demo 3 (liveData)"/>
     </LinearLayout>
     </ScrollView>
 </LinearLayout>

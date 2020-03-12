@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.preference.PreferenceManager
 import android.view.View
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.AndroidViewModel
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -20,16 +21,10 @@ val Context?.defaultPrefs: SharedPreferences
 /* Factory methods */
 
 /** Delegates for obtaining data from this shared preferences. */
-fun SharedPreferences.delegates() =
-    SharedPreferencesProvider.Direct(
-        this
-    )
+fun SharedPreferences.delegates() = SharedPreferencesProvider.Direct(this)
 
 /** Delegate for obtaining data from default shared preferences. */
-fun Context.preferences() =
-    SharedPreferencesProvider.ContextDef(
-        this
-    )
+fun Context.preferences() = SharedPreferencesProvider.ContextDef(this)
 
 /** Delegate for obtaining data from shared preferences. */
 fun Context.preferences(key: String, mode: Int = 0) =
@@ -40,10 +35,18 @@ fun Context.preferences(key: String, mode: Int = 0) =
     )
 
 /** Delegate for obtaining data from default shared preferences. */
-fun Fragment.preferences() =
-    SharedPreferencesProvider.FragmentDef(
-        this
+fun AndroidViewModel.preferences() = SharedPreferencesProvider.ContextDef(getApplication())
+
+/** Delegate for obtaining data from shared preferences. */
+fun AndroidViewModel.preferences(key: String, mode: Int = 0) =
+    SharedPreferencesProvider.Context(
+        getApplication(),
+        key,
+        mode
     )
+
+/** Delegate for obtaining data from default shared preferences. */
+fun Fragment.preferences() = SharedPreferencesProvider.FragmentDef(this)
 
 /** Delegate for obtaining data from shared preferences. */
 fun Fragment.preferences(key: String, mode: Int = 0) =
@@ -54,10 +57,7 @@ fun Fragment.preferences(key: String, mode: Int = 0) =
     )
 
 /** Delegate for obtaining data from default shared preferences. */
-fun View.preferences() =
-    SharedPreferencesProvider.ViewDef(
-        this
-    )
+fun View.preferences() = SharedPreferencesProvider.ViewDef(this)
 
 /** Delegate for obtaining data from shared preferences. */
 fun View.preferences(key: String, mode: Int = 0) =

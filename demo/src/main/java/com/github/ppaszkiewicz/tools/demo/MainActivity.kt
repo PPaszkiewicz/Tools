@@ -12,8 +12,10 @@ import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceA
 import com.github.ppaszkiewicz.tools.demo.coroutines.loaderDemo.LoaderActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.TaskServiceActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParamsDialog
+import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity3
 import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
 import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences
+import com.github.ppaszkiewicz.tools.toolbox.extensions.startActivity
 import kotlinx.android.synthetic.main.activity_main.*
 
 /**
@@ -25,7 +27,7 @@ class MainActivity : AppCompatActivity() {
         const val SAVE_PARAMS = "SAVE_PARAMS"
     }
 
-    enum class TestEnum{
+    enum class TestEnum {
         ON, OFF
     }
 
@@ -55,30 +57,23 @@ class MainActivity : AppCompatActivity() {
 
         // task tests
         btnLoaderTest1.setOnClickListener {
-            startActivity(
-                Intent(this@MainActivity, LoaderActivity::class.java)
-                    .putExtra(TestActivityBase.EXTRA_LOADER_ARGS, params)
-            )
+            startActivity<LoaderActivity> {
+                putExtra(TestActivityBase.EXTRA_LOADER_ARGS, params)
+            }
         }
         btnServiceTest1.setOnClickListener {
-            startActivity(
-                Intent(this@MainActivity, TaskServiceActivity::class.java)
-                    .putExtra(TestActivityBase.EXTRA_LOADER_ARGS, params)
-            )
+            startActivity<TaskServiceActivity>{
+                putExtra(TestActivityBase.EXTRA_LOADER_ARGS, params)
+            }
         }
 
         // lingering service tests
-        btnLingeringTest1.setOnClickListener {
-            startActivity(Intent(this@MainActivity, LingeringServiceActivity::class.java))
-        }
-        btnLingeringTest2.setOnClickListener {
-            startActivity(Intent(this@MainActivity, LingeringServiceActivity2::class.java))
-        }
+        btnLingeringTest1.setOnClickListener { startActivity<LingeringServiceActivity>() }
+        btnLingeringTest2.setOnClickListener { startActivity<LingeringServiceActivity2>() }
+        btnLingeringTest3.setOnClickListener { startActivity<LingeringServiceActivity3>() }
 
         // layouts test
-        btnViewsTest1.setOnClickListener {
-            startActivity(Intent(this@MainActivity, SaveStateTestActivity::class.java))
-        }
+        btnViewsTest1.setOnClickListener { startActivity<SaveStateTestActivity>() }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -106,7 +101,7 @@ class MainActivity : AppCompatActivity() {
             }
             R.id.action_test_enum -> {
                 item.isChecked = !item.isChecked
-                storedPrefEnum = if(item.isChecked) TestEnum.ON else TestEnum.OFF
+                storedPrefEnum = if (item.isChecked) TestEnum.ON else TestEnum.OFF
                 true
             }
             else -> super.onOptionsItemSelected(item)

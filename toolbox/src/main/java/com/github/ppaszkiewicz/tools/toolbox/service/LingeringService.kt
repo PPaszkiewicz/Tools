@@ -4,11 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.IBinder
-import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
+import com.github.ppaszkiewicz.tools.toolbox.service.DirectServiceConnection.BindingMode.*
 
 /*
  *   Requires DirectBindService.kt
@@ -20,13 +21,16 @@ import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 abstract class LingeringService : DirectBindService.Impl() {
     companion object {
         const val TAG = "LingeringService"
+
         /**
          * Default time before service self destructs. This happens if user pauses activity for
          * that long and doesn't reconnect.
          * */
         const val TIMEOUT_MS = 5000L
+
         /** Begin timeout for this service. */
-        const val ACTION_LINGERING_SERVICE_START_LINGER = "$TAG.ACTION_LINGERING_SERVICE_START_LINGER"
+        const val ACTION_LINGERING_SERVICE_START_LINGER =
+            "$TAG.ACTION_LINGERING_SERVICE_START_LINGER"
     }
 
     /** Milliseconds before self stop occurs after no client is bound. */
@@ -43,13 +47,13 @@ abstract class LingeringService : DirectBindService.Impl() {
         }
     }
 
-    /** If this is raised, host activity is finishing and service will finish as well. */
-    var isFinishing = false
+    /** If this is true, service should linger for [serviceTimeoutMs] before stopping self. */
+    var isLingeringAllowed = true
         private set
 
-    /** Raise is finishing flag to kill service instantly on next unBind. */
-    fun setIsFinishing() {
-        isFinishing = true
+    /** Disable [isLingeringAllowed] to kill service instantly on next unBind. */
+    fun setPreventLinger() {
+        isLingeringAllowed = false
     }
 
     override fun onBind(intent: Intent?): IBinder {
@@ -58,12 +62,12 @@ abstract class LingeringService : DirectBindService.Impl() {
     }
 
     override fun onUnbind(intent: Intent?): Boolean {
-        if (isFinishing) {
+        if (!isLingeringAllowed) {
             stopSelf()
         }
         //otherwise this service should be STARTED (by LingeringServiceConnection)
         //so it doesn't get destroyed until timeout
-        return !isFinishing
+        return isLingeringAllowed
     }
 
     override fun onRebind(intent: Intent?) {
@@ -92,7 +96,7 @@ abstract class LingeringService : DirectBindService.Impl() {
     /** On bind and rebind. */
     private fun handleBind() {
         timeoutHandler.removeCallbacks(timeoutRunnable)
-        isFinishing = false
+        isLingeringAllowed = true
         stopSelf()
     }
 }
@@ -109,53 +113,80 @@ abstract class LingeringService : DirectBindService.Impl() {
  * */
 open class LingeringServiceConnection<T : LingeringService>(
     contextDelegate: ContextDelegate,
-    serviceClass: Class<T>
-) : DirectServiceConnection<T>(contextDelegate, serviceClass) {
+    serviceClass: Class<T>,
+    bindingMode: BindingMode
+) : DirectServiceConnection<T>(contextDelegate, serviceClass, bindingMode) {
     companion object {
         /**
          * Observe connection for a given service class. This will be bound to activity lifecycle,
          * so service will always linger for given delay.
          * */
-        inline fun <reified T : LingeringService> observe(activity: AppCompatActivity) =
-            LingeringServiceConnection(activity.contextDelegate, T::class.java).apply {
-                activity.lifecycle.addObserver(this)
-            }
+        inline fun <reified T : LingeringService> observe(
+            activity: AppCompatActivity,
+            bindingEvents: BindingEvents = BindingEvents.START_STOP
+        ) = observe<T>(activity.contextDelegate, activity.lifecycle, bindingEvents)
 
         /**
          * Observe connection for a given service class. This will be bound to fragments lifecycle,
          * so service will always linger for given delay.
          * */
-        inline fun <reified T : LingeringService> observe(fragment: Fragment) =
-            LingeringServiceConnection(fragment.contextDelegate, T::class.java).apply {
-                fragment.lifecycle.addObserver(this)
-            }
+        inline fun <reified T : LingeringService> observe(
+            fragment: Fragment,
+            bindingEvents: BindingEvents = BindingEvents.START_STOP
+        ) = observe<T>(fragment.contextDelegate, fragment.lifecycle, bindingEvents)
+
+        /**
+         * Observe connection for a given service class. This will be bound to given lifecycle,
+         * so service will always linger for given delay.
+         * */
+        inline fun <reified T : LingeringService> observe(
+            contextDelegate: ContextDelegate,
+            lifecycle: Lifecycle,
+            bindingEvents: BindingEvents = BindingEvents.START_STOP
+        ) = LingeringServiceConnection(contextDelegate, T::class.java, LIFECYCLE).apply {
+            bindingLifecycleEvents = bindingEvents
+            lifecycle.addObserver(this)
+        }
 
         /**
          * Create connection for a given lingering service class. See [LingeringServiceConnection] how to control it.
          * */
         inline fun <reified T : LingeringService> create(context: Context) =
-            LingeringServiceConnection(context.contextDelegate, T::class.java)
+            LingeringServiceConnection(context.contextDelegate, T::class.java, MANUAL)
 
         /**
          * Create connection for a given lingering service class. See [LingeringServiceConnection] how to control it.
          * */
         inline fun <reified T : LingeringService> create(fragment: Fragment) =
-            LingeringServiceConnection(fragment.contextDelegate, T::class.java)
+            LingeringServiceConnection(fragment.contextDelegate, T::class.java, MANUAL)
+
+        /**
+         * Create connection for a given lingering service class, it will be bound when there are active observers.
+         * */
+        inline fun <reified T : LingeringService> liveData(context: Context) =
+            LingeringServiceConnection(context.contextDelegate, T::class.java, LIVEDATA)
+
+        /**
+         * Create connection for a given lingering service class, it will be bound when there are active observers.
+         * */
+        inline fun <reified T : LingeringService> liveData(fragment: Fragment) =
+            LingeringServiceConnection(fragment.contextDelegate, T::class.java, LIVEDATA)
     }
 
-    // Block super implementation.
-    override fun unbind() = unbind(false)
+    // prevent super call because we need extra argument
+    override fun performUnbind() = unbind(false)
 
     /**
-     * Disconnect/unbind from service.
+     * Unbind from service (requesting a disconnect).
      *
-     * Provide [isFinishing] from activity to finish service without a delay.
+     * Raise [finishImmediately] to finish service without a delay (for example when activity
+     * is finishing).
      * */
-    fun unbind(isFinishing: Boolean = false) {
-        Log.d("Lingering", "unbind: $isFinishing")
+    fun unbind(finishImmediately: Boolean = false) {
+        //Log.d("Lingering", "unbind: $finishImmediately")
         if (isBound) {
-            if (isFinishing) {
-                value?.setIsFinishing()
+            if (finishImmediately) {
+                value?.setPreventLinger()
             } else {
                 // let service self-start, so it won't get instantly killed due to unbind
                 // service implements delayed stopSelf() if it's not rebound soon.
@@ -165,6 +196,7 @@ open class LingeringServiceConnection<T : LingeringService>(
             }
             isBound = false
             context.unbindService(this)
+            onUnbind?.invoke()
         }
     }
 }
