@@ -31,8 +31,8 @@ open class DirectBinder(val service: Service) : Binder()
  * */
 interface DirectBindService {
     companion object {
-        @JvmStatic
-        val BIND_DIRECT_ACTION = "DirectBindService.BIND_DIRECT_ACTION"
+        /** Action that will return a direct binder. */
+        const val BIND_DIRECT_ACTION = "DirectBindService.BIND_DIRECT_ACTION"
     }
 
     /** Default [DirectBindService] implementation.*/
