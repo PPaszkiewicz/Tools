@@ -1,5 +1,5 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![Release](https://jitpack.io/v/PPaszkiewicz/Tools.svg)](https://jitpack.io/#User/Repo)
+[![Release](https://jitpack.io/v/PPaszkiewicz/Tools.svg)](https://jitpack.io/#PPaszkiewicz/Tools)
 
 Coroutines
 ==========
