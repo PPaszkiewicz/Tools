@@ -10,8 +10,7 @@ import kotlin.coroutines.CoroutineContext
  *
  * @param T type of result of async block, use [Unit] if no result is expected.
  */
-open class CancellableJob<T : Any?> : InterruptibleWork(),
-    ICancellableJob<T> {
+open class CancellableJob<T : Any?> : InterruptibleWork(), ICancellableJob<T> {
     /**
      * Actual job: a [CompletableDeferred] that can be cancelled with a reason.
      */

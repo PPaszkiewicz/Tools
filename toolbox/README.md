@@ -11,28 +11,57 @@ file header.
 
 To import everything, add to **build.gradle** or **build.gradle.kts**:
 ```gradle    
-implementation("com.github.PPaszkiewicz.Tools:toolbox:1.0.2")
+implementation("com.github.PPaszkiewicz.Tools:toolbox:$version")
 ```
+
+### Delegate
+Various delegates and their factories.
+
+**Context** - lazy context delegates useful for declaring some delegates in fragments.
+
+**Fragment** - delegates for creating/finding existing fragments.
+
+    // inside activity or fragment:
+    val myFragment by fragments<MyFragment>()
+
+**Preferences** - delegates for exposing preference values.
+
+    // inside activity or fragment:
+    val userPreference by preferences().boolean("key", false)
+
+**ViewBinding** - delegate for `ViewBinding` (Android Studio 3.6+) that's lifecycle aware so it doesn't require any `onDestroyView` override.
+
+    // inside fragment:
+    val binding by viewBinding<MainActivityBinding>()
 
 ### DownloadManager
 Utilities for querying download progress from systems DownloadManager.
 
-Available as standalone **DownloadProgressObserver** or wrapped with **LiveData**.
+Available as standalone `DownloadProgressObserver` or wrapped with `LiveData`.
 
 ### Extensions
-Some extensions including delegates for storing/writing values in PreferenceManager and FragmentManager.
+Various extensions relating to whatever is in the file name.
+
+### RecyclerView
+
+**GravityGridLayoutManager** - grid layout manager that applies gravity to items instead of putting them at top-start.
+
+**NestedWrapLayoutManager** - linear layout manager that can be efficiently used within scrolling parent. Limited to
+1 item view type and item heights have to be uniform regardless of their content.
 
 ### Reflection
 **IFieldReflector** - interface and utilities for reflecting fields and methods as simple delegates. See demo/tests for sample.
 
 ### Service
-**DirectBindService** - abstract base for services that can be bound to directly (within same process).
+**DirectBindService** - abstract marker interface for services that can be bound to directly (within same process).
 
-**DirectServiceConnection** - connection implementation that can handle *bind()* and *unbind()* calls with lifecycle.
+**DirectBindService.Impl** - default service implementation that can be extended if possible.
 
-**LingeringService** - service that auto-starts self to persist for a while after *unbind()*.
+**DirectServiceConnection** - connection implementation that automatically handles `bind()` and `unbind()` based on lifecycle or liveData state.
 
-**LingeringServiceConnection** - connection for **LingeringService**.
+**LingeringService** - service that auto-starts self to persist for a while after `unbind()`.
+
+**LingeringServiceConnection** - connection for `LingeringService`.
 
 ### Transition
 
@@ -43,6 +72,8 @@ Few common transitions and utilities.
 **FixedSizeTextView**, **FixedSizeChronometer** - text views that do not invalidate layout when text is changed.
 
 **ImmersiveConstraintLayout** - holds common logic for keeping layout immersive.
+
+**SaveChildStateLayouts** - logic for containing save state of all children within their parent.  Prevents collision with duplicate view ids within the layout.
 
 ## License
 Copyright 2019 Paweł Paszkiewicz

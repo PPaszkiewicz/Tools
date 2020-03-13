@@ -10,36 +10,24 @@ import com.github.ppaszkiewicz.tools.toolbox.service.DirectServiceConnection
 import kotlinx.android.synthetic.main.activity_service.*
 
 /** Uses lifecycle to automatically handle connection*/
-class LingeringServiceActivity : AppCompatActivity(){
+class LingeringServiceActivity : AppCompatActivity(R.layout.activity_service){
     val serviceConn = LingeringServiceConnection.observe<DemoLingeringService>(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_service)
         textView.text = "Service handled by lifecycle\nsee logs for service state"
-        serviceConn.onBind = {
-            Log.d("DEMO_ACT", "service is bound")
-        }
-        serviceConn.onUnbind = {
-            Log.d("DEMO_ACT", "service is unbound")
-        }
+        setLogCallbacks(serviceConn)
     }
 }
 
-/** Manually handle connection to prevent lingering. */
-class LingeringServiceActivity2 : AppCompatActivity(){
+/** Manually handle connection, prevents lingering when activity is finishing. */
+class LingeringServiceActivity2 : AppCompatActivity(R.layout.activity_service){
     val serviceConn = LingeringServiceConnection.create<DemoLingeringService>(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_service)
         textView.text = "Service handled manually - doesn't linger on finish \nsee logs for service state"
-        serviceConn.onBind = {
-            Log.d("DEMO_ACT", "service is bound")
-        }
-        serviceConn.onUnbind = {
-            Log.d("DEMO_ACT", "service is unbound")
-        }
+        setLogCallbacks(serviceConn)
     }
 
     override fun onStart() {
@@ -53,22 +41,25 @@ class LingeringServiceActivity2 : AppCompatActivity(){
     }
 }
 
-/** Uses livedata to automatically handle connection*/
-class LingeringServiceActivity3 : AppCompatActivity(){
+/** Uses liveData to automatically handle connection. */
+class LingeringServiceActivity3 : AppCompatActivity(R.layout.activity_service){
     val serviceConn = LingeringServiceConnection.liveData<DemoLingeringService>(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_service)
-        textView.text = "Service handled by lifecycle\nsee logs for service state"
-        serviceConn.onBind = {
-            Log.d("DEMO_ACT", "service is bound")
-        }
-        serviceConn.onUnbind = {
-            Log.d("DEMO_ACT", "service is unbound")
-        }
+        textView.text = "Service handled by liveData state\nsee logs for service state"
+        setLogCallbacks(serviceConn)
         serviceConn.observe(this, Observer {
             Log.d("DEMO_ACT", "connected to $it")
         })
+    }
+}
+
+private fun setLogCallbacks(serviceConnection: LingeringServiceConnection<*>){
+    serviceConnection.onBind = {
+        Log.d("DEMO_ACT", "service is bound")
+    }
+    serviceConnection.onUnbind = {
+        Log.d("DEMO_ACT", "service is unbound")
     }
 }

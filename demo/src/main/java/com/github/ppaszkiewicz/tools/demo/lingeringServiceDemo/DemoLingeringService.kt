@@ -1,6 +1,7 @@
 package com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo
 
 import android.util.Log
+import android.widget.Toast
 import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
 import com.github.ppaszkiewicz.tools.toolbox.service.LingeringService
 
@@ -18,11 +19,13 @@ class DemoLingeringService : LingeringService(){
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "onCreate")
+        Toast.makeText(this, "service created", Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "onDestroy")
+        Toast.makeText(this, "service destroyed", Toast.LENGTH_SHORT).show()
     }
 
     override fun onServiceTimeoutStarted() {

@@ -2,6 +2,7 @@ package com.github.ppaszkiewicz.tools.toolbox.extensions
 
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
+import androidx.fragment.app.FragmentTransaction
 
 /**
  * Find fragment that identifies itself by its class name as tag.
@@ -10,7 +11,7 @@ inline fun <reified F : Fragment> FragmentManager.findFragmentByClass() =
     findFragmentByClass(F::class.java)
 
 /**
- * Find fragment that identifies itself by it's class name as tag.
+ * Find fragment that identifies itself by its class name as tag.
  */
 fun <F : Fragment> FragmentManager.findFragmentByClass(clazz: Class<F>) =
     findFragmentByTag(clazz.name) as F?
@@ -42,6 +43,32 @@ fun FragmentManager.swap(fragment: Fragment?, containerId: Int) =
 fun FragmentManager.swap(fragment: Fragment?, containerId: Int, tag: String) =
     swapImpl(fragment, containerId, tag, false)
 
+/**
+ * Load [newFragment] into view with [containerId].
+ *
+ * This will detach [oldFragment] and attach [newFragment] (if it's detached) or add it using [tag].
+ *
+ * *This is exposed inner transaction of [FragmentManager.swap] and does not perform any error checks.*
+ * */
+fun FragmentTransaction.swap(
+    oldFragment: Fragment?,
+    newFragment: Fragment,
+    containerId: Int,
+    tag: String
+) {
+    if (oldFragment != null) {
+        // detach current fragment - only destroys its view hierarchy
+        detach(oldFragment)
+    }
+    if (newFragment.isDetached) {
+        // re-attach previously detached fragment, recreating view hierarchy
+        attach(newFragment)
+    } else {
+        // add new fragment triggering its onCreate etc
+        add(containerId, newFragment, tag)
+    }
+}
+
 // implementation for swap
 private fun FragmentManager.swapImpl(
     fragment: Fragment?,
@@ -57,17 +84,7 @@ private fun FragmentManager.swapImpl(
             throw IllegalStateException("swap(Fragment?, Int): duplicate fragment class encountered: ${fragment.javaClass.name}.")
 
         beginTransaction().apply {
-            if (currentFragment != null) {
-                // detach current fragment - only destroys its view hierarchy
-                detach(currentFragment)
-            }
-            if (fragment.isDetached) {
-                // re-attach previously detached fragment, recreating view hierarchy
-                attach(fragment)
-            } else {
-                // add new fragment triggering its onCreate etc
-                add(containerId, fragment, tag)
-            }
+            swap(currentFragment, fragment, containerId, tag)
             commit()
         }
         true
