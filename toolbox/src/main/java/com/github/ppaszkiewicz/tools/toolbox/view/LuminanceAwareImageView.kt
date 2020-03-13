@@ -18,14 +18,18 @@ class LuminanceAwareImageView @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : AppCompatImageView(context, attrs, defStyleAttr) {
     private var luminanceListener: LuminanceListener? = null
+
     /** Determined luminance. */
     var luminance = -1.0
         private set
 
     /** Determined dominant color. If no bitmap drawable was set, this will default
-     * to [Color.WHITE]. */
+     * to [Color.WHITE]. This value is only valid when [luminance] is not -1. */
     var dominantColor = Color.WHITE
         private set
+
+    /** If raised [invalidateLuminance] will be triggered whenever image drawable is changed.*/
+    var invalidateLuminanceOnDrawableChange = false
 
     /**
      * After calculating luminance, apply extra dim to increase contrast.
@@ -36,24 +40,34 @@ class LuminanceAwareImageView @JvmOverloads constructor(
 
     /** Dim applied on top of dark images. */
     var darkDimColor = Color.parseColor("#55000000")
+
     /** Dim applied on top of light images. */
     var lightDimColor = Color.parseColor("#55FFFFFF")
 
-    /** Listener for luminance change. -1 means it's undefined. */
-    fun setLuminanceListener(luminanceListener: LuminanceListener?) {
+    /** Listener for luminance change. -1 means it's undefined. [autoInvalidate] (default: true) to
+     * raise [invalidateLuminanceOnDrawableChange]. */
+    fun setLuminanceListener(
+        luminanceListener: LuminanceListener?,
+        autoInvalidate: Boolean = true
+    ) {
         this.luminanceListener = luminanceListener
+        invalidateLuminanceOnDrawableChange = autoInvalidate
     }
 
-    /** Listener for luminance change. -1 means it's undefined. */
-    inline fun setLuminanceListener(crossinline l: (Double) -> Unit) = setLuminanceListener(object : LuminanceListener {
+    /** Listener for luminance change. -1 means it's undefined. [autoInvalidate] (default: true) to
+     * raise [invalidateLuminanceOnDrawableChange]. */
+    inline fun setLuminanceListener(
+        crossinline l: (Double) -> Unit,
+        autoInvalidate: Boolean = true
+    ) = setLuminanceListener(object : LuminanceListener {
         override fun onLuminanceChanged(luminance: Double) = l(luminance)
-    })
+    }, autoInvalidate)
 
     /** Changing image drawable invalidates [luminance] and [dominantColor]
-     * ONLY IF [luminanceListener] is set.*/
+     * if [invalidateLuminanceOnDrawableChange] is raised.*/
     override fun setImageDrawable(drawable: Drawable?) {
         super.setImageDrawable(drawable)
-        if (drawable is BitmapDrawable && luminanceListener != null)
+        if (drawable is BitmapDrawable && invalidateLuminanceOnDrawableChange)
             invalidateLuminance(drawable)
         else {
             luminanceListener?.onLuminanceChanged(-1.0)
@@ -75,8 +89,12 @@ class LuminanceAwareImageView @JvmOverloads constructor(
         invalidate()
     }
 
-    /** Force update of [luminance] and [dominantColor] even when there's no listener.
-     * Returns **true** if current drawable is a bitmap and update will be deployed. */
+    /**
+     * Force update of [luminance] and [dominantColor] even when there's no listener. This operation is
+     * blocking so it's safe to read those values immediately after this call.
+     *
+     * Returns **true** if current drawable is a bitmap and update will be deployed.
+     * */
     fun invalidateLuminance() = (drawable as? BitmapDrawable)?.let {
         invalidateLuminance(it)
         true
@@ -89,7 +107,7 @@ class LuminanceAwareImageView @JvmOverloads constructor(
      * */
     fun setDim(luminance: Double) {
         if (isDimEnabled) {
-            setColorFilter( if (luminance < 0.5) darkDimColor else lightDimColor)
+            setColorFilter(if (luminance < 0.5) darkDimColor else lightDimColor)
         } else {
             colorFilter = null
         }

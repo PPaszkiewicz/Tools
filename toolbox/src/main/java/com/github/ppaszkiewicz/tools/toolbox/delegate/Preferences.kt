@@ -6,6 +6,7 @@ import android.preference.PreferenceManager
 import android.view.View
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.LiveData
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
@@ -202,23 +203,60 @@ sealed class SharedPreferencesProvider : ReadOnlyProperty<Any, SharedPreferences
     Backing classes.
  */
 
-/** Base for preference property accessor. */
+/** Single property kept in shared preferences under [key]. */
 abstract class RWPref<T>(
+    /** Helper to access preferences. */
     val prefsProvider: SharedPreferencesProvider,
+    /** Key of this preference. */
     val key: String,
+    /** Default value of this preference. */
     val default: T,
+    /** Setter listener. */
     val setBlock: ((T) -> Unit)? = null
 ) : ReadWriteProperty<Any, T> {
-    override fun setValue(thisRef: Any, property: KProperty<*>, value: T) {
+    protected val prefs by prefsProvider
+    /** LiveData object for observing this preference. */
+    val liveData : LiveData<T> by lazy { PrefLiveData() }
+
+    // delegate interface operator implementation
+    override fun setValue(thisRef: Any, property: KProperty<*>, value: T) = set(value)
+    override fun getValue(thisRef: Any, property: KProperty<*>) = get()
+
+    /** Change this preference to [value]. */
+    fun set(value: T) {
         setBlock?.invoke(value)
-        prefsProvider.get().edit { set(key, value) }
+        prefs.edit { set(key, value) }
     }
 
-    override fun getValue(thisRef: Any, property: KProperty<*>): T =
-        prefsProvider.get().get(key, default)
+    /** Get this preference value or return [default] if it doesn't exist. */
+    fun get(): T = prefs.get(key, default)
 
+    /** Get this preference value or return null if it doesn't exist. */
+    fun getOrNull() : T? = if(prefs.contains(key)) prefs.get(key, default) else null
+
+    // internal shared preference manipulation
     protected abstract fun SPEditor.set(key: String, value: T): SPEditor
     protected abstract fun SP.get(key: String, default: T): T
+
+    // preference livedata impl based on this preference accessor
+    protected open inner class PrefLiveData : LiveData<T>(),
+        SharedPreferences.OnSharedPreferenceChangeListener {
+        override fun onActive() {
+            prefs.registerOnSharedPreferenceChangeListener(this)
+            value = prefs.get(key, default)
+        }
+
+        override fun onInactive() {
+            prefs.unregisterOnSharedPreferenceChangeListener(this)
+        }
+
+        override fun onSharedPreferenceChanged(sharedPreferences: SP?, key: String?) {
+            if (key == this@RWPref.key) {
+                val newValue = prefs.get(key, default)
+                if (value != newValue) value = newValue
+            }
+        }
+    }
 }
 
 /** Boolean preference. [setBlock] can be run before changing value in preferences.*/

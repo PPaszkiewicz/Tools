@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParams
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity
@@ -21,7 +22,7 @@ import kotlinx.android.synthetic.main.activity_main.*
 /**
  * Activity for selecting test.
  * */
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(R.layout.activity_main) {
     companion object {
         const val TAG = "MainActivity"
         const val SAVE_PARAMS = "SAVE_PARAMS"
@@ -41,13 +42,14 @@ class MainActivity : AppCompatActivity() {
         10    // less tasks than progress views
     )
 
-    // boolean stored in shared preferences. maybe add test for this later.
+    // boolean stored in shared preferences
     var storedPreference by preferences().boolean("Bool", false)
-    var storedPrefEnum by preferences().enum("EnumPref", TestEnum.OFF)
+    // delegate object storing enum in shared preferences: kept explicitly bc livedata will be used too
+    val enumPref = preferences().enum("EnumPref", TestEnum.OFF)
+    var storedPrefEnum by enumPref
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
         setSupportActionBar(toolbar)
 
         savedInstanceState?.let {
@@ -74,6 +76,11 @@ class MainActivity : AppCompatActivity() {
 
         // layouts test
         btnViewsTest1.setOnClickListener { startActivity<SaveStateTestActivity>() }
+
+        // preference observer
+        enumPref.liveData.observe(this, Observer {
+            txtPreferenceValue.text = it.toString()
+        })
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
