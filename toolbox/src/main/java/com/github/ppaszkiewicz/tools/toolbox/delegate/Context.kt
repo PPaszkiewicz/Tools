@@ -13,7 +13,7 @@ import kotlin.reflect.KProperty
 /** Context delegate for classes that can return a [Context]. */
 sealed class ContextDelegate : ReadOnlyProperty<Any, Context> {
     override fun getValue(thisRef: Any, property: KProperty<*>) = get()
-    abstract fun get() : Context
+    abstract fun get(): Context
 
     /** Returns self. */
     class OfContext(private val context: Context) : ContextDelegate() {
@@ -31,14 +31,17 @@ val Context.contextDelegate
     get() = ContextDelegate.OfContext(
         this
     )
+
 /** Delegate that returns context. */
 val Fragment.contextDelegate
     get() = ContextDelegate.OfFragment(
         this
     )
+
 /** Delegate that returns context. */
 val AndroidViewModel.contextDelegate
     get() = getApplication<Application>().contextDelegate
+
 /** Delegate that returns context. */
 val View.contextDelegate
     get() = context.contextDelegate

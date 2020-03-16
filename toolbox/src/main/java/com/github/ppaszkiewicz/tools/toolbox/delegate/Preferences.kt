@@ -1,5 +1,6 @@
 package com.github.ppaszkiewicz.tools.toolbox.delegate
 
+import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import android.preference.PreferenceManager
@@ -10,6 +11,8 @@ import androidx.lifecycle.LiveData
 import kotlin.properties.ReadOnlyProperty
 import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
+
+/* Requires ContextDelegate from Context.kt*/
 
 /*
     Yet another preferences extensions. Implemented as delegates.
@@ -22,107 +25,60 @@ val Context?.defaultPrefs: SharedPreferences
 /* Factory methods */
 
 /** Delegates for obtaining data from this shared preferences. */
-fun SharedPreferences.delegates() = SharedPreferencesProvider.Direct(this)
+fun SharedPreferences.delegates(): SPP = SharedPreferencesProvider.Direct(this)
 
 /** Delegate for obtaining data from default shared preferences. */
-fun Context.preferences() = SharedPreferencesProvider.ContextDef(this)
+fun Context.preferences(): SPP = SharedPreferencesProvider.Default(this.contextDelegate)
 
 /** Delegate for obtaining data from shared preferences. */
-fun Context.preferences(key: String, mode: Int = 0) =
-    SharedPreferencesProvider.Context(
-        this,
-        key,
-        mode
-    )
+fun Context.preferences(key: String, mode: Int = 0): SPP =
+    SharedPreferencesProvider.Custom(this.contextDelegate, key, mode)
 
 /** Delegate for obtaining data from default shared preferences. */
-fun AndroidViewModel.preferences() = SharedPreferencesProvider.ContextDef(getApplication())
+fun AndroidViewModel.preferences(): SPP = getApplication<Application>().preferences()
 
 /** Delegate for obtaining data from shared preferences. */
-fun AndroidViewModel.preferences(key: String, mode: Int = 0) =
-    SharedPreferencesProvider.Context(
-        getApplication(),
-        key,
-        mode
-    )
+fun AndroidViewModel.preferences(key: String, mode: Int = 0): SPP =
+    getApplication<Application>().preferences(key, mode)
 
 /** Delegate for obtaining data from default shared preferences. */
-fun Fragment.preferences() = SharedPreferencesProvider.FragmentDef(this)
+fun Fragment.preferences(): SPP = SharedPreferencesProvider.Default(this.contextDelegate)
 
 /** Delegate for obtaining data from shared preferences. */
-fun Fragment.preferences(key: String, mode: Int = 0) =
-    SharedPreferencesProvider.Fragment(
-        this,
-        key,
-        mode
-    )
+fun Fragment.preferences(key: String, mode: Int = 0): SPP =
+    SharedPreferencesProvider.Custom(this.contextDelegate, key, mode)
 
 /** Delegate for obtaining data from default shared preferences. */
-fun View.preferences() = SharedPreferencesProvider.ViewDef(this)
+fun View.preferences(): SPP = SharedPreferencesProvider.Default(this.contextDelegate)
 
 /** Delegate for obtaining data from shared preferences. */
-fun View.preferences(key: String, mode: Int = 0) =
-    SharedPreferencesProvider.View(
-        this,
-        key,
-        mode
-    )
+fun View.preferences(key: String, mode: Int = 0): SPP =
+    SharedPreferencesProvider.Custom(this.contextDelegate, key, mode)
 
 /** Edit with auto [apply] after block. */
 inline fun SharedPreferences.edit(edit: SharedPreferences.Editor.() -> Unit) =
     edit().apply(edit).apply()
 
+// convenience typealiases
 private typealias SP = SharedPreferences
 private typealias SPEditor = SharedPreferences.Editor
-
+private typealias SPP = SharedPreferencesProvider
 
 /** Provider of preference manager and delegate factory. */
 sealed class SharedPreferencesProvider : ReadOnlyProperty<Any, SharedPreferences> {
     final override fun getValue(thisRef: Any, property: KProperty<*>) = get()
     abstract fun get(): SharedPreferences
 
-    class Direct(private val prefs: SharedPreferences) : SharedPreferencesProvider() {
+    internal class Direct(private val prefs: SP) : SPP() {
         override fun get() = prefs
     }
 
-    class Context(
-        private val context: android.content.Context,
-        val preferencesKey: String,
-        val mode: Int
-    ) : SharedPreferencesProvider() {
-        override fun get(): SharedPreferences = context.getSharedPreferences(preferencesKey, mode)
+    internal class Default(val context: ContextDelegate) : SPP(){
+        override fun get() = context.get().defaultPrefs
     }
 
-    class ContextDef(private val context: android.content.Context) : SharedPreferencesProvider() {
-        override fun get() = context.defaultPrefs
-    }
-
-    class Fragment(
-        private val fragment: androidx.fragment.app.Fragment,
-        val preferencesKey: String,
-        val mode: Int
-    ) : SharedPreferencesProvider() {
-        override fun get(): SharedPreferences =
-            fragment.requireContext().getSharedPreferences(preferencesKey, mode)
-    }
-
-    class FragmentDef(private val fragment: androidx.fragment.app.Fragment) :
-        SharedPreferencesProvider() {
-        override fun get() = fragment.requireContext().defaultPrefs
-    }
-
-    class View(
-        private val view: android.view.View,
-        val preferencesKey: String? = null,
-        val mode: Int = 0
-    ) : SharedPreferencesProvider() {
-        override fun get() =
-            preferencesKey?.let { view.context.getSharedPreferences(preferencesKey, mode) }
-                ?: view.context.defaultPrefs
-    }
-
-    class ViewDef(private val view: android.view.View) : SharedPreferencesProvider() {
-        override fun get() = view.context.defaultPrefs
+    internal class Custom(val context: ContextDelegate, val key: String, val mode: Int): SPP(){
+        override fun get(): SP = context.get().getSharedPreferences(key, mode)
     }
 
     /** Boolean preference. [setListener] can be run before changing value in preferences.*/
@@ -130,60 +86,30 @@ sealed class SharedPreferencesProvider : ReadOnlyProperty<Any, SharedPreferences
         key: String,
         default: Boolean,
         setListener: ((Boolean) -> Unit)? = null
-    ) = RWBooleanPref(
-        this,
-        key,
-        default,
-        setListener
-    )
+    ) = RWBooleanPref(this, key, default, setListener)
 
     /** Long preference. [setListener] can be run before changing value in preferences.*/
     fun long(key: String, default: Long, setListener: ((Long) -> Unit)? = null) =
-        RWLongPref(
-            this,
-            key,
-            default,
-            setListener
-        )
+        RWLongPref(this, key, default, setListener)
 
     /** Int preference. [setListener] can be run before changing value in preferences.*/
     fun int(key: String, default: Int, setListener: ((Int) -> Unit)? = null) =
-        RWIntPref(
-            this,
-            key,
-            default,
-            setListener
-        )
+        RWIntPref(this, key, default, setListener)
 
     /** Float preference. [setListener] can be run before changing value in preferences.*/
     fun float(key: String, default: Float, setListener: ((Float) -> Unit)? = null) =
-        RWFloatPref(
-            this,
-            key,
-            default,
-            setListener
-        )
+        RWFloatPref(this, key, default, setListener)
 
     /** String preference. [setListener] can be run before changing value in preferences.*/
     fun string(key: String, default: String, setListener: ((String) -> Unit)? = null) =
-        RWStringPref(
-            this,
-            key,
-            default,
-            setListener
-        )
+        RWStringPref(this, key, default, setListener)
 
     /** String set preference. If [default] is not set returns empty set by default. [setListener] can be run before changing value in preferences.*/
     fun stringSet(
         key: String,
         default: Set<String> = emptySet(),
         setListener: ((Set<String>) -> Unit)? = null
-    ) = RWStringSetPref(
-        this,
-        key,
-        default,
-        setListener
-    )
+    ) = RWStringSetPref(this, key, default, setListener)
 
     /** Enum preference - mapped to ENUM NAME string. [setBlock] can be run before changing the value in preferences.*/
     inline fun <reified T : Enum<T>> enum(
@@ -191,11 +117,7 @@ sealed class SharedPreferencesProvider : ReadOnlyProperty<Any, SharedPreferences
         default: T,
         noinline setBlock: ((T) -> Unit)? = null
     ) = RWEnumPref(
-        this,
-        key,
-        default,
-        T::class.java,
-        setBlock
+        this, key, default, T::class.java, setBlock
     )
 }
 
@@ -205,7 +127,7 @@ sealed class SharedPreferencesProvider : ReadOnlyProperty<Any, SharedPreferences
 
 /** Single property kept in shared preferences under [key]. */
 abstract class RWPref<T>(
-    /** Helper to access preferences. */
+    /** Object to access preferences. */
     val prefsProvider: SharedPreferencesProvider,
     /** Key of this preference. */
     val key: String,
@@ -215,27 +137,39 @@ abstract class RWPref<T>(
     val setBlock: ((T) -> Unit)? = null
 ) : ReadWriteProperty<Any, T> {
     protected val prefs by prefsProvider
+
     /** LiveData object for observing this preference. */
-    val liveData : LiveData<T> by lazy { PrefLiveData() }
+    val liveData: LiveData<T> by lazy { PrefLiveData() }
 
     // delegate interface operator implementation
     override fun setValue(thisRef: Any, property: KProperty<*>, value: T) = set(value)
     override fun getValue(thisRef: Any, property: KProperty<*>) = get()
 
-    /** Change this preference to [value]. */
-    fun set(value: T) {
+    /** Run a transaction that changes this preference to [value]. */
+    fun set(value: T) = prefs.edit { set(this, value) }
+
+    /** Change this preference to [value] within [editor] transaction. */
+    fun set(editor: SPEditor, value: T) {
         setBlock?.invoke(value)
-        prefs.edit { set(key, value) }
+        editor.set(key, value)
     }
 
     /** Get this preference value or return [default] if it doesn't exist. */
     fun get(): T = prefs.get(key, default)
 
     /** Get this preference value or return null if it doesn't exist. */
-    fun getOrNull() : T? = if(prefs.contains(key)) prefs.get(key, default) else null
+    fun getOrNull(): T? = if (prefs.contains(key)) prefs.get(key, default) else null
 
-    // internal shared preference manipulation
+    /** Run a transaction that clears this preference (delete the key). */
+    fun clear() = prefs.edit { remove(key) }
+
+    /** Clear this preference (delete the key) within [editor] transaction. */
+    fun clear(editor: SPEditor): SPEditor = editor.remove(key)
+
+    /** Actual set that modifies shared preferences. */
     protected abstract fun SPEditor.set(key: String, value: T): SPEditor
+
+    /** Actual get that modifies shared preferences. */
     protected abstract fun SP.get(key: String, default: T): T
 
     // preference livedata impl based on this preference accessor
@@ -243,16 +177,17 @@ abstract class RWPref<T>(
         SharedPreferences.OnSharedPreferenceChangeListener {
         override fun onActive() {
             prefs.registerOnSharedPreferenceChangeListener(this)
-            value = prefs.get(key, default)
+            val newValue = prefs.get(key, default)
+            if (value != newValue) value = newValue
         }
 
         override fun onInactive() {
             prefs.unregisterOnSharedPreferenceChangeListener(this)
         }
 
-        override fun onSharedPreferenceChanged(sharedPreferences: SP?, key: String?) {
+        override fun onSharedPreferenceChanged(sharedPreferences: SP, key: String) {
             if (key == this@RWPref.key) {
-                val newValue = prefs.get(key, default)
+                val newValue = sharedPreferences.get(key, default)
                 if (value != newValue) value = newValue
             }
         }
