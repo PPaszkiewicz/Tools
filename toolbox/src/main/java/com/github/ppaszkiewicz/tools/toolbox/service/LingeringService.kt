@@ -7,6 +7,8 @@ import android.os.IBinder
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.service.DirectServiceConnection.BindingMode.*
@@ -17,8 +19,14 @@ import com.github.ppaszkiewicz.tools.toolbox.service.DirectServiceConnection.Bin
 
 /**
  * [DirectBindService] that gets automatically stopped when it's unbound for [serviceTimeoutMs].
+ *
+ * Also implements following lifecycle:
+ * - [onCreate] = [Lifecycle.State.CREATED] (onCreate)
+ * - [onBind] = [Lifecycle.State.RESUMED] (onStart -> onResume)
+ * - [onServiceTimeoutStarted] = [Lifecycle.State.STARTED] (onPause)
+ * - [onDestroy] = [Lifecycle.State.DESTROYED] (onStop -> onDestroy)
  */
-abstract class LingeringService : DirectBindService.Impl() {
+abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
     companion object {
         const val TAG = "LingeringService"
 
@@ -32,6 +40,10 @@ abstract class LingeringService : DirectBindService.Impl() {
         const val ACTION_LINGERING_SERVICE_START_LINGER =
             "$TAG.ACTION_LINGERING_SERVICE_START_LINGER"
     }
+
+    private val mLifecycle = LifecycleRegistry(this)
+
+    override fun getLifecycle(): Lifecycle = mLifecycle
 
     /** Milliseconds before self stop occurs after no client is bound. */
     var serviceTimeoutMs: Long = TIMEOUT_MS
@@ -54,6 +66,17 @@ abstract class LingeringService : DirectBindService.Impl() {
     /** Disable [isLingeringAllowed] to kill service instantly on next unBind. */
     fun setPreventLinger() {
         isLingeringAllowed = false
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        mLifecycle.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+    }
+
+    override fun onDestroy() {
+        // destroying will trigger onStop as well
+        mLifecycle.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        super.onDestroy()
     }
 
     override fun onBind(intent: Intent): IBinder {
@@ -79,6 +102,7 @@ abstract class LingeringService : DirectBindService.Impl() {
         if (intent?.action == ACTION_LINGERING_SERVICE_START_LINGER) {
             timeoutHandler.postDelayed(timeoutRunnable, serviceTimeoutMs)
             onServiceTimeoutStarted()
+            mLifecycle.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         }
         return START_STICKY
     }
@@ -98,6 +122,8 @@ abstract class LingeringService : DirectBindService.Impl() {
         timeoutHandler.removeCallbacks(timeoutRunnable)
         isLingeringAllowed = true
         stopSelf()
+        // go to resumed state (if onStart was not triggered before it will be called as well)
+        mLifecycle.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
     }
 }
 
