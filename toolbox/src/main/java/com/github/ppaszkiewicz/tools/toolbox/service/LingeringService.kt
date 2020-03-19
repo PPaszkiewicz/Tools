@@ -56,7 +56,7 @@ abstract class LingeringService : DirectBindService.Impl() {
         isLingeringAllowed = false
     }
 
-    override fun onBind(intent: Intent?): IBinder {
+    override fun onBind(intent: Intent): IBinder {
         handleBind()
         return super.onBind(intent)
     }
@@ -105,7 +105,8 @@ abstract class LingeringService : DirectBindService.Impl() {
  * Connection that should be used with [LingeringService].
  *
  * 1. [Companion.observe] will create connection that causes service to always linger.
- * 2. [Companion.create] requires manual binding handling in activity start/stop (described below):
+ * 2. [Companion.liveData] will create connection that causes service to always linger (based on observer state).
+ * 3. [Companion.create] requires manual binding handling in activity start/stop (described below):
  *
  * - call [bind] when needed (usually during onStart)
  * - call [unbind] with false to stop service after a delay (in onPause)
@@ -149,18 +150,6 @@ open class LingeringServiceConnection<T : LingeringService>(
         }
 
         /**
-         * Create connection for a given lingering service class. See [LingeringServiceConnection] how to control it.
-         * */
-        inline fun <reified T : LingeringService> create(context: Context) =
-            LingeringServiceConnection(context.contextDelegate, T::class.java, MANUAL)
-
-        /**
-         * Create connection for a given lingering service class. See [LingeringServiceConnection] how to control it.
-         * */
-        inline fun <reified T : LingeringService> create(fragment: Fragment) =
-            LingeringServiceConnection(fragment.contextDelegate, T::class.java, MANUAL)
-
-        /**
          * Create connection for a given lingering service class, it will be bound when there are active observers.
          * */
         inline fun <reified T : LingeringService> liveData(context: Context) =
@@ -171,6 +160,18 @@ open class LingeringServiceConnection<T : LingeringService>(
          * */
         inline fun <reified T : LingeringService> liveData(fragment: Fragment) =
             LingeringServiceConnection(fragment.contextDelegate, T::class.java, LIVEDATA)
+
+        /**
+         * Create connection for a given lingering service class. See [LingeringServiceConnection] how to control it.
+         * */
+        inline fun <reified T : LingeringService> create(context: Context) =
+            LingeringServiceConnection(context.contextDelegate, T::class.java, MANUAL)
+
+        /**
+         * Create connection for a given lingering service class. See [LingeringServiceConnection] how to control it.
+         * */
+        inline fun <reified T : LingeringService> create(fragment: Fragment) =
+            LingeringServiceConnection(fragment.contextDelegate, T::class.java, MANUAL)
     }
 
     // prevent super call because we need extra argument

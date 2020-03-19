@@ -40,8 +40,21 @@ interface DirectBindService {
         @Suppress("LeakingThis")
         private val binder = DirectBinder(this)
 
-        override fun onBind(intent: Intent?): IBinder {
-            if (intent?.action == BIND_DIRECT_ACTION)
+        override fun onBind(intent: Intent): IBinder {
+            if (intent.action == BIND_DIRECT_ACTION)
+                return binder
+            throw IllegalArgumentException("BIND_DIRECT_ACTION required.")
+        }
+    }
+
+    /** Default [DirectBindService] implementation extending [LifecycleService].*/
+    abstract class LifecycleImpl : LifecycleService(), DirectBindService {
+        @Suppress("LeakingThis")
+        private val binder = DirectBinder(this)
+
+        override fun onBind(intent: Intent): IBinder {
+            super.onBind(intent)
+            if (intent.action == BIND_DIRECT_ACTION)
                 return binder
             throw IllegalArgumentException("BIND_DIRECT_ACTION required.")
         }
@@ -90,14 +103,6 @@ open class DirectServiceConnection<T : DirectBindService>(
             lifecycle.addObserver(this)
         }
 
-        /** Create connection to service. Need to manually call [bind] and [unbind] to connect.*/
-        inline fun <reified T : DirectBindService> create(context: Context) =
-            DirectServiceConnection(context.contextDelegate, T::class.java, MANUAL)
-
-        /** Create connection to service. Need to manually call [bind] and [unbind] to connect.*/
-        inline fun <reified T : DirectBindService> create(fragment: Fragment) =
-            DirectServiceConnection(fragment.contextDelegate, T::class.java, MANUAL)
-
         /** Create connection to service, it will be bound when there are active observers. */
         inline fun <reified T : DirectBindService> liveData(context: Context) =
             DirectServiceConnection(context.contextDelegate, T::class.java, LIVEDATA)
@@ -105,6 +110,14 @@ open class DirectServiceConnection<T : DirectBindService>(
         /** Create connection to service, it will be bound when there are active observers. */
         inline fun <reified T : DirectBindService> liveData(fragment: Fragment) =
             DirectServiceConnection(fragment.contextDelegate, T::class.java, LIVEDATA)
+
+        /** Create connection to service. Need to manually call [bind] and [unbind] to connect.*/
+        inline fun <reified T : DirectBindService> create(context: Context) =
+            DirectServiceConnection(context.contextDelegate, T::class.java, MANUAL)
+
+        /** Create connection to service. Need to manually call [bind] and [unbind] to connect.*/
+        inline fun <reified T : DirectBindService> create(fragment: Fragment) =
+            DirectServiceConnection(fragment.contextDelegate, T::class.java, MANUAL)
     }
 
     /** Binding modes available for [DirectServiceConnection]. */
