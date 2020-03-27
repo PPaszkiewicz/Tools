@@ -3,6 +3,7 @@ package com.github.ppaszkiewicz.tools.toolbox.service
 import android.app.Service
 import android.content.ComponentName
 import android.content.Context
+import android.content.Context.BIND_AUTO_CREATE
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Binder
@@ -28,6 +29,8 @@ open class DirectBinder(val service: Service) : Binder()
  * This is a marker interface for services handling [BIND_DIRECT_ACTION] and returning [DirectBinder].
  *
  * If possible default implementation can be extended: [DirectBindService.Impl].
+ *
+ * Use [DirectServiceConnection] to connect to those services.
  * */
 interface DirectBindService {
     companion object {
@@ -73,51 +76,73 @@ open class DirectServiceConnection<T : DirectBindService>(
     val serviceClass: Class<T>,
     /** Binding mode of this connection. Note that only in [LIFECYCLE] mode it can be used as lifecycle observer,
      * otherwise connection will force a crash. */
-    val bindingMode: BindingMode
+    val bindingMode: BindingMode,
+    /** Default bind flags to use. */
+    bindFlags: Int = BIND_AUTO_CREATE
 ) : LiveData<T?>(), ServiceConnection, LifecycleObserver {
     /** Companion object contains quick factory methods. */
     companion object {
         /** Observe connection to the service - this uses activity lifecycle to connect to service automatically. */
         inline fun <reified T : DirectBindService> observe(
             activity: AppCompatActivity,
-            bindFlags: Int = Context.BIND_AUTO_CREATE,
-            bindingEvents : BindingEvents = BindingEvents.START_STOP
-        ) = observe<T>(activity.contextDelegate, activity.lifecycle, bindFlags, bindingEvents)
+            bindFlags: Int = BIND_AUTO_CREATE,
+            bindState: Lifecycle.State = Lifecycle.State.STARTED
+        ) = observe(
+            T::class.java,
+            activity.contextDelegate,
+            activity.lifecycle,
+            bindFlags,
+            bindState
+        )
 
         /** Observe connection to the service - this uses fragment lifecycle to connect to service automatically. */
         inline fun <reified T : DirectBindService> observe(
             fragment: Fragment,
-            bindFlags: Int = Context.BIND_AUTO_CREATE,
-            bindingEvents : BindingEvents = BindingEvents.START_STOP
-        ) = observe<T>(fragment.contextDelegate, fragment.lifecycle, bindFlags, bindingEvents)
+            bindFlags: Int = BIND_AUTO_CREATE,
+            bindState: Lifecycle.State = Lifecycle.State.STARTED
+        ) = observe(
+            T::class.java,
+            fragment.contextDelegate,
+            fragment.lifecycle,
+            bindFlags,
+            bindState
+        )
 
         /** Observe connection to the service - this uses given lifecycle to connect to service automatically. */
-        inline fun <reified T : DirectBindService> observe(
+        fun <T : DirectBindService> observe(
+            serviceClass: Class<T>,
             contextDelegate: ContextDelegate,
             lifecycle: Lifecycle,
-            bindFlags: Int = Context.BIND_AUTO_CREATE,
-            bindingEvents : BindingEvents = BindingEvents.START_STOP
-        ) = DirectServiceConnection(contextDelegate, T::class.java, LIFECYCLE).apply {
-            defaultBindFlags = bindFlags
-            bindingLifecycleEvents = bindingEvents
+            bindFlags: Int = BIND_AUTO_CREATE,
+            bindState: Lifecycle.State = Lifecycle.State.STARTED
+        ) = DirectServiceConnection(contextDelegate, serviceClass, LIFECYCLE, bindFlags).apply {
+            bindingLifecycleState = bindState
             lifecycle.addObserver(this)
         }
 
         /** Create connection to service, it will be bound when there are active observers. */
-        inline fun <reified T : DirectBindService> liveData(context: Context) =
-            DirectServiceConnection(context.contextDelegate, T::class.java, LIVEDATA)
+        inline fun <reified T : DirectBindService> liveData(
+            context: Context,
+            bindFlags: Int = BIND_AUTO_CREATE
+        ) = DirectServiceConnection(context.contextDelegate, T::class.java, LIVEDATA, bindFlags)
 
         /** Create connection to service, it will be bound when there are active observers. */
-        inline fun <reified T : DirectBindService> liveData(fragment: Fragment) =
-            DirectServiceConnection(fragment.contextDelegate, T::class.java, LIVEDATA)
+        inline fun <reified T : DirectBindService> liveData(
+            fragment: Fragment,
+            bindFlags: Int = BIND_AUTO_CREATE
+        ) = DirectServiceConnection(fragment.contextDelegate, T::class.java, LIVEDATA, bindFlags)
 
         /** Create connection to service. Need to manually call [bind] and [unbind] to connect.*/
-        inline fun <reified T : DirectBindService> create(context: Context) =
-            DirectServiceConnection(context.contextDelegate, T::class.java, MANUAL)
+        inline fun <reified T : DirectBindService> create(
+            context: Context,
+            bindFlags: Int = BIND_AUTO_CREATE
+        ) = DirectServiceConnection(context.contextDelegate, T::class.java, MANUAL, bindFlags)
 
         /** Create connection to service. Need to manually call [bind] and [unbind] to connect.*/
-        inline fun <reified T : DirectBindService> create(fragment: Fragment) =
-            DirectServiceConnection(fragment.contextDelegate, T::class.java, MANUAL)
+        inline fun <reified T : DirectBindService> create(
+            fragment: Fragment,
+            bindFlags: Int = BIND_AUTO_CREATE
+        ) = DirectServiceConnection(fragment.contextDelegate, T::class.java, MANUAL, bindFlags)
     }
 
     /** Binding modes available for [DirectServiceConnection]. */
@@ -133,13 +158,6 @@ open class DirectServiceConnection<T : DirectBindService>(
         LIVEDATA
     }
 
-    /** Lifecycle events to observe when [LIFECYCLE] binding mode is used. */
-    enum class BindingEvents {
-        START_STOP,
-        CREATE_DESTROY,
-        RESUME_PAUSE
-    }
-
     /** Context provided by delegate, workaround for fragment lazy context initialization. */
     val context by contextDelegate
 
@@ -148,15 +166,17 @@ open class DirectServiceConnection<T : DirectBindService>(
      *
      * By default this is [Context.BIND_AUTO_CREATE].
      * */
-    var defaultBindFlags = Context.BIND_AUTO_CREATE
+    var defaultBindFlags = bindFlags
 
     /**
-     * Lifecycle event that will trigger the binding.
+     * Lifecycle state that will trigger the binding if [bindingMode] is [LIFECYCLE].
      *
-     * By default this is [BindingEvents.START_STOP] or null if binding mode is not lifecycle.
+     * This has to be either [Lifecycle.State.STARTED], [Lifecycle.State.RESUMED] or [Lifecycle.State.CREATED].
+     *
+     * By default this is [Lifecycle.State.STARTED] (or null if binding mode is not [LIFECYCLE]).
      * */
-    var bindingLifecycleEvents: BindingEvents? =
-        if (bindingMode == LIFECYCLE) BindingEvents.START_STOP else null
+    var bindingLifecycleState: Lifecycle.State? =
+        if (bindingMode == LIFECYCLE) Lifecycle.State.STARTED else null
 
     /** Raised if [bind] was called without matching [unbind]. */
     var isBound = false
@@ -246,25 +266,25 @@ open class DirectServiceConnection<T : DirectBindService>(
 
     // lifecycle triggers
     @OnLifecycleEvent(Lifecycle.Event.ON_ANY)
-    fun onLifecycleEvent(source : LifecycleOwner, event: Lifecycle.Event) {
+    fun onLifecycleEvent(source: LifecycleOwner, event: Lifecycle.Event) {
         check(bindingMode == LIFECYCLE)
-        when(bindingLifecycleEvents){
-            BindingEvents.START_STOP -> when(event){
+        when (bindingLifecycleState) {
+            Lifecycle.State.STARTED -> when (event) {
                 Lifecycle.Event.ON_START -> performBind(defaultBindFlags)
                 Lifecycle.Event.ON_STOP -> performUnbind()
                 else -> Unit // ignored
             }
-            BindingEvents.CREATE_DESTROY -> when(event){
-                Lifecycle.Event.ON_CREATE -> performBind(defaultBindFlags)
-                Lifecycle.Event.ON_DESTROY -> performUnbind()
-                else -> Unit // ignored
-            }
-            BindingEvents.RESUME_PAUSE -> when(event){
+            Lifecycle.State.RESUMED -> when (event) {
                 Lifecycle.Event.ON_RESUME -> performBind(defaultBindFlags)
                 Lifecycle.Event.ON_PAUSE -> performUnbind()
                 else -> Unit // ignored
             }
-            null -> throw IllegalStateException("missing bindingLifecycleEvent")
+            Lifecycle.State.CREATED -> when (event) {
+                Lifecycle.Event.ON_CREATE -> performBind(defaultBindFlags)
+                Lifecycle.Event.ON_DESTROY -> performUnbind()
+                else -> Unit // ignored
+            }
+            null -> throw IllegalStateException("missing or invalid bindingLifecycleEvent")
         }
     }
 

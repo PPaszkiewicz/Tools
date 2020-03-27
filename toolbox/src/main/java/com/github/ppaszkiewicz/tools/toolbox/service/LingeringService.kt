@@ -128,7 +128,7 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
 }
 
 /**
- * Connection that should be used with [LingeringService].
+ * Connection that should be used with [LingeringService]. This will always bind using [Context.BIND_AUTO_CREATE].
  *
  * 1. [Companion.observe] will create connection that causes service to always linger.
  * 2. [Companion.liveData] will create connection that causes service to always linger (based on observer state).
@@ -150,8 +150,8 @@ open class LingeringServiceConnection<T : LingeringService>(
          * */
         inline fun <reified T : LingeringService> observe(
             activity: AppCompatActivity,
-            bindingEvents: BindingEvents = BindingEvents.START_STOP
-        ) = observe<T>(activity.contextDelegate, activity.lifecycle, bindingEvents)
+            bindState: Lifecycle.State = Lifecycle.State.STARTED
+        ) = observe<T>(activity.contextDelegate, activity.lifecycle, bindState)
 
         /**
          * Observe connection for a given service class. This will be bound to fragments lifecycle,
@@ -159,8 +159,8 @@ open class LingeringServiceConnection<T : LingeringService>(
          * */
         inline fun <reified T : LingeringService> observe(
             fragment: Fragment,
-            bindingEvents: BindingEvents = BindingEvents.START_STOP
-        ) = observe<T>(fragment.contextDelegate, fragment.lifecycle, bindingEvents)
+            bindState: Lifecycle.State = Lifecycle.State.STARTED
+        ) = observe<T>(fragment.contextDelegate, fragment.lifecycle, bindState)
 
         /**
          * Observe connection for a given service class. This will be bound to given lifecycle,
@@ -169,9 +169,9 @@ open class LingeringServiceConnection<T : LingeringService>(
         inline fun <reified T : LingeringService> observe(
             contextDelegate: ContextDelegate,
             lifecycle: Lifecycle,
-            bindingEvents: BindingEvents = BindingEvents.START_STOP
+            bindState: Lifecycle.State = Lifecycle.State.STARTED
         ) = LingeringServiceConnection(contextDelegate, T::class.java, LIFECYCLE).apply {
-            bindingLifecycleEvents = bindingEvents
+            bindingLifecycleState = bindState
             lifecycle.addObserver(this)
         }
 
