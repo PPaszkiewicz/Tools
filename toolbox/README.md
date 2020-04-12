@@ -50,7 +50,7 @@ Various extensions relating to whatever is in the file name.
 1 item view type and item heights have to be uniform regardless of their content.
 
 ### Reflection
-**IFieldReflector** - interface and utilities for reflecting fields and methods as simple delegates. See demo/tests for sample.
+**KMirror** - interface and utilities for reflecting fields and methods as simple delegates. See demo/tests for sample.
 
 ### Service
 **DirectBindService** - abstract marker interface for services that can be bound to directly (within same process).
