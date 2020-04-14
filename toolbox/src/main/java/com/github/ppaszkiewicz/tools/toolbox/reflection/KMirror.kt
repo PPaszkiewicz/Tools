@@ -79,20 +79,30 @@ interface KMirror {
 
     /**
      *  Delegate for single field used in case where it has special parameters. It can have field [name]
-     *  specified explicitly or it can have [inherited] flag risen to find that field in superclasses.
+     *  specified explicitly.
+     *
+     *  See [allowNonDeclared] and [customTargetClass] for special options.
      * */
-    class SingleField<T>(private val mirror: KMirror, private val name: String?) : ReadWriteProperty<Any, T> {
-        var allowNonDeclared = false
-            private set
+    class SingleField<T>(private val mirror: KMirror, private val name: String?) :
+        ReadWriteProperty<Any, T> {
+        /**
+         * Allow return of non-declared field (implemented from interface or superclass).
+         *
+         * Note for Kotlin classes to work this field needs to be a [JvmField].
+         * */
+        internal var allowNonDeclared = false
 
-        /** Allow return of non-declared field (inherited from interface or superclass). */
-        fun inherited() = apply { allowNonDeclared = true }
+        /** Reflect this field using [customTargetClass] specifically. */
+        internal var customTargetClass: Class<*>? = null
 
-        // internal - unlike default implementation, this caches field
-        // using property name instead of field name to prevent clashes
+        // internal -  caches field using property name instead of field name to prevent clashes
         private fun obtainField(propertyName: String) =
             mirror.reflectedFieldCache.getOrPut(propertyName) {
-                getAccessibleField(mirror.reflectTargetClass, name ?: propertyName, allowNonDeclared)
+                getAccessibleField(
+                    customTargetClass ?: mirror.reflectTargetClass,
+                    name ?: propertyName,
+                    allowNonDeclared
+                )
             }
 
         override fun getValue(thisRef: Any, property: KProperty<*>) =
@@ -133,11 +143,27 @@ interface KMirror {
     }
 }
 
-/** Delegate to access single field of reflected class OR one of its superclasses or interfaces. */
-fun <T> KMirror.inherited() =  KMirror.SingleField<T>(this, null)
+/**
+ * Create delegate object to access single field of reflected class OR one of its superclasses or interfaces.
+ *
+ * Note for Kotlin classes to work target field needs to be a [JvmField].
+ * */
+fun <T> KMirror.allowNonDeclared() = KMirror.SingleField<T>(this, null)
 
 /** Delegate to access single field of reflected class - use if there's field name collision. */
 fun <T> KMirror.field(fieldName: String) = KMirror.SingleField<T>(this, fieldName)
+
+/**
+ * Create delegate object to access single field of reflected class with extra options:
+ *
+ * @param targetClass target class to reflect instead of the mirrored one (only parent class or interface will work)
+ * @param allowNonDeclared also find any accessible public members from parent classes (note for Kotlin classes to work target field needs to be a [JvmField])
+ * */
+fun <T> KMirror.field(fieldName: String, targetClass: Class<*>? = null, allowNonDeclared: Boolean = false) =
+    KMirror.SingleField<T>(this, fieldName).apply {
+        customTargetClass = targetClass
+        this.allowNonDeclared = allowNonDeclared
+}
 
 /** Get field from [KMirror.reflectedFieldCache] or perform reflection and make it accessible. */
 fun KMirror.getReflectedField(name: String) = reflectedFieldCache.getOrPut(name) {

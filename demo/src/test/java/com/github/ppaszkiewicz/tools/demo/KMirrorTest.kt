@@ -11,7 +11,7 @@ import org.junit.runners.JUnit4
  * Self contained [KMirror] test.
  * */
 @RunWith(JUnit4::class)
-class IReflectorTest {
+class KMirrorTest {
     @Test
     fun privateContainerMirrorTest() {
         PrivateContainerMirror().apply {
@@ -39,7 +39,7 @@ class IReflectorTest {
         val privObject = PrivateObject::class.forceCreateNewInstance()
 
         // reflects field from another object by implementing delegate
-        PrivateObjectReflector(privObject).apply {
+        PrivateObjectMirror(privObject).apply {
             println(double)
             double = 15.0    // can modify values (ignores VAL declaration)
             println(double)
@@ -59,10 +59,10 @@ class IReflectorTest {
             publicField += 5
             println("pub field is: $publicField (modified)")
             assert(publicField == privObject.publicField)
-//            println("pub field2 is: $publicField2")
-//            publicField2 += 10
-//            println("pub field2 is: $publicField2 (modified)")
-//            assert(publicField2 == privObject2.publicField)
+            println("pub field2 is: $publicField2")
+            publicField2 += 10
+            println("pub field2 is: $publicField2 (modified)")
+            assert(publicField2 == privObject2.publicField)
         }
     }
 }
@@ -90,18 +90,6 @@ open class PrivateContainer {
     private fun listOverload(l: List<Int>) = l.sorted()
 }
 
-/** Another class - not open so it cannot be inherited from. Also hides it's constructor. */
-open class PrivateObject protected constructor() {
-    private val double: Double = 22.22
-    private fun privateMethod() = "Im hidden in PrivateObject"
-    var publicField : Int = 55
-        private set
-}
-
-class PrivateObjectChild : PrivateObject(){
-    private fun privateMethod() = "Im hidden in PrivateObjectChild"
-}
-
 /** Reflects from SELF - [KMirror] delegate without object argument (only specifies class to reflect). */
 class PrivateContainerMirror : PrivateContainer(), KMirror by KMirror.ofClass<PrivateContainer>() {
     /** Reflects str from self.*/
@@ -123,9 +111,20 @@ class PrivateContainerMirror : PrivateContainer(), KMirror by KMirror.ofClass<Pr
     val listOverloadInt by reflectMethod<List<Int>>()
 }
 
+/** Another class - not open so it cannot be inherited from. Also hides it's constructor. */
+open class PrivateObject protected constructor() {
+    private val double: Double = 22.22
+    private fun privateMethod() = "Im hidden in PrivateObject"
+    @JvmField
+    var publicField : Int = 55
+}
+
+class PrivateObjectChild : PrivateObject(){
+    private fun privateMethod() = "Im hidden in PrivateObjectChild"
+}
 
 /** Reflects fields from class that cannot be extended - [KMirror] delegate with object argument. */
-open class PrivateObjectReflector(val privateObject: PrivateObject) :
+open class PrivateObjectMirror(val privateObject: PrivateObject) :
     KMirror by KMirror.of(privateObject) {
     var double: Double by this
     val privateMethod by reflectMethod()
@@ -136,12 +135,12 @@ class NotReflector(privateObject: PrivateObject, privateObject2: PrivateObject) 
     private val mirror = KMirror.of(privateObject)
     val double: Double by mirror
     val privateMethod by mirror.reflectMethod<String>()
-    var publicField : Int by mirror.inherited()
+    var publicField : Int by mirror
 
     private val mirror2 = KMirror.of(PrivateObjectChild::class.java, privateObject2)
 
     val privateMethod2 by mirror2.reflectMethod<String>("privateMethod")
-    // work around field name collision specifying field name as arg, and raise inherited flag
-    //var publicField2 by mirror2.field<Int>("publicField").inherited()     doesn't work (?)
-    //val double2: Double by mirror2.field("double") this will be inaccessible because child is reflected
+    // work around field name collision specifying field name as arg, and raise allowNonDeclared flag
+    var publicField2 : Int by mirror2.field("publicField", allowNonDeclared = true)
+    val double2: Double by mirror2.field("double", targetClass = PrivateObject::class.java)
 }
