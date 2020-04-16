@@ -23,13 +23,11 @@ inline fun <reified T : Service> Context.startService(action: String? = null) =
 inline fun <reified T : Service> Context.startService(
     action: String,
     editExtras: Bundle.() -> Unit
-): Intent {
-    return Intent(this, T::class.java).also {
-        it.action = action
-        val extras = Bundle().also(editExtras)
-        it.putExtras(extras)
-        startService(it)
-    }
+) = Intent(this, T::class.java).also {
+    it.action = action
+    val extras = Bundle().also(editExtras)
+    it.putExtras(extras)
+    startService(it)
 }
 
 /**
@@ -38,11 +36,9 @@ inline fun <reified T : Service> Context.startService(
  * */
 inline fun <reified T : Service> Context.startService(
     editStartIntent: Intent.() -> Unit
-): Intent {
-    return Intent(this, T::class.java).also {
-        it.editStartIntent()
-        startService(it)
-    }
+) = Intent(this, T::class.java).also {
+    it.editStartIntent()
+    startService(it)
 }
 
 /**
@@ -62,13 +58,11 @@ inline fun <reified T : Service> Context.startForegroundService(action: String? 
 inline fun <reified T : Service> Context.startForegroundService(
     action: String,
     editExtras: Bundle.() -> Unit
-): Intent {
-    return Intent(this, T::class.java).also {
-        it.action = action
-        val extras = Bundle().also(editExtras)
-        it.putExtras(extras)
-        ContextCompat.startForegroundService(this, it)
-    }
+) = Intent(this, T::class.java).also {
+    it.action = action
+    val extras = Bundle().also(editExtras)
+    it.putExtras(extras)
+    ContextCompat.startForegroundService(this, it)
 }
 
 /**
@@ -77,9 +71,19 @@ inline fun <reified T : Service> Context.startForegroundService(
  * */
 inline fun <reified T : Service> Context.startForegroundService(
     editStartIntent: Intent.() -> Unit
-): Intent {
-    return Intent(this, T::class.java).also {
-        it.editStartIntent()
-        ContextCompat.startForegroundService(this, it)
-    }
+) = Intent(this, T::class.java).also {
+    it.editStartIntent()
+    ContextCompat.startForegroundService(this, it)
 }
+
+/**
+ * Convenience for [Context.stopService].
+ * */
+fun <T : Service> Context.stopService(serviceClass : Class<T>) =
+    stopService(Intent(this, serviceClass))
+
+/**
+ * Convenience for [Context.stopService].
+ * */
+inline fun <reified T : Service> Context.stopService() =
+    stopService(T::class.java)
