@@ -176,7 +176,17 @@ open class DirectServiceConnection<T : DirectBindService>(
      * By default this is [Lifecycle.State.STARTED] (or null if binding mode is not [LIFECYCLE]).
      * */
     var bindingLifecycleState: Lifecycle.State? =
-        if (bindingMode == LIFECYCLE) Lifecycle.State.STARTED else null
+        Lifecycle.State.STARTED.takeIf { bindingMode == LIFECYCLE }
+        set(value) {
+            check(bindingMode == LIFECYCLE) { "This connection does not operate on lifecycle, it uses $bindingMode" }
+            check(!isBound) { "Cannot modify bindingLifecycleState while connection is already bound" }
+            field = value
+        }
+
+    /**
+     * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
+     */
+    var autoRebindDeadBinding = true
 
     /** Raised if [bind] was called without matching [unbind]. */
     var isBound = false
@@ -202,6 +212,19 @@ open class DirectServiceConnection<T : DirectBindService>(
      * Triggered when service unbinding is requested.
      * */
     var onUnbind: (() -> Unit)? = null
+
+    /**
+     * Triggered when binding dies.
+     *
+     * If this is null or returns true then [onUnbind] and [onBind] are called while rebinding. Returning
+     * false prevents those callbacks from being invoked.
+     */
+    var onBindingDied: (() -> Boolean)? = null
+
+    /**
+     * Called when null binding occurs.
+     */
+    var onNullBinding: (() -> Unit)? = null
 
     /** True if service connected. */
     val isConnected
@@ -232,6 +255,19 @@ open class DirectServiceConnection<T : DirectBindService>(
         }
     }
 
+    /** Perform rebind after unexpected */
+    protected open fun performRebind(doCallbacks: Boolean, flags: Int) {
+        if (isBound) {
+            context.unbindService(this)
+            if (doCallbacks) onUnbind?.invoke()
+            context.bindService(
+                Intent(context, serviceClass)
+                    .setAction(DirectBindService.BIND_DIRECT_ACTION), this, flags
+            )
+            if (doCallbacks) onBind?.invoke()
+        }
+    }
+
     override fun onServiceDisconnected(name: ComponentName) {
         onDisconnect?.let { it(value!!) }
         value = null
@@ -241,6 +277,17 @@ open class DirectServiceConnection<T : DirectBindService>(
         @Suppress("UNCHECKED_CAST")
         this.value = ((service as DirectBinder).service as T)
         onConnect?.invoke(this.value!!)
+    }
+
+    override fun onBindingDied(name: ComponentName?) {
+        val doCallbacks = onBindingDied?.invoke() ?: true
+        if (autoRebindDeadBinding) {
+            performRebind(doCallbacks, defaultBindFlags)
+        }
+    }
+
+    override fun onNullBinding(name: ComponentName?) {
+        onNullBinding?.invoke()
     }
 
     // manual triggers
