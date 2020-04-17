@@ -1,6 +1,5 @@
 package com.github.ppaszkiewicz.tools.demo
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -8,11 +7,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParams
-import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity
-import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity2
+import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParamsDialog
 import com.github.ppaszkiewicz.tools.demo.coroutines.loaderDemo.LoaderActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.TaskServiceActivity
-import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParamsDialog
+import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity
+import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity2
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity3
 import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
 import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences

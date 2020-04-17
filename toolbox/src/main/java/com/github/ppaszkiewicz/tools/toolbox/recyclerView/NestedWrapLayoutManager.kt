@@ -10,7 +10,6 @@ import android.util.SparseIntArray
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
-import androidx.core.math.MathUtils
 import androidx.core.util.isNotEmpty
 import androidx.core.util.set
 import androidx.core.view.marginBottom
@@ -19,6 +18,8 @@ import androidx.core.view.marginRight
 import androidx.core.view.marginTop
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
+import com.github.ppaszkiewicz.tools.toolbox.recyclerView.NestedWrapLayoutManager.Companion.HORIZONTAL
+import com.github.ppaszkiewicz.tools.toolbox.recyclerView.NestedWrapLayoutManager.Companion.VERTICAL
 import kotlin.math.max
 import kotlin.math.min
 

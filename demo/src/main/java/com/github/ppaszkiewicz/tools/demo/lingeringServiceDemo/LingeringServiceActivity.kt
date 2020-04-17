@@ -6,12 +6,11 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.toolbox.service.BindServiceConnection
-import com.github.ppaszkiewicz.tools.toolbox.service.LingeringService
 import kotlinx.android.synthetic.main.activity_service.*
 
 /** Uses lifecycle to automatically handle connection*/
 class LingeringServiceActivity : AppCompatActivity(R.layout.activity_service){
-    val serviceConn = LingeringService.lifecycleConnection<DemoLingeringService>(this)
+    val serviceConn = DemoLingeringService.connectionFactory.lifecycle(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,7 +21,7 @@ class LingeringServiceActivity : AppCompatActivity(R.layout.activity_service){
 
 /** Manually handle connection, prevents lingering when activity is finishing. */
 class LingeringServiceActivity2 : AppCompatActivity(R.layout.activity_service){
-    val serviceConn = LingeringService.manualConnection<DemoLingeringService>(this)
+    val serviceConn = DemoLingeringService.connectionFactory.manual(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,7 +42,7 @@ class LingeringServiceActivity2 : AppCompatActivity(R.layout.activity_service){
 
 /** Uses liveData to automatically handle connection. */
 class LingeringServiceActivity3 : AppCompatActivity(R.layout.activity_service){
-    val serviceConn = LingeringService.observableConnection<DemoLingeringService>(this)
+    val serviceConn = DemoLingeringService.connectionFactory.observable(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

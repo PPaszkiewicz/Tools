@@ -11,7 +11,6 @@ import androidx.core.view.setMargins
 import com.github.ppaszkiewicz.tools.demo.R
 import kotlinx.android.parcel.Parcelize
 import kotlinx.android.synthetic.main.activity_test.*
-import java.io.Serializable
 
 // extras for activity  and service intents
 

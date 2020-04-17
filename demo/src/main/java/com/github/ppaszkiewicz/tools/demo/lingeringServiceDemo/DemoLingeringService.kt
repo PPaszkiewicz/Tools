@@ -1,6 +1,5 @@
 package com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo
 
-import android.content.Context
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.Lifecycle
@@ -14,6 +13,8 @@ import com.github.ppaszkiewicz.tools.toolbox.service.LingeringService
 class DemoLingeringService : LingeringService(){
     companion object{
         const val TAG = "DEMO_SERVICE"
+        /** Connection factory to this service. */
+        val connectionFactory = ConnectionFactory(DemoLingeringService::class.java)
     }
 
     init {

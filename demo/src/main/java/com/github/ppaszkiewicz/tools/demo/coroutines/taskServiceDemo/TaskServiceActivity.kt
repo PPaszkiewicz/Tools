@@ -5,9 +5,8 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.view.children
 import androidx.lifecycle.Observer
-import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
 import com.github.ppaszkiewicz.tools.demo.coroutines.ProgressTextView
-import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
+import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
 import kotlinx.android.synthetic.main.activity_test.*
 import kotlin.random.Random
 
@@ -18,7 +17,7 @@ class TaskServiceActivity : TestActivityBase() {
         const val TAG = "TaskServiceActivity"
     }
 
-    val serviceConnection = DirectBindService.lifecycleConnection<DemoTaskService>(this)
+    val serviceConnection = DemoTaskService.connectionFactory.lifecycle(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

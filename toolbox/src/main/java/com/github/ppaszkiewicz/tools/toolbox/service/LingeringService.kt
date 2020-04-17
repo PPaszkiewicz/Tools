@@ -12,9 +12,10 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.LiveData
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
+import com.github.ppaszkiewicz.tools.toolbox.service.LingeringService.Companion
 
 /*
- *   Requires DirectBindService.kt
+ *   Requires DirectBindService.kt and all of its dependencies
  * */
 
 /**
@@ -26,11 +27,7 @@ import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
  * - [onServiceTimeoutStarted] = [Lifecycle.State.STARTED] (onPause)
  * - [onDestroy] = [Lifecycle.State.DESTROYED] (onStop -> onDestroy)
  *
- * Use companion object to build valid connection objects:
- *
- * 1. [Companion.lifecycleConnection] will create connection that causes service to always linger based on lifecycle.
- * 2. [Companion.observableConnection] will create connection that causes service to always linger (based on observer state).
- * 3. [Companion.manualConnection] requires manual binding handling in activity start/stop (see [LingeringManualServiceConnection]):
+ * Use [LingeringService.ConnectionFactory] object to build valid connection objects.
  */
 abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
     private val mLifecycle = LifecycleRegistry(this)
@@ -131,61 +128,57 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
         const val ACTION_LINGERING_SERVICE_START_LINGER =
             "$TAG.ACTION_LINGERING_SERVICE_START_LINGER"
 
-        /**
-         * Observe connection for a given service class. This will be bound to activity lifecycle,
-         * so service will always linger for given delay.
-         * */
-        inline fun <reified T : LingeringService> lifecycleConnection(
+        /** Create connection factory for [LingeringService] of class [T]. */
+        inline fun <reified T : LingeringService> ConnectionFactory() =
+            ConnectionFactory(T::class.java)
+    }
+
+    /**
+     * Connection factory that creates default connections to [serviceClass].
+     *
+     * For convenience this can be inherited or created by that services companion object.
+     */
+    open class ConnectionFactory<T : LingeringService>(protected val serviceClass: Class<T>) {
+        /** Create [LingeringLifecycleServiceConnection] - this uses activity lifecycle to connect to service automatically, so
+         * it will always linger for given delay. */
+        fun lifecycle(
             activity: AppCompatActivity,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = lifecycleConnection<T>(activity.contextDelegate, activity.lifecycle, bindState)
+        ) = lifecycle(activity.contextDelegate, activity.lifecycle, bindState)
 
-        /**
-         * Observe connection for a given service class. This will be bound to fragments lifecycle,
-         * so service will always linger for given delay.
-         * */
-        inline fun <reified T : LingeringService> lifecycleConnection(
+        /** Create [LingeringLifecycleServiceConnection] - this uses fragment lifecycle to connect to service automatically, so
+         * it will always linger for given delay. */
+        fun lifecycle(
             fragment: Fragment,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = lifecycleConnection<T>(fragment.contextDelegate, fragment.lifecycle, bindState)
+        ) = lifecycle(fragment.contextDelegate, fragment.lifecycle, bindState)
 
-        /**
-         * Observe connection for a given service class. This will be bound to given lifecycle,
-         * so service will always linger for given delay.
-         * */
-        inline fun <reified T : LingeringService> lifecycleConnection(
+        /** Create [LingeringLifecycleServiceConnection] - this uses given lifecycle to connect to service automatically, so
+         * it will always linger for given delay. */
+        fun lifecycle(
             contextDelegate: ContextDelegate,
             lifecycle: Lifecycle,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = LingeringLifecycleServiceConnection(contextDelegate, T::class.java, bindState).apply {
-            lifecycle.addObserver(this)
-        }
+        ) = LingeringLifecycleServiceConnection(contextDelegate, serviceClass, bindState)
+            .apply { lifecycle.addObserver(this) }
 
-        /**
-         * Create connection for a given lingering service class, it will be bound when there are active observers and
-         * linger when last observer disconnects.
-         * */
-        inline fun <reified T : LingeringService> observableConnection(context: Context) =
-            LingeringObservableServiceConnection(context.contextDelegate, T::class.java)
+        /** Create [LingeringObservableServiceConnection], it will be bound when there are active observers and
+         * linger when last observer disconnects. */
+        fun observable(context: Context) =
+            LingeringObservableServiceConnection(context.contextDelegate, serviceClass)
 
-        /**
-         * Create connection for a given lingering service class, it will be bound when there are active observers and
-         * linger when last observer disconnects.
-         * */
-        inline fun <reified T : LingeringService> observableConnection(fragment: Fragment) =
-            LingeringObservableServiceConnection(fragment.contextDelegate, T::class.java)
+        /** Create [LingeringObservableServiceConnection], it will be bound when there are active observers and
+         * linger when last observer disconnects. */
+        fun observable(fragment: Fragment) =
+            LingeringObservableServiceConnection(fragment.contextDelegate, serviceClass)
 
-        /**
-         * Create connection for a given lingering service class. See [LingeringManualServiceConnection] how to control it.
-         * */
-        inline fun <reified T : LingeringService> manualConnection(context: Context) =
-            LingeringManualServiceConnection(context.contextDelegate, T::class.java)
+        /** Create manual connection. See [LingeringManualServiceConnection] how to control it. */
+        fun manual(context: Context) =
+            LingeringManualServiceConnection(context.contextDelegate, serviceClass)
 
-        /**
-         * Create connection for a given lingering service class. See [LingeringManualServiceConnection] how to control it.
-         * */
-        inline fun <reified T : LingeringService> manualConnection(fragment: Fragment) =
-            LingeringManualServiceConnection(fragment.contextDelegate, T::class.java)
+        /** Create manual connection. See [LingeringManualServiceConnection] how to control it. */
+        fun manual(fragment: Fragment) =
+            LingeringManualServiceConnection(fragment.contextDelegate, serviceClass)
     }
 }
 
@@ -229,7 +222,7 @@ open class LingeringLifecycleServiceConnection<T : LingeringService>(
 }
 
 // shared implementation
-private fun <T : LingeringService> BindServiceConnection<out T>.lingeringUnbind(finishImmediately: Boolean = false){
+private fun <T : LingeringService> BindServiceConnection<out T>.lingeringUnbind(finishImmediately: Boolean = false) {
     if (isBound) {
         if (finishImmediately) {
             value?.setPreventLinger()

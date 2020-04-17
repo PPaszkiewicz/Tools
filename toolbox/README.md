@@ -62,8 +62,14 @@ Its companion object contains smart connection factory methods.
 
 **DirectBindService.LifecycleImpl** - default lifecycle service implementation that can be extended if possible.
 
+**DirectBindService.ConnectionFactory** - connection factory for specific direct bind service class. This can be created or inherited by
+that services companion object for convenience.
+
 **LingeringService** - service that auto-starts self to persist for a while after `unbind()`.
 Its companion object contains required connection factory methods.
+
+**LingeringService.ConnectionFactory** - connection factory for specific lingering service class. This can be created or inherited by
+that services companion object for convenience.
 
 ### Transition
 
