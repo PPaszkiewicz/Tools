@@ -4,14 +4,14 @@ import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
-import com.github.ppaszkiewicz.tools.toolbox.service.LingeringServiceConnection
 import com.github.ppaszkiewicz.tools.demo.R
-import com.github.ppaszkiewicz.tools.toolbox.service.DirectServiceConnection
+import com.github.ppaszkiewicz.tools.toolbox.service.BindServiceConnection
+import com.github.ppaszkiewicz.tools.toolbox.service.LingeringService
 import kotlinx.android.synthetic.main.activity_service.*
 
 /** Uses lifecycle to automatically handle connection*/
 class LingeringServiceActivity : AppCompatActivity(R.layout.activity_service){
-    val serviceConn = LingeringServiceConnection.observe<DemoLingeringService>(this)
+    val serviceConn = LingeringService.lifecycleConnection<DemoLingeringService>(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -22,7 +22,7 @@ class LingeringServiceActivity : AppCompatActivity(R.layout.activity_service){
 
 /** Manually handle connection, prevents lingering when activity is finishing. */
 class LingeringServiceActivity2 : AppCompatActivity(R.layout.activity_service){
-    val serviceConn = LingeringServiceConnection.create<DemoLingeringService>(this)
+    val serviceConn = LingeringService.manualConnection<DemoLingeringService>(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,7 +43,7 @@ class LingeringServiceActivity2 : AppCompatActivity(R.layout.activity_service){
 
 /** Uses liveData to automatically handle connection. */
 class LingeringServiceActivity3 : AppCompatActivity(R.layout.activity_service){
-    val serviceConn = LingeringServiceConnection.liveData<DemoLingeringService>(this)
+    val serviceConn = LingeringService.observableConnection<DemoLingeringService>(this)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,7 +55,7 @@ class LingeringServiceActivity3 : AppCompatActivity(R.layout.activity_service){
     }
 }
 
-private fun setLogCallbacks(serviceConnection: LingeringServiceConnection<*>){
+private fun setLogCallbacks(serviceConnection: BindServiceConnection<*>){
     serviceConnection.onBind = {
         Log.d("DEMO_ACT", "service is bound")
     }

@@ -14,9 +14,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
-import com.github.ppaszkiewicz.tools.toolbox.service.DirectServiceConnection.BindingMode.*
 
-/* requires context delegates from delegate.Context.kt */
+/* requires BindServiceConnection.kt and context delegates from delegate.Context.kt */
 
 /*
     Base for direct binding services.
@@ -33,11 +32,6 @@ open class DirectBinder(val service: Service) : Binder()
  * Use [DirectServiceConnection] to connect to those services.
  * */
 interface DirectBindService {
-    companion object {
-        /** Action that will return a direct binder. */
-        const val BIND_DIRECT_ACTION = "DirectBindService.BIND_DIRECT_ACTION"
-    }
-
     /** Default [DirectBindService] implementation.*/
     abstract class Impl : Service(), DirectBindService {
         @Suppress("LeakingThis")
@@ -62,32 +56,30 @@ interface DirectBindService {
             throw IllegalArgumentException("BIND_DIRECT_ACTION required.")
         }
     }
-}
 
-/**
- * Binds to a DirectBindService and provides basic callbacks.
- *
- * Use companion builders for automatic binding handling.
- *
- * Provide either [onConnect] and [onDisconnect] listeners, or [observe] this as [LiveData] and react to changes.
- * */
-open class DirectServiceConnection<T : DirectBindService>(
-    contextDelegate: ContextDelegate,
-    val serviceClass: Class<T>,
-    /** Binding mode of this connection. Note that only in [LIFECYCLE] mode it can be used as lifecycle observer,
-     * otherwise connection will force a crash. */
-    val bindingMode: BindingMode,
-    /** Default bind flags to use. */
-    bindFlags: Int = BIND_AUTO_CREATE
-) : LiveData<T?>(), ServiceConnection, LifecycleObserver {
-    /** Companion object contains quick factory methods. */
     companion object {
+        /** Action that will return a direct binder. */
+        const val BIND_DIRECT_ACTION = "DirectBindService.BIND_DIRECT_ACTION"
+
+        /** Valid intent to bind to [DirectBindService] with to receive [DirectBinder]. */
+        fun <T : DirectBindService> bindIntentFor(
+            context: Context,
+            serviceClass: Class<T>
+        ): Intent = Intent(context, serviceClass).setAction(BIND_DIRECT_ACTION)
+
+        /** Valid intent to bind to [DirectBindService] with to receive [DirectBinder]. */
+        inline fun <reified T : DirectBindService> bindIntentFor(context: Context) =
+            bindIntentFor(context, T::class.java)
+
+
+        // FACTORY methods
+
         /** Observe connection to the service - this uses activity lifecycle to connect to service automatically. */
-        inline fun <reified T : DirectBindService> observe(
+        inline fun <reified T : DirectBindService> lifecycleConnection(
             activity: AppCompatActivity,
             bindFlags: Int = BIND_AUTO_CREATE,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = observe(
+        ) = lifecycleConnection(
             T::class.java,
             activity.contextDelegate,
             activity.lifecycle,
@@ -96,11 +88,11 @@ open class DirectServiceConnection<T : DirectBindService>(
         )
 
         /** Observe connection to the service - this uses fragment lifecycle to connect to service automatically. */
-        inline fun <reified T : DirectBindService> observe(
+        inline fun <reified T : DirectBindService> lifecycleConnection(
             fragment: Fragment,
             bindFlags: Int = BIND_AUTO_CREATE,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = observe(
+        ) = lifecycleConnection(
             T::class.java,
             fragment.contextDelegate,
             fragment.lifecycle,
@@ -109,238 +101,84 @@ open class DirectServiceConnection<T : DirectBindService>(
         )
 
         /** Observe connection to the service - this uses given lifecycle to connect to service automatically. */
-        fun <T : DirectBindService> observe(
+        fun <T : DirectBindService> lifecycleConnection(
             serviceClass: Class<T>,
             contextDelegate: ContextDelegate,
             lifecycle: Lifecycle,
             bindFlags: Int = BIND_AUTO_CREATE,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = DirectServiceConnection(contextDelegate, serviceClass, LIFECYCLE, bindFlags).apply {
-            bindingLifecycleState = bindState
+        ) = DirectLifecycleServiceConnection(contextDelegate, serviceClass, bindState, bindFlags).apply {
             lifecycle.addObserver(this)
         }
 
         /** Create connection to service, it will be bound when there are active observers. */
-        inline fun <reified T : DirectBindService> liveData(
+        inline fun <reified T : DirectBindService> observableConnection(
             context: Context,
             bindFlags: Int = BIND_AUTO_CREATE
-        ) = DirectServiceConnection(context.contextDelegate, T::class.java, LIVEDATA, bindFlags)
+        ) = DirectObservableServiceConnection(context.contextDelegate, T::class.java, bindFlags)
 
         /** Create connection to service, it will be bound when there are active observers. */
-        inline fun <reified T : DirectBindService> liveData(
+        inline fun <reified T : DirectBindService> observableConnection(
             fragment: Fragment,
             bindFlags: Int = BIND_AUTO_CREATE
-        ) = DirectServiceConnection(fragment.contextDelegate, T::class.java, LIVEDATA, bindFlags)
+        ) = DirectObservableServiceConnection(fragment.contextDelegate, T::class.java, bindFlags)
 
         /** Create connection to service. Need to manually call [bind] and [unbind] to connect.*/
-        inline fun <reified T : DirectBindService> create(
+        inline fun <reified T : DirectBindService> manualConnection(
             context: Context,
             bindFlags: Int = BIND_AUTO_CREATE
-        ) = DirectServiceConnection(context.contextDelegate, T::class.java, MANUAL, bindFlags)
+        ) = DirectManualServiceConnection(context.contextDelegate, T::class.java, bindFlags)
 
         /** Create connection to service. Need to manually call [bind] and [unbind] to connect.*/
-        inline fun <reified T : DirectBindService> create(
+        inline fun <reified T : DirectBindService> manualConnection(
             fragment: Fragment,
             bindFlags: Int = BIND_AUTO_CREATE
-        ) = DirectServiceConnection(fragment.contextDelegate, T::class.java, MANUAL, bindFlags)
+        ) = DirectManualServiceConnection(fragment.contextDelegate, T::class.java, bindFlags)
     }
+}
 
-    /** Binding modes available for [DirectServiceConnection]. */
-    enum class BindingMode {
-        /** User has to manually call [bind] and [unbind]. */
-        MANUAL,
+/**
+ * Binds to a DirectBindService when [bind] and [unbind] are called and provides basic callbacks.
+ */
+open class DirectManualServiceConnection<T : DirectBindService>(
+    contextDelegate: ContextDelegate,
+    val serviceClass: Class<T>,
+    /** Default bind flags to use. */
+    bindFlags: Int = BIND_AUTO_CREATE
+) : ManualBindServiceConnection<T>(contextDelegate, bindFlags) {
+    override fun createBindingIntent(context: Context) =
+        DirectBindService.bindIntentFor(context, serviceClass)
 
-        /** When this is observing a lifecycle and binding in line with it. */
-        LIFECYCLE,
+    override fun transformBinder(binder: IBinder) = (binder as DirectBinder).service as T
+}
 
-        /** When this is being observed as LiveData and should auto bind/unbind when there are
-         * active observers. */
-        LIVEDATA
-    }
+/**
+ * Binds to a DirectBindService when it has active [LiveData] observers and provides basic callbacks.
+ */
+open class DirectObservableServiceConnection<T : DirectBindService>(
+    contextDelegate: ContextDelegate,
+    val serviceClass: Class<T>,
+    /** Default bind flags to use. */
+    bindFlags: Int = BIND_AUTO_CREATE
+) : ObservableBindServiceConnection<T>(contextDelegate, bindFlags) {
+    override fun createBindingIntent(context: Context) =
+        DirectBindService.bindIntentFor(context, serviceClass)
 
-    /** Context provided by delegate, workaround for fragment lazy context initialization. */
-    val context by contextDelegate
+    override fun transformBinder(binder: IBinder) = (binder as DirectBinder).service as T
+}
 
-    /**
-     * Bind flags used as defaults during [bind].
-     *
-     * By default this is [Context.BIND_AUTO_CREATE].
-     * */
-    var defaultBindFlags = bindFlags
+/**
+ * Binds to a DirectBindService based on lifecycle and provides basic callbacks.
+ */
+open class DirectLifecycleServiceConnection<T : DirectBindService>(
+    contextDelegate: ContextDelegate,
+    val serviceClass: Class<T>,
+    bindingLifecycleState: Lifecycle.State,
+    /** Default bind flags to use. */
+    bindFlags: Int = BIND_AUTO_CREATE
+) : LifecycleBindServiceConnection<T>(contextDelegate, bindingLifecycleState, bindFlags) {
+    override fun createBindingIntent(context: Context) =
+        DirectBindService.bindIntentFor(context, serviceClass)
 
-    /**
-     * Lifecycle state that will trigger the binding if [bindingMode] is [LIFECYCLE].
-     *
-     * This has to be either [Lifecycle.State.STARTED], [Lifecycle.State.RESUMED] or [Lifecycle.State.CREATED].
-     *
-     * By default this is [Lifecycle.State.STARTED] (or null if binding mode is not [LIFECYCLE]).
-     * */
-    var bindingLifecycleState: Lifecycle.State? =
-        Lifecycle.State.STARTED.takeIf { bindingMode == LIFECYCLE }
-        set(value) {
-            check(bindingMode == LIFECYCLE) { "This connection does not operate on lifecycle, it uses $bindingMode" }
-            check(!isBound) { "Cannot modify bindingLifecycleState while connection is already bound" }
-            field = value
-        }
-
-    /**
-     * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
-     */
-    var autoRebindDeadBinding = true
-
-    /** Raised if [bind] was called without matching [unbind]. */
-    var isBound = false
-        internal set
-
-    /**
-     * Triggered when service is connected.
-     * */
-    var onConnect: ((T) -> Unit)? = null
-
-    /**
-     * Triggered when service disconnects. This usually doesn't trigger unless service
-     * is interrupted while bound.
-     **/
-    var onDisconnect: ((T) -> Unit)? = null
-
-    /**
-     * Triggered when service binding is requested.
-     * */
-    var onBind: (() -> Unit)? = null
-
-    /**
-     * Triggered when service unbinding is requested.
-     * */
-    var onUnbind: (() -> Unit)? = null
-
-    /**
-     * Triggered when binding dies.
-     *
-     * If this is null or returns true then [onUnbind] and [onBind] are called while rebinding. Returning
-     * false prevents those callbacks from being invoked.
-     */
-    var onBindingDied: (() -> Boolean)? = null
-
-    /**
-     * Called when null binding occurs.
-     */
-    var onNullBinding: (() -> Unit)? = null
-
-    /** True if service connected. */
-    val isConnected
-        get() = value != null
-
-    /** Alias for [getValue]. Returns service object if this connection is connected. */
-    val service: T?
-        get() = value
-
-    /** Perform binding after specific trigger based on [bindingMode]. */
-    protected open fun performBind(flags: Int) {
-        if (!isBound) {
-            isBound = true
-            context.bindService(
-                Intent(context, serviceClass)
-                    .setAction(DirectBindService.BIND_DIRECT_ACTION), this, flags
-            )
-            onBind?.invoke()
-        }
-    }
-
-    /** Perform unbinding after specific trigger based on [bindingMode]. */
-    protected open fun performUnbind() {
-        if (isBound) {
-            isBound = false
-            context.unbindService(this)
-            onUnbind?.invoke()
-        }
-    }
-
-    /** Perform rebind after unexpected */
-    protected open fun performRebind(doCallbacks: Boolean, flags: Int) {
-        if (isBound) {
-            context.unbindService(this)
-            if (doCallbacks) onUnbind?.invoke()
-            context.bindService(
-                Intent(context, serviceClass)
-                    .setAction(DirectBindService.BIND_DIRECT_ACTION), this, flags
-            )
-            if (doCallbacks) onBind?.invoke()
-        }
-    }
-
-    override fun onServiceDisconnected(name: ComponentName) {
-        onDisconnect?.let { it(value!!) }
-        value = null
-    }
-
-    override fun onServiceConnected(name: ComponentName, service: IBinder) {
-        @Suppress("UNCHECKED_CAST")
-        this.value = ((service as DirectBinder).service as T)
-        onConnect?.invoke(this.value!!)
-    }
-
-    override fun onBindingDied(name: ComponentName?) {
-        val doCallbacks = onBindingDied?.invoke() ?: true
-        if (autoRebindDeadBinding) {
-            performRebind(doCallbacks, defaultBindFlags)
-        }
-    }
-
-    override fun onNullBinding(name: ComponentName?) {
-        onNullBinding?.invoke()
-    }
-
-    // manual triggers
-    /**
-     * Bind to service using [connectionFlags] (by default [defaultBindFlags]).
-     *
-     * Requires [bindingMode] to be [MANUAL].
-     * */
-    fun bind(connectionFlags: Int = defaultBindFlags) {
-        check(bindingMode == MANUAL)
-        performBind(connectionFlags)
-    }
-
-    /**
-     * Request unbind (disconnect) from service.
-     *
-     * Requires [bindingMode] to be [MANUAL].
-     */
-    fun unbind() {
-        check(bindingMode == MANUAL)
-        performUnbind()
-    }
-
-    // lifecycle triggers
-    @OnLifecycleEvent(Lifecycle.Event.ON_ANY)
-    fun onLifecycleEvent(source: LifecycleOwner, event: Lifecycle.Event) {
-        check(bindingMode == LIFECYCLE)
-        when (bindingLifecycleState) {
-            Lifecycle.State.STARTED -> when (event) {
-                Lifecycle.Event.ON_START -> performBind(defaultBindFlags)
-                Lifecycle.Event.ON_STOP -> performUnbind()
-                else -> Unit // ignored
-            }
-            Lifecycle.State.RESUMED -> when (event) {
-                Lifecycle.Event.ON_RESUME -> performBind(defaultBindFlags)
-                Lifecycle.Event.ON_PAUSE -> performUnbind()
-                else -> Unit // ignored
-            }
-            Lifecycle.State.CREATED -> when (event) {
-                Lifecycle.Event.ON_CREATE -> performBind(defaultBindFlags)
-                Lifecycle.Event.ON_DESTROY -> performUnbind()
-                else -> Unit // ignored
-            }
-            null -> throw IllegalStateException("missing or invalid bindingLifecycleEvent")
-        }
-    }
-
-    // liveData triggers
-    override fun onActive() {
-        if (bindingMode == LIVEDATA) performBind(defaultBindFlags)
-    }
-
-    override fun onInactive() {
-        if (bindingMode == LIVEDATA) performUnbind()
-    }
+    override fun transformBinder(binder: IBinder) = (binder as DirectBinder).service as T
 }

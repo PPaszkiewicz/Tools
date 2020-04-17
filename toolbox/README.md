@@ -53,15 +53,17 @@ Various extensions relating to whatever is in the file name.
 **KMirror** - interface and utilities for reflecting fields and methods as simple delegates. See demo/tests for sample.
 
 ### Service
+**BindServiceConnection** - abstract base for service connection implementations.
+
 **DirectBindService** - abstract marker interface for services that can be bound to directly (within same process).
+Its companion object contains smart connection factory methods.
 
 **DirectBindService.Impl** - default service implementation that can be extended if possible.
 
-**DirectServiceConnection** - connection implementation that automatically handles `bind()` and `unbind()` based on lifecycle or liveData state.
+**DirectBindService.LifecycleImpl** - default lifecycle service implementation that can be extended if possible.
 
 **LingeringService** - service that auto-starts self to persist for a while after `unbind()`.
-
-**LingeringServiceConnection** - connection for `LingeringService`.
+Its companion object contains required connection factory methods.
 
 ### Transition
 
