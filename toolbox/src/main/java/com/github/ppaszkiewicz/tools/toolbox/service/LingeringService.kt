@@ -15,7 +15,7 @@ import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.service.LingeringService.Companion
 
 /*
- *   Requires DirectBindService.kt and all of its dependencies
+ *   /* requires DirectBindService.kt, BindServiceConnection.kt and context delegates from delegate.Context.kt */
  * */
 
 /**
@@ -128,7 +128,7 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
         const val ACTION_LINGERING_SERVICE_START_LINGER =
             "$TAG.ACTION_LINGERING_SERVICE_START_LINGER"
 
-        /** Create connection factory for [LingeringService] of class [T]. */
+        /** Create [ConnectionFactory] for [LingeringService] of class [T]. */
         inline fun <reified T : LingeringService> ConnectionFactory() =
             ConnectionFactory(T::class.java)
     }

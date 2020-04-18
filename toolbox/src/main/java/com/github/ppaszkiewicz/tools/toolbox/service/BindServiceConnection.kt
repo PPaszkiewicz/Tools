@@ -9,6 +9,8 @@ import android.system.Os.bind
 import androidx.lifecycle.*
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 
+/* requires context delegates from delegate.Context.kt */
+
 /**
  * Base for bind service connection implementations.
  *
@@ -90,7 +92,7 @@ abstract class BindServiceConnection<T>(
 
     // core implementation
 
-    /** Perform binding after specific trigger based on [bindingMode]. */
+    /** Perform binding after relevant event. */
     protected open fun performBind(flags: Int) {
         if (!isBound) {
             isBound = true
@@ -99,7 +101,7 @@ abstract class BindServiceConnection<T>(
         }
     }
 
-    /** Perform unbinding after specific trigger based on [bindingMode]. */
+    /** Perform unbinding after relevant event. */
     protected open fun performUnbind() {
         if (isBound) {
             isBound = false
@@ -108,7 +110,7 @@ abstract class BindServiceConnection<T>(
         }
     }
 
-    /** Perform rebind after unexpected */
+    /** Perform rebind after unexpected binding death. */
     protected open fun performRebind(doCallbacks: Boolean, flags: Int) {
         if (isBound) {
             context.unbindService(this)
@@ -171,7 +173,7 @@ abstract class ObservableBindServiceConnection<T>(
     /** Default bind flags to use. */
     bindFlags: Int = Context.BIND_AUTO_CREATE
 ) : BindServiceConnection<T>(contextDelegate, bindFlags) {
-    // liveData triggers
+    // override livedata methods
     override fun onActive() {
         performBind(defaultBindFlags)
     }

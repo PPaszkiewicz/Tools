@@ -70,7 +70,7 @@ interface DirectBindService {
         inline fun <reified T : DirectBindService> createIntentFor(context: Context) =
             createIntentFor(context, T::class.java)
 
-        /** Create connection factory for [DirectBindService] of class [T]. */
+        /** Create [ConnectionFactory] factory for [DirectBindService] of class [T]. */
         inline fun <reified T : DirectBindService> ConnectionFactory() =
             ConnectionFactory(T::class.java)
     }

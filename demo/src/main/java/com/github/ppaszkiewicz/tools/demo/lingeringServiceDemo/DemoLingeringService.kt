@@ -14,7 +14,7 @@ class DemoLingeringService : LingeringService(){
     companion object{
         const val TAG = "DEMO_SERVICE"
         /** Connection factory to this service. */
-        val connectionFactory = ConnectionFactory(DemoLingeringService::class.java)
+        val connectionFactory = ConnectionFactory<DemoLingeringService>()
     }
 
     init {
