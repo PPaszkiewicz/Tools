@@ -205,7 +205,10 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             // restoring the item range
             mRangeWasRestored = false
             var range = currentlyVisibleItemRange.first..currentlyVisibleItemRange.last
-            if (range.last >= itemCount) {
+            if(itemCount == 0) {
+                // no items exist after restoration
+                range = IntRange.EMPTY
+            } else if (range.last >= itemCount) {
                 // item count was reduced, clamp to max current possible size
                 range = max(itemCount - 1 - viewCountToFit(orientationHelper.parentContentSize()) - outOfBoundsViews, 0) until itemCount
             }
