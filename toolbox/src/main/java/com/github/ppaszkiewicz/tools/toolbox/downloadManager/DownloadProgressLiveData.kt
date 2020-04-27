@@ -16,11 +16,14 @@ import androidx.lifecycle.LiveData
 /**
  * LiveData wrapper of [DownloadProgressObserver].
  *
- * When there are no observed IDs left due to [remove] or [removeAll], empty list is emitted.
+ * Emits an empty list when created and when there are no observed IDs left due to
+ * [remove] or [removeAll] empty list is emitted as well.
  * */
-open class DownloadProgressLiveData(val context: Context) : LiveData<LongSparseArray<DownloadProgress>>(),
+open class DownloadProgressLiveData(val context: Context) :
+    LiveData<LongSparseArray<DownloadProgress>>(),
     DownloadProgressObserver.ProgressListener {
-    protected val downloadProgressObserver = DownloadProgressObserver(context, this)
+    protected val downloadProgressObserver =
+        DownloadProgressObserver(context, DownloadProgressObserver.Mode.AUTO, this)
 
     /** If true new values will NOT be emitted if updated list is equal to old one. */
     var preventUpdateWithoutChanges = true
@@ -39,19 +42,25 @@ open class DownloadProgressLiveData(val context: Context) : LiveData<LongSparseA
     }
 
     /** Forces value update now ignoring current [preventUpdateWithoutChanges]. */
-    open fun forceUpdateNow(){
+    open fun forceUpdateNow() {
         val prevent = preventUpdateWithoutChanges
+        preventUpdateWithoutChanges = false
         downloadProgressObserver.runBlocking()
         preventUpdateWithoutChanges = prevent
     }
 
+    /** Add one id to observe. */
+    open fun add(downloadId: Long) = downloadProgressObserver.add(downloadId)
+
     /** Start reporting progress for ids */
-    open fun add(vararg downloadIds: Long) = downloadProgressObserver.add(*downloadIds)
+    open fun addAll(vararg downloadIds: Long) = downloadProgressObserver.addAll(*downloadIds)
 
     /**
-     * Stop reporting progress for ids.
+     * Stop reporting progress for [downloadIds].
+     *
      * @param downloadIds list of IDs to remove from tracking
-     * @param emitNothing true to [setValue] to empty list afterwards (default). False to keep last result.
+     * @param emitNothing `true` to [setValue] to empty list if everything is removed (default).
+     *                   `false` to keep last result.
      * */
     open fun remove(vararg downloadIds: Long, emitNothing: Boolean = true) {
         downloadProgressObserver.remove(*downloadIds)
@@ -59,21 +68,21 @@ open class DownloadProgressLiveData(val context: Context) : LiveData<LongSparseA
             value = DownloadProgressObserver.NO_RESULTS_LIST
     }
 
-    /** Observe one id only, removes others when called. */
-    open fun observe(downloadId: Long) = downloadProgressObserver.observe(downloadId)
-
-    /** Replace observed IDs. Removes [oldId] if it's present, then adds [newId]. */
+    /** Replace observed ID. Removes [oldId] if it's present, then adds [newId]. */
     open fun replace(oldId: Long, newId: Long) = downloadProgressObserver.replace(oldId, newId)
 
-    /** Replace observed IDs. If [oldId] is not present new one is not added. */
-    open fun replaceOnly(oldId: Long, newId: Long) = downloadProgressObserver.replaceOnly(oldId, newId)
+    /** Remove all currently observed IDs and replaces them with [newIds]. */
+    open fun replaceAll(vararg newIds: Long) = downloadProgressObserver.replaceAll(*newIds)
 
-    /** Remove all currently observed IDs and replaces then with [newIds]. */
-    open fun replaceAll(vararg newIds : Long) = downloadProgressObserver.replaceAll(*newIds)
+    /** Replace observed ID. If [oldId] is not present [newId] is not added. */
+    open fun replaceOnly(oldId: Long, newId: Long) =
+        downloadProgressObserver.replaceOnly(oldId, newId)
 
     /**
      * Stop tracking all the progress.
-     * @param emitNothing true to [setValue] to empty list afterwards (default). False to keep last result.
+     *
+     * @param emitNothing `true` to [setValue] to empty list if everything is removed (default).
+     *                   `false` to keep last result.
      * */
     open fun removeAll(emitNothing: Boolean = true) {
         downloadProgressObserver.removeAll()
@@ -84,7 +93,7 @@ open class DownloadProgressLiveData(val context: Context) : LiveData<LongSparseA
     /**
      * Callback from download manager broadcasts.
      * */
-    open fun onDownloadBroadcast(id: Long, intent: Intent){
+    open fun onDownloadBroadcast(id: Long, intent: Intent) {
         if (downloadProgressObserver.isObserving(id))
             downloadProgressObserver.run()
     }

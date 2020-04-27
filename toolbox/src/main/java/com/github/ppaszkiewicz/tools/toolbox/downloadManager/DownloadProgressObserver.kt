@@ -4,21 +4,24 @@ import android.app.DownloadManager
 import android.content.Context
 import android.net.Uri
 import android.os.Handler
+import android.text.format.DateUtils
 import android.text.format.Formatter
 import android.util.Log
-import androidx.annotation.MainThread
 import androidx.collection.LongSparseArray
 import kotlinx.coroutines.*
 import java.lang.Runnable
 import java.lang.ref.WeakReference
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.InvocationKind
+import kotlin.contracts.contract
+import kotlin.system.measureNanoTime
 
 /**
  * Listener for download progress updates.
  *
  * Periodically queries download manager for provided IDs instead of relying on broadcast updates.
  */
-@MainThread
-class DownloadProgressObserver(val context: Context) : Runnable {
+class DownloadProgressObserver(val context: Context, var mode: Mode = Mode.AUTO) {
     companion object {
         /**
          * Update period. Values lower than 2 seconds don't change anything, update period
@@ -26,27 +29,56 @@ class DownloadProgressObserver(val context: Context) : Runnable {
          * */
         const val DOWNLOAD_UPDATE_PERIOD_MS = 2000L
         const val TAG = "DLProgressObserver"
+
+        /** Cutoff in ms when [Mode.AUTO] will switch to async. */
+        const val ASYNC_CUTOFF = 2L
+
         /** Reusable no-results sparse array. */
         val NO_RESULTS_LIST = LongSparseArray<DownloadProgress>()
             get() = field.apply { clear() }
     }
 
     // set listener
-    constructor(context: Context, listener: ProgressListener) : this(context) {
+    constructor(
+        context: Context,
+        mode: Mode = Mode.AUTO,
+        listener: ProgressListener
+    ) : this(context, mode) {
         updateListener = listener
     }
 
     // create listener from lambda
-    constructor(context: Context, onUpdate: (LongSparseArray<DownloadProgress>) -> Unit) : this(
-        context,
-        object : ProgressListener {
+    constructor(
+        context: Context,
+        mode: Mode = Mode.AUTO,
+        onUpdate: (LongSparseArray<DownloadProgress>) -> Unit
+    ) : this(
+        context, mode, object : ProgressListener {
             override fun onDownloadProgressUpdate(downloadProgresses: LongSparseArray<DownloadProgress>) =
                 onUpdate(downloadProgresses)
         }
     )
 
+    /** Operation mode of this observer. */
+    enum class Mode {
+        /** ALWAYS run synchronously. */
+        SYNC,
+
+        /** ALWAYS run asynchronously. */
+        ASYNC,
+
+        /** Run first query synchronously then switch depending on runtime. */
+        AUTO
+    }
+
+    private val runnable = Runnable { runImpl(force = false, forceBlocking = false) }
+
     /** Whether this observer is currently active. */
     var isActive = false
+        private set
+
+    /** Measured runtime of last query. */
+    var lastQueryRuntimeMs = 0L
         private set
     private val updateHandler = Handler()
     private val downloadIds = HashSet<Long>()
@@ -55,49 +87,49 @@ class DownloadProgressObserver(val context: Context) : Runnable {
     /** Listener for updates. Will operate even when listener is null. */
     var updateListener: ProgressListener? = null
 
-    /** Start reporting progress for ids */
-    fun add(vararg downloadIds: Long) {
+    /**
+     * Start reporting progress for [downloadId]. Returns true if ID was not observed before.
+     * */
+    fun add(downloadId: Long) = downloadIds.add(downloadId).also{ tryRun() }
+
+    /** Start reporting progress for [downloadIds]. */
+    fun addAll(vararg downloadIds: Long) {
         downloadIds.forEach {
             this.downloadIds.add(it)
         }
+        tryRun()
     }
 
-    /** Stop reporting progress for ids */
+    /** Stop reporting progress for ids. */
     fun remove(vararg downloadIds: Long) {
         downloadIds.forEach {
             this.downloadIds.remove(it)
         }
     }
 
-    /** Observe one id only, removes others when called. */
-    fun observe(downloadId: Long) {
-        downloadIds.clear()
-        downloadIds.add(downloadId)
-        run()
-    }
-
-    /** Replace observed IDs. Removes [oldId] if it's present, then adds [newId]. */
-    fun replace(oldId: Long, newId: Long){
+    /** Replace observed ID. Removes [oldId] if it's present, then adds [newId]. */
+    fun replace(oldId: Long, newId: Long) {
         downloadIds.remove(oldId)
         downloadIds.add(newId)
-        if(downloadIds.size == 1) run()
+        tryRun()
     }
 
-    /** Replace observed IDs. If [oldId] is not present new is not added. */
+    /** Remove all currently observed IDs and replaces them with [newIds]. */
+    fun replaceAll(vararg newIds: Long) {
+        downloadIds.clear()
+        addAll(*newIds)
+        tryRun()
+    }
+
+    /** Replace observed ID. If [oldId] is not present [newId] is not added. */
     fun replaceOnly(oldId: Long, newId: Long) =
         if (downloadIds.remove(oldId)) {
             downloadIds.add(newId)
-            if (downloadIds.size == 1) run()
+            tryRun()
             true
         } else false
 
-    /** Remove all currently observed IDs and replaces then with [newIds]. */
-    fun replaceAll(vararg newIds : Long){
-        downloadIds.clear()
-        add(*newIds)
-    }
-
-    /** Stop tracking all the progress. */
+    /** Stop tracking all ids. */
     fun removeAll() {
         downloadIds.clear()
     }
@@ -105,7 +137,7 @@ class DownloadProgressObserver(val context: Context) : Runnable {
     /** Begin update loop. */
     fun start() {
         Log.d(TAG, "started w/ ${downloadIds.joinToString()}")
-        updateHandler.removeCallbacks(this) // be sure no double callback exists
+        updateHandler.removeCallbacks(runnable) // be sure no double callback exists
         isActive = true
         run()   // start instantly
     }
@@ -113,7 +145,7 @@ class DownloadProgressObserver(val context: Context) : Runnable {
     /** Stop update loop. */
     fun stop() {
         Log.d(TAG, "stopped w/ ${downloadIds.joinToString()}")
-        updateHandler.removeCallbacks(this)
+        updateHandler.removeCallbacks(runnable)
         queryJob?.cancel()
         isActive = false
     }
@@ -127,21 +159,34 @@ class DownloadProgressObserver(val context: Context) : Runnable {
     /**
      * Run update query immediately instead of waiting for next update cycle.
      *
-     * Query is performed synchronously if there's only 1 observed item or asynchronously otherwise. Result
-     * is always received on UI thread.
+     * Query is performed synchronously/asynchronously based on [mode]. Result is always received on
+     * Main thread.
      * */
-    override fun run() = run(true)
+    fun run() = runImpl(force = true, forceBlocking = false)
 
     /** Run update query immediately, always synchronously. */
-    fun runBlocking() = run(false)
+    fun runBlocking() = runImpl(force = true, forceBlocking = true)
 
-    /** [allowAsync] - run query for multiple IDs asynchronously. Ignored if there's only 1 item (always blocking). */
-    private fun run(allowAsync: Boolean) {
-        updateHandler.removeCallbacks(this)
+    /**
+     * Run update immediately and synchronously if there's 1 item in the list (common case).
+     *
+     * Called implicitly by all add methods.
+     * */
+    fun tryRun() {
+        if (isActive && downloadIds.size == 1) runBlocking()
+    }
+
+
+    /**
+     * @param force ignore [isActive] flag and run regardless
+     * @param forceBlocking force this query to run synchronously
+     * */
+    private fun runImpl(force: Boolean = false, forceBlocking: Boolean = false) {
+        updateHandler.removeCallbacks(runnable)
 
         if (isActive)
-            updateHandler.postDelayed(this, DOWNLOAD_UPDATE_PERIOD_MS)
-        else {
+            updateHandler.postDelayed(runnable, DOWNLOAD_UPDATE_PERIOD_MS)
+        else if (!force) {
             Log.w(TAG, "run(): prevented update because observer is not active")
             return
         }
@@ -151,45 +196,26 @@ class DownloadProgressObserver(val context: Context) : Runnable {
 
         if (ids.isEmpty()) {
             return  // nothing to report
-        } else if (ids.size == 1) {
-            // update for single ID - blocking so it's faster
-            updateListener?.onDownloadProgressUpdate(context.downloadManager.getDownloadProgresses(ids[0]))
-            return
         }
 
-        // for multiple IDs it's possible to run async
-        queryJob?.cancel()
-        if (allowAsync) {
-            val weakContext = WeakReference(context)
-            queryJob = GlobalScope.launch {
-                dispatchProgressAsync(this, weakContext, ids)
-            }
-        } else {
-            queryJob = null
-            updateListener?.onDownloadProgressUpdate(context.downloadManager.getDownloadProgresses(*ids))
+        val runAsync = !forceBlocking && when (mode) {
+            Mode.SYNC -> false
+            Mode.ASYNC -> true
+            Mode.AUTO -> lastQueryRuntimeMs > ASYNC_CUTOFF
         }
-    }
 
-    // runs cursor asynchronously and switches to UI thread on result. Thread safe (holds weak context reference)
-    @Suppress("RedundantSuspendModifier")
-    private suspend fun dispatchProgressAsync(
-        scope: CoroutineScope,
-        weakContext: WeakReference<Context>,
-        ids: LongArray
-    ) {
-        val results = weakContext.get()?.downloadManager?.getDownloadProgresses(*ids)
-            ?: throw CancellationException("Ref lost")
-
-        if (!results.isEmpty)
-            scope.launch(Dispatchers.Main) {
-                if (isActive) {
-                    // interrupt if missing to prevent leak
-                    weakContext.get() ?: throw CancellationException("Ref lost")
-                    updateListener?.onDownloadProgressUpdate(results)
-                }
+        val dispatcher = if (runAsync) Dispatchers.Default else Dispatchers.Main.immediate
+        GlobalScope.launch(dispatcher) {
+            if(isActive) return@launch
+            val nanoStart = System.nanoTime()
+            val result = context.downloadManager.getDownloadProgresses(*ids)
+            val nanos = System.nanoTime() - nanoStart
+            launch(Dispatchers.Main.immediate) {
+                lastQueryRuntimeMs = nanos / 1_000_000
+                if (isActive && !result.isEmpty)
+                    updateListener?.onDownloadProgressUpdate(result)
             }
-        else
-            Log.e(TAG, "no results for $ids")
+        }
     }
 
     /** Interface for [DownloadProgressObserver] updates. */
@@ -220,7 +246,8 @@ fun DownloadManager.getDownloadProgresses(vararg ids: Long): LongSparseArray<Dow
         c.run {
             while (moveToNext()) {
                 val id = getLong(idColumn)
-                results.put(id,
+                results.put(
+                    id,
                     DownloadProgress(
                         id,
                         getString(pathColumn),
@@ -279,8 +306,10 @@ data class DownloadProgress(
      * processed at this moment (might be queued or paused). */
     fun isActive() = !isFinished()
 
-    /** Progress with % sign (ie. 44%) or "..." if max not set. */
-    fun printProgress() = if (cur > max) "..." else "${percentProgress().toInt()}%"
+    /** Progress with % sign (ie. 44%) or [undetermined] (default "...") if max not set. */
+    fun printProgress(undetermined: String = "...") =
+        if (cur > max) undetermined
+        else "${percentProgress().toInt()}%"
 
     /** Percent of progress (between 0.0f - 100.0f). */
     fun percentProgress() = ((cur / max.toFloat()) * 100)
@@ -289,7 +318,7 @@ data class DownloadProgress(
     fun fileSizeProgress(context: Context) =
         "${cur.toFileSize(context)} / ${max.toFileSize(context)}"
 
-    /** Decoded path without leading file:// scheme.*/
+    /** Decoded path without leading file:// scheme. */
     fun decodedPath() = filePath?.substringAfter("file://")?.let {
         Uri.decode(it)
     }
@@ -299,7 +328,8 @@ data class DownloadProgress(
      *
      * False implies that removing [id] from download manager should yield no broadcast.
      * */
-    fun hasStarted() = max != -1L && status != DownloadManager.STATUS_PAUSED && status != DownloadManager.STATUS_PENDING
+    fun hasStarted() =
+        max != -1L && status != DownloadManager.STATUS_PAUSED && status != DownloadManager.STATUS_PENDING
 
     /** Readable file size. */
     private fun Long.toFileSize(context: Context) = Formatter.formatShortFileSize(context, this)
