@@ -2,6 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="com.github.ppaszkiewicz.tools.demo">
 
+    <!-- Doesn't actually connect to the web but required to read download manager fields. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
             android:allowBackup="true"
             android:icon="@mipmap/ic_launcher"

@@ -204,9 +204,14 @@ class DownloadProgressObserver(val context: Context, var mode: Mode = Mode.AUTO)
             Mode.AUTO -> lastQueryRuntimeMs > ASYNC_CUTOFF
         }
 
+        queryJob?.let{
+            if(it.isActive)
+                Log.w(TAG, "previous query was destroyed")
+            it.cancel()
+        }
+
         val dispatcher = if (runAsync) Dispatchers.Default else Dispatchers.Main.immediate
-        GlobalScope.launch(dispatcher) {
-            if(isActive) return@launch
+        queryJob = GlobalScope.launch(dispatcher) {
             val nanoStart = System.nanoTime()
             val result = context.downloadManager.getDownloadProgresses(*ids)
             val nanos = System.nanoTime() - nanoStart
