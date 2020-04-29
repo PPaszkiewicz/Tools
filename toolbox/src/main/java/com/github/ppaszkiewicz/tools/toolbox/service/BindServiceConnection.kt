@@ -62,10 +62,20 @@ abstract class BindServiceConnection<T>(
     var onConnect: ((T) -> Unit)? = null
 
     /**
-     * Triggered when service disconnects. This usually doesn't trigger unless service
-     * is interrupted while bound.
+     * Triggered when service is disconnected.
+     *
+     * To handle lost connection in a different way provide [onSuddenDisconnect] callback.
      **/
     var onDisconnect: ((T) -> Unit)? = null
+
+    /**
+     * Triggered when service connection is lost due to [onServiceDisconnected].
+     *
+     * This usually doesn't trigger unless service is interrupted while bound.
+     *
+     * Default implementation forwards the call to [onDisconnect].
+     **/
+    var onSuddenDisconnect : ((T) -> Unit)? = { onDisconnect?.invoke(it)}
 
     /**
      * Triggered when service binding is requested.
@@ -106,7 +116,9 @@ abstract class BindServiceConnection<T>(
         if (isBound) {
             isBound = false
             context.unbindService(this)
+            value?.let{ onDisconnect?.invoke(it) }
             onUnbind?.invoke()
+            value = null
         }
     }
 
@@ -121,7 +133,7 @@ abstract class BindServiceConnection<T>(
     }
 
     override fun onServiceDisconnected(name: ComponentName) {
-        onDisconnect?.let { it(value!!) }
+        onSuddenDisconnect?.let { it(value!!) }
         value = null
     }
 
@@ -135,6 +147,8 @@ abstract class BindServiceConnection<T>(
         val doCallbacks = onBindingDied?.invoke() ?: true
         if (autoRebindDeadBinding) {
             performRebind(doCallbacks, defaultBindFlags)
+        } else if(isBound){
+            isBound = false
         }
     }
 

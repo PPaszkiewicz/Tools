@@ -61,6 +61,19 @@
                 android:text="Sate state layouts Demo"/>
 
         <TextView
+                android:text="Demo of bound service"
+                android:gravity="center"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"/>
+
+        <Button
+                android:id="@+id/btnBoundService"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAllCaps="false"
+                android:text="Bound service test"/>
+
+        <TextView
                 android:text="Demo of lingering service"
                 android:gravity="center"
                 android:layout_width="match_parent"
@@ -86,6 +99,7 @@
                 android:layout_height="wrap_content"
                 android:textAllCaps="false"
                 android:text="Lingering service demo 3 (liveData)"/>
+
 
         <TextView
                 android:text="Preferences demo (livedata listener)"

@@ -29,9 +29,11 @@
         <activity android:name=".views.SaveStateTestActivity" />
         <activity android:name=".delegates.DelegateDemoActivity" />
         <activity android:name=".lingeringServiceDemo.LingeringServiceActivity3" />
+        <activity android:name=".bindService.BindServiceDemoActivity" />
 
         <service android:name="com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.DemoTaskService"/>
         <service android:name=".lingeringServiceDemo.DemoLingeringService"/>
+        <service android:name=".bindService.TestService" />
     </application>
 
 </manifest>

@@ -222,7 +222,7 @@ open class LingeringLifecycleServiceConnection<T : LingeringService>(
 }
 
 // shared implementation
-private fun <T : LingeringService> BindServiceConnection<out T>.lingeringUnbind(finishImmediately: Boolean = false) {
+private fun <T : LingeringService> BindServiceConnection<T>.lingeringUnbind(finishImmediately: Boolean = false) {
     if (isBound) {
         if (finishImmediately) {
             value?.setPreventLinger()
@@ -235,6 +235,7 @@ private fun <T : LingeringService> BindServiceConnection<out T>.lingeringUnbind(
         }
         isBound = false
         context.unbindService(this)
+        value?.let{ onDisconnect?.invoke(it) }
         onUnbind?.invoke()
     }
 }

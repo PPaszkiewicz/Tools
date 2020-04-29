@@ -6,6 +6,7 @@ import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
+import com.github.ppaszkiewicz.tools.demo.bindService.BindServiceDemoActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParams
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParamsDialog
@@ -71,6 +72,9 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                 putExtra(TestActivityBase.EXTRA_LOADER_ARGS, params)
             }
         }
+
+        // binding service test
+        btnBoundService.setOnClickListener { startActivity<BindServiceDemoActivity>() }
 
         // lingering service tests
         btnLingeringTest1.setOnClickListener { startActivity<LingeringServiceActivity>() }
