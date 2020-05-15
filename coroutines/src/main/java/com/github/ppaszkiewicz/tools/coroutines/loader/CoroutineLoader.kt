@@ -142,8 +142,7 @@ abstract class CoroutineLoader<Q : Any, R : Any> @JvmOverloads constructor(
         val query = CoroutineLoaderQuery.Builder<Q, R, T>(
             key,
             resultReceiver
-        )
-            .apply(setupBlock)
+        ).apply(setupBlock)
             .build()
         loadAsync(params, query)
         return query
@@ -189,7 +188,10 @@ abstract class CoroutineLoader<Q : Any, R : Any> @JvmOverloads constructor(
                 }
                 if (!isActive) {
                     // this might trip in case release() was called?
-                    Log.w(TAG, "$mutatedKey no longer active before starting task - release() was called?")
+                    Log.w(
+                        TAG,
+                        "$mutatedKey no longer active before starting task - release() was called?"
+                    )
                     return@launch
                 }
                 if (ongoingTask != null) {
@@ -243,7 +245,13 @@ abstract class CoroutineLoader<Q : Any, R : Any> @JvmOverloads constructor(
      * @param reason cancelation message
      * */
     fun cancelAsyncTask(key: Q, params: Any? = null, reason: String?) {
-        cancelAndReleaseAsyncResult(key, params, clearResultFromCache = false, cancelOngoing = true, reason = reason)
+        cancelAndReleaseAsyncResult(
+            key,
+            params,
+            clearResultFromCache = false,
+            cancelOngoing = true,
+            reason = reason
+        )
     }
 
     /**
@@ -337,14 +345,20 @@ abstract class CoroutineLoader<Q : Any, R : Any> @JvmOverloads constructor(
      *
      * - Context: [sync].
      * */
-    protected abstract suspend fun addTaskToOngoingList(mutatedKey: Q, task: CoroutineLoaderTask<Q, R>)
+    protected abstract suspend fun addTaskToOngoingList(
+        mutatedKey: Q,
+        task: CoroutineLoaderTask<Q, R>
+    )
 
     /**
      * Implement removing task from ongoing list. This is called when [task] completes or crashes.
      *
      * - Context: [sync].
      * */
-    protected abstract suspend fun removeTaskFromOngoingList(mutatedKey: Q, task: CoroutineLoaderTask<Q, R>)
+    protected abstract suspend fun removeTaskFromOngoingList(
+        mutatedKey: Q,
+        task: CoroutineLoaderTask<Q, R>
+    )
 
     /**
      * Called during [release].

@@ -73,11 +73,11 @@ sealed class SharedPreferencesProvider : ReadOnlyProperty<Any, SharedPreferences
         override fun get() = prefs
     }
 
-    internal class Default(val context: ContextDelegate) : SPP(){
+    internal class Default(val context: ContextDelegate) : SPP() {
         override fun get() = context.get().defaultPrefs
     }
 
-    internal class Custom(val context: ContextDelegate, val key: String, val mode: Int): SPP(){
+    internal class Custom(val context: ContextDelegate, val key: String, val mode: Int) : SPP() {
         override fun get(): SP = context.get().getSharedPreferences(key, mode)
     }
 
@@ -138,7 +138,8 @@ abstract class RWPref<T>(
 ) : ReadWriteProperty<Any, T> {
     protected val prefs by prefsProvider
 
-    /** LiveData object for observing this preference. */
+    /** LiveData object for observing this preference. When observed and preference for [key] is
+     * missing, default value is emitted immediately. Otherwise emits only distinct changes.  */
     val liveData: LiveData<T> by lazy { PrefLiveData() }
 
     // delegate interface operator implementation
@@ -201,6 +202,8 @@ class RWBooleanPref(
     default: Boolean,
     setBlock: ((Boolean) -> Unit)? = null
 ) : RWPref<Boolean>(prefsProvider, key, default, setBlock) {
+    /** Invert current value of this preference. */
+    fun toggle() = set(!get())
     override fun SPEditor.set(key: String, value: Boolean): SPEditor = putBoolean(key, value)
     override fun SP.get(key: String, default: Boolean) = getBoolean(key, default)
 }
