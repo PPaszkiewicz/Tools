@@ -24,34 +24,34 @@ val Context?.defaultPrefs: SharedPreferences
 
 /* Factory methods */
 
-/** Delegates for obtaining data from this shared preferences. */
+/** Get [SharedPreferencesProvider] for this this shared preferences. */
 fun SharedPreferences.delegates(): SPP = SharedPreferencesProvider.Direct(this)
 
-/** Delegate for obtaining data from default shared preferences. */
+/** Get [SharedPreferencesProvider] for default shared preferences. */
 fun Context.preferences(): SPP = SharedPreferencesProvider.Default(this.contextDelegate)
 
-/** Delegate for obtaining data from shared preferences. */
+/** Get [SharedPreferencesProvider] for given shared preferences. */
 fun Context.preferences(key: String, mode: Int = 0): SPP =
     SharedPreferencesProvider.Custom(this.contextDelegate, key, mode)
 
-/** Delegate for obtaining data from default shared preferences. */
+/** Get [SharedPreferencesProvider] for default shared preferences. */
 fun AndroidViewModel.preferences(): SPP = getApplication<Application>().preferences()
 
-/** Delegate for obtaining data from shared preferences. */
+/** Get [SharedPreferencesProvider] for given shared preferences. */
 fun AndroidViewModel.preferences(key: String, mode: Int = 0): SPP =
     getApplication<Application>().preferences(key, mode)
 
-/** Delegate for obtaining data from default shared preferences. */
+/** Get [SharedPreferencesProvider] for default shared preferences. */
 fun Fragment.preferences(): SPP = SharedPreferencesProvider.Default(this.contextDelegate)
 
-/** Delegate for obtaining data from shared preferences. */
+/** Get [SharedPreferencesProvider] for given shared preferences. */
 fun Fragment.preferences(key: String, mode: Int = 0): SPP =
     SharedPreferencesProvider.Custom(this.contextDelegate, key, mode)
 
-/** Delegate for obtaining data from default shared preferences. */
+/** Get [SharedPreferencesProvider] for default shared preferences. */
 fun View.preferences(): SPP = SharedPreferencesProvider.Default(this.contextDelegate)
 
-/** Delegate for obtaining data from shared preferences. */
+/** Get [SharedPreferencesProvider] for given shared preferences. */
 fun View.preferences(key: String, mode: Int = 0): SPP =
     SharedPreferencesProvider.Custom(this.contextDelegate, key, mode)
 
@@ -64,7 +64,7 @@ private typealias SP = SharedPreferences
 private typealias SPEditor = SharedPreferences.Editor
 private typealias SPP = SharedPreferencesProvider
 
-/** Provider of preference manager and delegate factory. */
+/** Lazy provider of [SharedPreferences] and factory of delegates for specific values. */
 sealed class SharedPreferencesProvider : ReadOnlyProperty<Any, SharedPreferences> {
     final override fun getValue(thisRef: Any, property: KProperty<*>) = get()
     abstract fun get(): SharedPreferences
