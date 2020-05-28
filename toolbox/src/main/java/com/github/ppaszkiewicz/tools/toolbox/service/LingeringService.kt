@@ -68,7 +68,7 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
         super.onDestroy()
     }
 
-    override fun onBind(intent: Intent): IBinder {
+    override fun onBind(intent: Intent): IBinder? {
         handleBind()
         return super.onBind(intent)
     }

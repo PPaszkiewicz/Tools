@@ -3,6 +3,7 @@
 package com.github.ppaszkiewicz.tools.toolbox.service
 
 import android.app.Service
+import android.content.ComponentName
 import android.content.Context
 import android.content.Context.BIND_AUTO_CREATE
 import android.content.Intent
@@ -36,10 +37,9 @@ interface DirectBindService {
         @Suppress("LeakingThis")
         private val binder = DirectBinder(this)
 
-        override fun onBind(intent: Intent): IBinder {
-            if (intent.action == BIND_DIRECT_ACTION)
-                return binder
-            throw IllegalArgumentException("BIND_DIRECT_ACTION required.")
+        override fun onBind(intent: Intent): IBinder? = when (intent.action) {
+            BIND_DIRECT_ACTION -> binder
+            else -> null
         }
     }
 
@@ -48,11 +48,12 @@ interface DirectBindService {
         @Suppress("LeakingThis")
         private val binder = DirectBinder(this)
 
-        override fun onBind(intent: Intent): IBinder {
+        override fun onBind(intent: Intent): IBinder? {
             super.onBind(intent)
-            if (intent.action == BIND_DIRECT_ACTION)
-                return binder
-            throw IllegalArgumentException("BIND_DIRECT_ACTION required.")
+            return when (intent.action) {
+                BIND_DIRECT_ACTION -> binder
+                else -> null
+            }
         }
     }
 
@@ -80,45 +81,21 @@ interface DirectBindService {
      *
      * For convenience this can be inherited or created by that services companion object.
      */
-    open class ConnectionFactory<T : DirectBindService>(protected val serviceClass: Class<T>) {
-        /** Create [DirectLifecycleServiceConnection] - this uses activity lifecycle to connect to service automatically. */
-        fun lifecycle(
-            activity: AppCompatActivity,
-            bindFlags: Int = BIND_AUTO_CREATE,
-            bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = lifecycle(activity.contextDelegate, activity.lifecycle, bindFlags, bindState)
-
-        /** Create [DirectLifecycleServiceConnection] - this uses fragment lifecycle to connect to service automatically. */
-        fun lifecycle(
-            fragment: Fragment,
-            bindFlags: Int = BIND_AUTO_CREATE,
-            bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = lifecycle(fragment.contextDelegate, fragment.lifecycle, bindFlags, bindState)
-
-        /** Create [DirectLifecycleServiceConnection] - this uses given lifecycle to connect to service automatically. */
-        fun lifecycle(
+    open class ConnectionFactory<T : DirectBindService>(protected val serviceClass: Class<T>) :
+        BindServiceConnection.ConnectionFactory<T>() {
+        override fun lifecycle(
             contextDelegate: ContextDelegate,
             lifecycle: Lifecycle,
-            bindFlags: Int = BIND_AUTO_CREATE,
-            bindState: Lifecycle.State = Lifecycle.State.STARTED
+            bindFlags: Int,
+            bindState: Lifecycle.State
         ) = DirectLifecycleServiceConnection(contextDelegate, serviceClass, bindState, bindFlags)
             .apply { lifecycle.addObserver(this) }
 
-        /** Create [DirectObservableServiceConnection], it will be bound when there are active observers. */
-        fun observable(context: Context, bindFlags: Int = BIND_AUTO_CREATE) =
-            DirectObservableServiceConnection(context.contextDelegate, serviceClass, bindFlags)
+        override fun observable(contextDelegate: ContextDelegate, bindFlags: Int) =
+            DirectObservableServiceConnection(contextDelegate, serviceClass, bindFlags)
 
-        /** Create [DirectObservableServiceConnection], it will be bound when there are active observers. */
-        fun observable(fragment: Fragment, bindFlags: Int = BIND_AUTO_CREATE) =
-            DirectObservableServiceConnection(fragment.contextDelegate, serviceClass, bindFlags)
-
-        /** Create [DirectManualServiceConnection]. Need to manually call [bind] and [unbind] to connect.*/
-        fun manual(context: Context, bindFlags: Int = BIND_AUTO_CREATE) =
-            DirectManualServiceConnection(context.contextDelegate, serviceClass, bindFlags)
-
-        /** Create [DirectManualServiceConnection]. Need to manually call [bind] and [unbind] to connect.*/
-        fun manual(fragment: Fragment, bindFlags: Int = BIND_AUTO_CREATE) =
-            DirectManualServiceConnection(fragment.contextDelegate, serviceClass, bindFlags)
+        override fun manual(contextDelegate: ContextDelegate, bindFlags: Int) =
+            DirectManualServiceConnection(contextDelegate, serviceClass, bindFlags)
     }
 }
 
@@ -134,7 +111,8 @@ open class DirectManualServiceConnection<T : DirectBindService>(
     override fun createBindingIntent(context: Context) =
         DirectBindService.createIntentFor(context, serviceClass)
 
-    override fun transformBinder(binder: IBinder) = (binder as DirectBinder).service as T
+    override fun transformBinder(name: ComponentName, binder: IBinder) =
+        (binder as DirectBinder).service as T
 }
 
 /**
@@ -149,7 +127,8 @@ open class DirectObservableServiceConnection<T : DirectBindService>(
     override fun createBindingIntent(context: Context) =
         DirectBindService.createIntentFor(context, serviceClass)
 
-    override fun transformBinder(binder: IBinder) = (binder as DirectBinder).service as T
+    override fun transformBinder(name: ComponentName, binder: IBinder) =
+        (binder as DirectBinder).service as T
 }
 
 /**
@@ -165,5 +144,6 @@ open class DirectLifecycleServiceConnection<T : DirectBindService>(
     override fun createBindingIntent(context: Context) =
         DirectBindService.createIntentFor(context, serviceClass)
 
-    override fun transformBinder(binder: IBinder) = (binder as DirectBinder).service as T
+    override fun transformBinder(name: ComponentName, binder: IBinder) =
+        (binder as DirectBinder).service as T
 }

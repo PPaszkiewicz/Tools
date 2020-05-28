@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isGone
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startService
@@ -18,15 +19,17 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons){
     companion object{
         const val TAG = "BindDemoActivity"
     }
-    // always bind without auto create
-    val serviceConn = TestService.connBuilder.manual(this, Context.BIND_AUTO_CREATE)
+
+    val serviceConn = TestService.connectionFactory.manual(this, 0)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         button1.text = "Start service"
         button2.text = "Stop service"
-        button3.text = "Bind to service"
-        button4.text = "Unbind from service"
+        button3.text = "Bind to service - AUTO_CREATE"
+        button4.text = "Bind to service - no flags"
+        button5.text = "Unbind from service"
+        button6.isGone = true
 
         title = "Bind service test"
         textView0.text = "Service will be bound without BIND_AUTO_CREATE flag - it will be destroyed as soon" +
@@ -43,10 +46,14 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons){
         }
 
         button3.setOnClickListener {
-            serviceConn.bind()
+            serviceConn.bind(Context.BIND_AUTO_CREATE)
         }
 
         button4.setOnClickListener {
+            serviceConn.bind(0)
+        }
+
+        button5.setOnClickListener {
             serviceConn.unbind()
         }
 
@@ -64,9 +71,10 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons){
                 Log.d(TAG, "onDisconnect")
                 textView2.text = "Disconnect (by unbind)"
             }
-            onSuddenDisconnect = {
+            onConnectionLost = {
                 Log.d(TAG, "onSuddenDisconnect")
                 textView2.text = "Disconnect (connection lost)"
+                false
             }
             onBindingDied = {
                 Log.d(TAG, "onBindingDied")
@@ -76,10 +84,10 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons){
                 Log.d(TAG, "onNullBinding")
             }
             onBind = {
-                textView00.text = "Connection Bound = true"
+                textView00.text = "Connection bound = true ($currentBindFlags)"
             }
             onUnbind = {
-                textView00.text = "Connection Bound = false"
+                textView00.text = "Connection bound = false ($currentBindFlags)"
             }
         }
     }
@@ -93,7 +101,7 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons){
 
 class TestService : DirectBindService.Impl(){
     companion object{
-        val connBuilder = DirectBindService.ConnectionFactory<TestService>()
+        val connectionFactory = DirectBindService.ConnectionFactory<TestService>()
     }
 
     fun foo() = "TestService is alive!"
@@ -107,9 +115,14 @@ class TestService : DirectBindService.Impl(){
         return START_STICKY
     }
 
-    override fun onBind(intent: Intent): IBinder {
+    override fun onBind(intent: Intent): IBinder? {
         Log.d("TestService", "BINDING $intent")
         return super.onBind(intent)
+    }
+
+    override fun onCreate() {
+        Log.d("TestService", "CREATED")
+        super.onCreate()
     }
 
     override fun onDestroy() {

@@ -6,8 +6,12 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.os.IBinder
 import android.system.Os.bind
+import android.util.Log
+import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
+import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 
 /* requires context delegates from delegate.Context.kt */
 
@@ -25,7 +29,7 @@ abstract class BindServiceConnection<T>(
     abstract fun createBindingIntent(context: Context): Intent
 
     /** Transform [binder] object into valid [LiveData] value of this object. */
-    abstract fun transformBinder(binder: IBinder): T
+    abstract fun transformBinder(name: ComponentName, binder: IBinder): T
 
     /** Context provided by delegate, workaround for fragment lazy context initialization. */
     val context by contextDelegate
@@ -64,18 +68,19 @@ abstract class BindServiceConnection<T>(
     /**
      * Triggered when service is disconnected.
      *
-     * To handle lost connection in a different way provide [onSuddenDisconnect] callback.
+     * To handle lost connection cases provide [onConnectionLost] callback.
      **/
     var onDisconnect: ((T) -> Unit)? = null
 
     /**
-     * Triggered when service connection is lost due to [onServiceDisconnected].
+     * Triggered when service connection is lost due to [ServiceConnection.onServiceDisconnected].
      *
-     * This usually doesn't trigger unless service is interrupted while bound.
+     * In most cases it should be impossible to trigger for services running in same process bound with
+     * [Context.BIND_AUTO_CREATE].
      *
-     * Default implementation forwards the call to [onDisconnect].
+     * If this is `null` or returns `true` then [onDisconnect] will be called afterwards.
      **/
-    var onSuddenDisconnect : ((T) -> Unit)? = { onDisconnect?.invoke(it)}
+    var onConnectionLost: ((T) -> Boolean)? = null
 
     /**
      * Triggered when service binding is requested.
@@ -90,19 +95,18 @@ abstract class BindServiceConnection<T>(
     /**
      * Triggered when binding dies.
      *
-     * If this is null or returns true then [onUnbind] and [onBind] are called while rebinding. Returning
-     * false prevents those callbacks from being invoked.
+     * If this is `null` or returns `true` then [onUnbind] and [onBind] are called while rebinding.
      */
     var onBindingDied: (() -> Boolean)? = null
 
     /**
-     * Called when null binding occurs.
+     * Called when [ServiceConnection.onNullBinding] occurs.
      */
     var onNullBinding: (() -> Unit)? = null
 
     // core implementation
 
-    /** Perform binding after relevant event. */
+    /** Perform binding during specific triggering event. */
     protected open fun performBind(flags: Int) {
         if (!isBound) {
             isBound = true
@@ -111,12 +115,12 @@ abstract class BindServiceConnection<T>(
         }
     }
 
-    /** Perform unbinding after relevant event. */
+    /** Perform unbinding after triggering event. */
     protected open fun performUnbind() {
         if (isBound) {
             isBound = false
             context.unbindService(this)
-            value?.let{ onDisconnect?.invoke(it) }
+            value?.let { onDisconnect?.invoke(it) }
             onUnbind?.invoke()
             value = null
         }
@@ -133,21 +137,26 @@ abstract class BindServiceConnection<T>(
     }
 
     override fun onServiceDisconnected(name: ComponentName) {
-        onSuddenDisconnect?.let { it(value!!) }
-        value = null
+        value?.let { service ->
+            val callDisconnect = onConnectionLost?.let { it(service) }
+            if(callDisconnect == true) onDisconnect?.invoke(service)
+            value = null
+        } ?: Log.e("BindServiceConn", "unexpected onServiceDisconnected: service object missing. " +
+                "Connection: ${this::javaClass.name}, Service name: $name")
     }
 
     override fun onServiceConnected(name: ComponentName, service: IBinder) {
-        @Suppress("UNCHECKED_CAST")
-        this.value = transformBinder(service)
-        onConnect?.invoke(this.value!!)
+        transformBinder(name, service).also {
+            this.value = it
+            onConnect?.invoke(it)
+        }
     }
 
     override fun onBindingDied(name: ComponentName?) {
         val doCallbacks = onBindingDied?.invoke() ?: true
         if (autoRebindDeadBinding) {
             performRebind(doCallbacks, defaultBindFlags)
-        } else if(isBound){
+        } else if (isBound) {
             isBound = false
         }
     }
@@ -155,18 +164,81 @@ abstract class BindServiceConnection<T>(
     override fun onNullBinding(name: ComponentName?) {
         onNullBinding?.invoke()
     }
+
+    /** Base for connection factories that connect to service of type [T]. */
+    abstract class ConnectionFactory<T> {
+        /** Create [LifecycleBindServiceConnection] - this uses activity lifecycle to connect to service automatically. */
+        fun lifecycle(
+            activity: AppCompatActivity,
+            bindFlags: Int = Context.BIND_AUTO_CREATE,
+            bindState: Lifecycle.State = Lifecycle.State.STARTED
+        ) = lifecycle(activity.contextDelegate, activity.lifecycle, bindFlags, bindState)
+
+        /** Create [LifecycleBindServiceConnection] - this uses fragment lifecycle to connect to service automatically. */
+        fun lifecycle(
+            fragment: Fragment,
+            bindFlags: Int = Context.BIND_AUTO_CREATE,
+            bindState: Lifecycle.State = Lifecycle.State.STARTED
+        ) = lifecycle(fragment.contextDelegate, fragment.lifecycle, bindFlags, bindState)
+
+        /** Create [ObservableBindServiceConnection], it will be bound when there are active observers. */
+        fun observable(context: Context, bindFlags: Int = Context.BIND_AUTO_CREATE) =
+            observable(context.contextDelegate, bindFlags)
+
+        /** Create [ObservableBindServiceConnection], it will be bound when there are active observers. */
+        fun observable(fragment: Fragment, bindFlags: Int = Context.BIND_AUTO_CREATE) =
+            observable(fragment.contextDelegate, bindFlags)
+
+        /** Create [ManualBindServiceConnection]. Need to manually call [bind] and [unbind] to connect.*/
+        fun manual(context: Context, bindFlags: Int = Context.BIND_AUTO_CREATE) =
+            manual(context.contextDelegate, bindFlags)
+
+        /** Create [ManualBindServiceConnection]. Need to manually call [bind] and [unbind] to connect.*/
+        fun manual(fragment: Fragment, bindFlags: Int = Context.BIND_AUTO_CREATE) =
+            manual(fragment.contextDelegate, bindFlags)
+
+
+        // implementations
+        /** Create [LifecycleBindServiceConnection] - this uses given lifecycle to connect to service automatically. */
+        abstract fun lifecycle(
+            contextDelegate: ContextDelegate,
+            lifecycle: Lifecycle,
+            bindFlags: Int = Context.BIND_AUTO_CREATE,
+            bindState: Lifecycle.State = Lifecycle.State.STARTED
+        ): LifecycleBindServiceConnection<T>
+
+        /** Create [ObservableBindServiceConnection], it will be bound when there are active observers. */
+        abstract fun observable(
+            contextDelegate: ContextDelegate, bindFlags: Int = Context.BIND_AUTO_CREATE
+        ): ObservableBindServiceConnection<T>
+
+        /** Create [ManualBindServiceConnection]. Need to manually call [bind] and [unbind] to connect.*/
+        abstract fun manual(
+            contextDelegate: ContextDelegate, bindFlags: Int = Context.BIND_AUTO_CREATE
+        ): ManualBindServiceConnection<T>
+    }
 }
 
-/** Binding service that requires manual [bind] and [unbind] calls. */
+/** Connection to service that requires manual [bind] and [unbind] calls. */
 abstract class ManualBindServiceConnection<T>(
     contextDelegate: ContextDelegate,
     /** Default bind flags to use. */
     bindFlags: Int = Context.BIND_AUTO_CREATE
 ) : BindServiceConnection<T>(contextDelegate, bindFlags) {
     /**
+     * Flag that was used for ongoing binding - this might be different from [defaultBindFlags] if
+     * user provided custom argument for [bind].
+     *
+     * If not bound this is -1.
+     * */
+    var currentBindFlags = -1
+        protected set
+
+    /**
      * Bind to service using [connectionFlags] (by default [defaultBindFlags]).
      * */
     fun bind(connectionFlags: Int = defaultBindFlags) {
+        if(!isBound) currentBindFlags = connectionFlags
         performBind(connectionFlags)
     }
 
@@ -175,11 +247,17 @@ abstract class ManualBindServiceConnection<T>(
      */
     fun unbind() {
         performUnbind()
+        currentBindFlags = -1
+    }
+
+    override fun performRebind(doCallbacks: Boolean, flags: Int) {
+        currentBindFlags = flags
+        super.performRebind(doCallbacks, flags)
     }
 }
 
 /**
- * Binding service that relies on this object also being a [LiveData]: binds as long as there's any
+ * Connection to service that relies on this object also being a [LiveData]: binds as long as there's any
  * active observer.
  * */
 abstract class ObservableBindServiceConnection<T>(
@@ -197,7 +275,7 @@ abstract class ObservableBindServiceConnection<T>(
     }
 }
 
-/** Binding service that is a [LifecycleObserver] and aligns binding with [bindingLifecycleState]. */
+/** Connection to service that is a [LifecycleObserver] and aligns binding with [bindingLifecycleState]. */
 abstract class LifecycleBindServiceConnection<T>(
     contextDelegate: ContextDelegate,
     /**
@@ -210,9 +288,11 @@ abstract class LifecycleBindServiceConnection<T>(
     bindFlags: Int = Context.BIND_AUTO_CREATE
 ) : BindServiceConnection<T>(contextDelegate, bindFlags), LifecycleObserver {
     init {
-        require(bindingLifecycleState == Lifecycle.State.STARTED ||
-                bindingLifecycleState == Lifecycle.State.RESUMED ||
-                bindingLifecycleState == Lifecycle.State.CREATED)
+        require(
+            bindingLifecycleState == Lifecycle.State.STARTED ||
+                    bindingLifecycleState == Lifecycle.State.RESUMED ||
+                    bindingLifecycleState == Lifecycle.State.CREATED
+        )
     }
 
     @OnLifecycleEvent(Lifecycle.Event.ON_ANY)

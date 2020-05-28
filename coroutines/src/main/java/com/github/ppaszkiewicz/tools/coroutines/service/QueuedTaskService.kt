@@ -171,7 +171,7 @@ abstract class QueuedTaskService<R> : DirectBindService.Impl(), CoroutineScope {
     /** Called during [onStartCommand], [intent] is forwarded. */
     open fun onStarting(intent: Intent?) {}
 
-    override fun onBind(intent: Intent): IBinder {
+    override fun onBind(intent: Intent): IBinder? {
         Log.d(TAG, "onBind $intent")
         isBound = true
         return super.onBind(intent)
