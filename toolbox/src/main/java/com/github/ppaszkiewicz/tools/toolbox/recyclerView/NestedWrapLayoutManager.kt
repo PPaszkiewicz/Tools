@@ -131,6 +131,9 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     /** Attached scroll listener - used only for unspecified scroll views on low apis. */
     private var mScrollListener: ViewTreeObserver.OnScrollChangedListener? = null
 
+    /** If raised do full relayout unconditionally. */
+    private var hasChanges = false
+
     /** Measured item view type sizes (right now only 1 type is supported) */
     private val itemSizes = SparseArray<Point>(1)
     private val itemHeight: Int
@@ -198,9 +201,10 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         val viewCache = SparseArray<View>(childCount)
         val visibleItemRange = if (childCount != 0) {
             val range = getVisibleItemRange(dScroll, state)
-            // soft detach all views from recycler
-            // If same range of items is visible do nothing
-            if (range == currentlyVisibleItemRange) return
+            // perform scraping if changes occurred - otherwise just run a soft detach
+            if (hasChanges) {
+                detachAndScrapAttachedViews(recycler)
+            } else if (range == currentlyVisibleItemRange) return
             for (i in 0 until childCount) {
                 val viewId: Int = getChildAt(i)!!.params().viewAdapterPosition
                 viewCache.put(viewId, getChildAt(i))
@@ -241,18 +245,12 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             layoutStrategy == LAYOUT_FIXED && visibleItemRange.first == 0 && visibleItemRange.last == (itemCount) - 1
     }
 
-    override fun onRestoreInstanceState(state: Parcelable?) {
-        (state as? Bundle)?.getIntArray("range")?.let {
-            currentlyVisibleItemRange = it[0]..it[1]
-            mRangeWasRestored = true
-        }
+    override fun onLayoutCompleted(state: RecyclerView.State?) {
+        super.onLayoutCompleted(state)
+        hasChanges = false
+        mRangeWasRestored = false
     }
 
-    override fun onSaveInstanceState(): Parcelable? {
-        return Bundle().apply {
-            putIntArray("range", intArrayOf(currentlyVisibleItemRange.first, currentlyVisibleItemRange.last))
-        }
-    }
 
     // add new view from recycler or reattach view from viewCache
     private fun addView(recycler: RecyclerView.Recycler, state: RecyclerView.State?, viewCache: SparseArray<View>, position: Int): View? {
@@ -282,6 +280,19 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             viewCache.remove(position)
         }
         return view
+    }
+
+    override fun onRestoreInstanceState(state: Parcelable?) {
+        (state as? Bundle)?.getIntArray("range")?.let {
+            currentlyVisibleItemRange = it[0]..it[1]
+            mRangeWasRestored = true
+        }
+    }
+
+    override fun onSaveInstanceState(): Parcelable? {
+        return Bundle().apply {
+            putIntArray("range", intArrayOf(currentlyVisibleItemRange.first, currentlyVisibleItemRange.last))
+        }
     }
 
     /**
@@ -430,6 +441,10 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
 
     override fun onItemsRemoved(recyclerView: RecyclerView, positionStart: Int, itemCount: Int) {
         requestLayout() // this layout manager is not dynamic, relayout everything
+    }
+
+    override fun onItemsUpdated(recyclerView: RecyclerView, positionStart: Int, itemCount: Int) {
+        hasChanges = true   // need to scrap the views so they get rebound with changes
     }
 
     // use default layout params
