@@ -10,9 +10,7 @@ import android.util.SparseIntArray
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
-import androidx.core.util.isEmpty
-import androidx.core.util.isNotEmpty
-import androidx.core.util.set
+import androidx.core.util.*
 import androidx.core.view.marginBottom
 import androidx.core.view.marginLeft
 import androidx.core.view.marginRight
@@ -23,7 +21,6 @@ import com.github.ppaszkiewicz.tools.toolbox.recyclerView.NestedWrapLayoutManage
 import com.github.ppaszkiewicz.tools.toolbox.recyclerView.NestedWrapLayoutManager.Companion.VERTICAL
 import kotlin.math.max
 import kotlin.math.min
-
 
 /**
  * Layout manager that handles wrap height (or width in horizontal mode) within a scroll view and
@@ -131,8 +128,8 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     /** Attached scroll listener - used only for unspecified scroll views on low apis. */
     private var mScrollListener: ViewTreeObserver.OnScrollChangedListener? = null
 
-    /** If raised do full relayout unconditionally. */
-    private var hasChanges = false
+    /** Contains modified items that needs hard relayout. */
+    private var changedItems: Set<Int>? = null
 
     /** Measured item view type sizes (right now only 1 type is supported) */
     private val itemSizes = SparseArray<Point>(1)
@@ -140,7 +137,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         get() = itemSizes.valueAt(0).y
     private val itemWidth: Int
         get() = itemSizes.valueAt(0).x
-
 
     init {
         require(orientation == HORIZONTAL || orientation == VERTICAL)
@@ -161,20 +157,23 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     override fun canScrollHorizontally() = scrollsHorizontally
     override fun supportsPredictiveItemAnimations() = false
 
-    override fun onMeasure(recycler: RecyclerView.Recycler, state: RecyclerView.State, widthSpec: Int, heightSpec: Int) {
-        when {
-            state.itemCount == 0 -> super.onMeasure(recycler, state, widthSpec, heightSpec)
-            childCount == 0 -> {
-                val v0 = recycler.getViewForPosition(0)
-                orientationHelper.measure(v0, state.itemCount, widthSpec, heightSpec)
-                recycler.recycleView(v0)
-                //Log.d(TAG, "onMeasure done (recycled), $itemWidth:$itemHeight!")
-            }
-            else -> {
-                val v0 = getChildAt(0)!!
-                orientationHelper.measure(v0, state.itemCount, widthSpec, heightSpec)
-                //Log.d(TAG, "onMeasure done (existed) $itemWidth:$itemHeight!")
-            }
+    override fun onMeasure(
+        recycler: RecyclerView.Recycler,
+        state: RecyclerView.State,
+        widthSpec: Int,
+        heightSpec: Int
+    ) = when {
+        state.itemCount == 0 -> super.onMeasure(recycler, state, widthSpec, heightSpec)
+        childCount == 0 -> {
+            val v0 = recycler.getViewForPosition(0)
+            orientationHelper.measure(v0, state.itemCount, widthSpec, heightSpec)
+            recycler.recycleView(v0)
+            //Log.d(TAG, "onMeasure done (recycled), $itemWidth:$itemHeight!")
+        }
+        else -> {
+            val v0 = getChildAt(0)!!
+            orientationHelper.measure(v0, state.itemCount, widthSpec, heightSpec)
+            //Log.d(TAG, "onMeasure done (existed) $itemWidth:$itemHeight!")
         }
     }
 
@@ -199,41 +198,45 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     ) {
         val itemCount = state?.itemCount ?: itemCount
         val viewCache = SparseArray<View>(childCount)
-        val visibleItemRange = if (childCount != 0) {
-            val range = getVisibleItemRange(dScroll, state)
-            // perform scraping if changes occurred - otherwise just run a soft detach
-            if (hasChanges) {
-                detachAndScrapAttachedViews(recycler)
-            } else if (range == currentlyVisibleItemRange) return
-            for (i in 0 until childCount) {
-                val viewId: Int = getChildAt(i)!!.params().viewAdapterPosition
-                viewCache.put(viewId, getChildAt(i))
+        val visibleItemRange = when {
+            childCount != 0 -> {    // redoing existing layout
+                val range = getVisibleItemRange(dScroll, state)
+                val changes = changedItems
+                // common case when there's no changes, quick out
+                if (changes.isNullOrEmpty() && range == currentlyVisibleItemRange) return
+                // scrap modified items but just detach others
+                while (childCount > 0) {
+                    val view = getChildAt(0)!!
+                    val viewAdapterPosition = view.params().viewAdapterPosition
+                    if (changes?.contains(viewAdapterPosition) == true)
+                        detachAndScrapView(view, recycler)
+                    else {
+                        viewCache.put(viewAdapterPosition, view)
+                        detachView(view)
+                    }
+                }
+                range
             }
-            for (i in 0 until viewCache.size()) {
-                detachView(viewCache.valueAt(i))
+            mRangeWasRestored -> {  // restoring the item range
+                mRangeWasRestored = false
+                var range = currentlyVisibleItemRange.first..currentlyVisibleItemRange.last
+                if (itemCount == 0) {
+                    // no items exist after restoration
+                    range = IntRange.EMPTY
+                } else if (range.last >= itemCount) {
+                    // item count was reduced, clamp to max current possible size
+                    range = coercedRange(
+                        itemCount - 1 - viewCountToFit(orientationHelper.parentContentSize()) - outOfBoundsViews,
+                        itemCount -1
+                    )
+                }
+                range
             }
-            range
-        } else if (mRangeWasRestored) {
-            // restoring the item range
-            mRangeWasRestored = false
-            var range = currentlyVisibleItemRange.first..currentlyVisibleItemRange.last
-            if (itemCount == 0) {
-                // no items exist after restoration
-                range = IntRange.EMPTY
-            } else if (range.last >= itemCount) {
-                // item count was reduced, clamp to max current possible size
-                range = max(itemCount - 1 - viewCountToFit(orientationHelper.parentContentSize()) - outOfBoundsViews, 0) until itemCount
-            }
-            range
-        } else if (itemSizes.isNotEmpty()) {
-            getVisibleItemRange(dScroll, state)
-        } else {
-            IntRange.EMPTY
+            itemSizes.isNotEmpty() -> getVisibleItemRange(dScroll, state) // first layout
+            else -> IntRange.EMPTY  // layout is empty and not measured
         }
         // layout visible items
-        visibleItemRange.forEach {
-            addView(recycler, state, viewCache, it)
-        }
+        visibleItemRange.forEach { addView(recycler, state, viewCache, it) }
         //scrap all unused views
         for (i in 0 until viewCache.size()) {
             val removingView = viewCache.valueAt(i)
@@ -247,15 +250,19 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
 
     override fun onLayoutCompleted(state: RecyclerView.State?) {
         super.onLayoutCompleted(state)
-        hasChanges = false
+        changedItems = null
         mRangeWasRestored = false
     }
 
-
     // add new view from recycler or reattach view from viewCache
-    private fun addView(recycler: RecyclerView.Recycler, state: RecyclerView.State?, viewCache: SparseArray<View>, position: Int): View? {
+    private fun addView(
+        recycler: RecyclerView.Recycler,
+        state: RecyclerView.State?,
+        viewCache: SparseArray<View>,
+        position: Int
+    ): View? {
         var view = viewCache[position]
-        if (view == null) {
+        if (view == null) { // get new view for position
             // this try catch is copied because this internally crashes?
             try {
                 view = recycler.getViewForPosition(position)
@@ -271,11 +278,11 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                 }
             }
             if (state?.isPreLayout == true) {
-                // not supported?
+                // not supported
             }
             //measureChildWithMargins(view, 0, 0)
             orientationHelper.layoutViewForPosition(view, position)
-        } else {
+        } else {    // quickly reattach existing view
             attachView(view)
             viewCache.remove(position)
         }
@@ -291,7 +298,10 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
 
     override fun onSaveInstanceState(): Parcelable? {
         return Bundle().apply {
-            putIntArray("range", intArrayOf(currentlyVisibleItemRange.first, currentlyVisibleItemRange.last))
+            putIntArray(
+                "range",
+                intArrayOf(currentlyVisibleItemRange.first, currentlyVisibleItemRange.last)
+            )
         }
     }
 
@@ -317,6 +327,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         ) {
             return IntRange.EMPTY
         }
+
         // recycler view is within bounds, calculate visible items
         val visibleItems = getVisibleItemCount(recyclerLocation, parentContentSize)
         val firstItem = max((-recyclerLocation) / orientationHelper.itemSize, 0)
@@ -331,23 +342,31 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             firstItem - outOfBoundsViews / 2..firstItem + visibleItems + outOfBoundsViews / 2 + outOfBoundsViews % 2
         }
         // clamp the range to valid values
-        return max(0, r.first)..min(r.last, itemCount - 1)
+        return r.coerce(0, itemCount - 1)
     }
 
-    override fun collectAdjacentPrefetchPositions(dx: Int, dy: Int, state: RecyclerView.State, layoutPrefetchRegistry: LayoutPrefetchRegistry) {
+    override fun collectAdjacentPrefetchPositions(
+        dx: Int,
+        dy: Int,
+        state: RecyclerView.State,
+        layoutPrefetchRegistry: LayoutPrefetchRegistry
+    ) {
         // prefetch items only is there's any momentum
         val scroll = state.remainingScroll
         if (scroll == 0) return
+        // items to scroll will be negative when scrolling up
         val itemsToScroll =
             absClamp(state.remainingScroll / orientationHelper.itemSize, prefetchItemCount)
         if (itemsToScroll == 0) return
         val prefetchList = when {
-            itemsToScroll > 0 -> {
-                currentlyVisibleItemRange.last..min(currentlyVisibleItemRange.last+itemsToScroll, itemCount-1)
-            }
-            else -> {
-                (max(currentlyVisibleItemRange.first+itemsToScroll, 0)..currentlyVisibleItemRange.first).reversed()
-            }
+            itemsToScroll > 0 -> coercedRange(
+                currentlyVisibleItemRange.last,
+                currentlyVisibleItemRange.last + itemsToScroll
+            )
+            else -> coercedRange(
+                currentlyVisibleItemRange.first + itemsToScroll,
+                currentlyVisibleItemRange.first
+            )
         }
         var prefetchDist = 0
         prefetchList.forEach {
@@ -361,16 +380,28 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         super.requestLayout()
     }
 
-    override fun scrollHorizontallyBy(dx: Int, recycler: RecyclerView.Recycler, state: RecyclerView.State?): Int {
-        if (isEntireContentInViewPort) return 0    // no recycling will happen
-        layoutChildrenInLayout(recycler, state, null, dx)
-        return 0
+    override fun scrollHorizontallyBy(
+        dx: Int,
+        recycler: RecyclerView.Recycler,
+        state: RecyclerView.State?
+    ) = when {
+        isEntireContentInViewPort -> 0    // no recycling will happen
+        else -> {
+            layoutChildrenInLayout(recycler, state, null, dx)
+            0
+        }
     }
 
-    override fun scrollVerticallyBy(dy: Int, recycler: RecyclerView.Recycler, state: RecyclerView.State?): Int {
-        if (isEntireContentInViewPort) return 0    // no recycling will happen
-        layoutChildrenInLayout(recycler, state, null, dy)
-        return 0
+    override fun scrollVerticallyBy(
+        dy: Int,
+        recycler: RecyclerView.Recycler,
+        state: RecyclerView.State?
+    ) = when {
+        isEntireContentInViewPort -> 0 // no recycling will happen
+        else -> {
+            layoutChildrenInLayout(recycler, state, null, dy)
+            0
+        }
     }
 
     override fun onAttachedToWindow(view: RecyclerView?) {
@@ -405,7 +436,13 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         }
     }
 
-    override fun onScrollChange(v: NestedScrollView?, scrollX: Int, scrollY: Int, oldScrollX: Int, oldScrollY: Int) {
+    override fun onScrollChange(
+        v: NestedScrollView?,
+        scrollX: Int,
+        scrollY: Int,
+        oldScrollX: Int,
+        oldScrollY: Int
+    ) {
         if (!isInNestedScroll) recyclerView.scrollBy(scrollX - oldScrollX, scrollY - oldScrollY)
     }
 
@@ -443,8 +480,14 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         requestLayout() // this layout manager is not dynamic, relayout everything
     }
 
+    override fun onItemsMoved(recyclerView: RecyclerView, from: Int, to: Int, itemCount: Int) {
+        requestLayout()  // this layout manager is not dynamic, relayout everything
+    }
+
     override fun onItemsUpdated(recyclerView: RecyclerView, positionStart: Int, itemCount: Int) {
-        hasChanges = true   // need to scrap the views so they get rebound with changes
+        val changeRange = positionStart until positionStart + itemCount
+        // will need to scrap the views so they get rebound with changes
+        changedItems = currentlyVisibleItemRange.intersect(changeRange)
     }
 
     // use default layout params
@@ -472,17 +515,15 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
 
     /** Amount of views that need to be laid out to completely fill 1 viewport of [size]. */
     private fun viewCountToFit(size: Int) =
-        min(size / orientationHelper.itemSize + 1, itemCount - 1)
+        (size / orientationHelper.itemSize + 1).coerceAtMost(itemCount - 1)
 
     /** Check if recycler is visible at all. Pass current [recyclerScrollLocation], optionally altered by
      * scroll diff, and freshly calculated [parentContentSize]. */
     private fun isRecyclerViewVisible(
         recyclerScrollLocation: Int,
         parentContentSize: Int
-    ): Boolean {
-        return recyclerScrollLocation < parentContentSize &&
-                recyclerScrollLocation > -orientationHelper.recyclerViewContentSize
-    }
+    ) = recyclerScrollLocation < parentContentSize &&
+            recyclerScrollLocation > -orientationHelper.recyclerViewContentSize
 
     // reflect recycler, used when listening to non-nested scroll
     private val reflectRecycler: RecyclerView.Recycler
@@ -497,7 +538,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         /** Relevant item size - height vertically, width horizontally */
         abstract val itemSize: Int
 
-        /** Relevant visible recycler position - y vertically, x horizontally */
+        /** Relevant visible recycler start position - y vertically, x horizontally */
         abstract fun recyclerScrollLocation(): Int
 
         /** How many pixels of content are visible in scrollable direction */
@@ -661,6 +702,20 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         value > minMax -> minMax
         else -> value
     }
+
+    /** Make range coerced within [firstLimit] and [lastLimit]. By default use 0 .. [getItemCount] - 1. */
+    private fun coercedRange(
+        start: Int,
+        end: Int,
+        firstLimit: Int = 0,
+        lastLimit: Int = itemCount - 1
+    ) = max(start, firstLimit)..min(lastLimit, end)
+
+    /** Ensure this range is within limits. */
+    private fun IntRange.coerce(
+        firstLimit: Int = 0,
+        lastLimit: Int = itemCount - 1
+    ) = coercedRange(first, last, firstLimit, lastLimit)
 
     /** measured width with margins - if width is 0 then margins are ignored and 0 is returned. */
     private fun View.measuredWidthWithMargins() = when (measuredWidth) {
