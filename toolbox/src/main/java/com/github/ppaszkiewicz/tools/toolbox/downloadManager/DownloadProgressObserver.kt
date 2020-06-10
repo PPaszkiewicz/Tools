@@ -2,6 +2,7 @@ package com.github.ppaszkiewicz.tools.toolbox.downloadManager
 
 import android.app.DownloadManager
 import android.content.Context
+import android.database.Cursor
 import android.net.Uri
 import android.os.Handler
 import android.text.format.DateUtils
@@ -90,7 +91,7 @@ class DownloadProgressObserver(val context: Context, var mode: Mode = Mode.AUTO)
     /**
      * Start reporting progress for [downloadId]. Returns true if ID was not observed before.
      * */
-    fun add(downloadId: Long) = downloadIds.add(downloadId).also{ tryRun() }
+    fun add(downloadId: Long) = downloadIds.add(downloadId).also { tryRun() }
 
     /** Start reporting progress for [downloadIds]. */
     fun addAll(vararg downloadIds: Long) {
@@ -204,8 +205,8 @@ class DownloadProgressObserver(val context: Context, var mode: Mode = Mode.AUTO)
             Mode.AUTO -> lastQueryRuntimeMs > ASYNC_CUTOFF
         }
 
-        queryJob?.let{
-            if(it.isActive)
+        queryJob?.let {
+            if (it.isActive)
                 Log.w(TAG, "previous query was destroyed")
             it.cancel()
         }
@@ -236,30 +237,29 @@ val Context.downloadManager
 /** Query [DownloadManager] for progress of [id]. Might return null if it doesn't exist. */
 fun DownloadManager.getDownloadProgress(id: Long) = getDownloadProgresses(id)[id]
 
+@Volatile
+private lateinit var columns: Columns
+
 /** Query [DownloadManager] for progress of [ids]. */
 fun DownloadManager.getDownloadProgresses(vararg ids: Long): LongSparseArray<DownloadProgress> {
     val results = LongSparseArray<DownloadProgress>(ids.size)
     val q = DownloadManager.Query().setFilterById(*ids)
     query(q).use { c ->
-        val idColumn = c.getColumnIndex(DownloadManager.COLUMN_ID)
-        val pathColumn = c.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
-        val statusColumn = c.getColumnIndex(DownloadManager.COLUMN_STATUS)
-        val reasonColumn = c.getColumnIndex(DownloadManager.COLUMN_REASON)
-        val prgColumn = c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
-        val maxColumn = c.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
-
+        if (!::columns.isInitialized) {
+            columns = Columns(c)
+        }
         c.run {
             while (moveToNext()) {
-                val id = getLong(idColumn)
+                val id = getLong(columns.id)
                 results.put(
                     id,
                     DownloadProgress(
                         id,
-                        getString(pathColumn),
-                        getInt(statusColumn),
-                        getInt(reasonColumn),
-                        getLong(prgColumn),
-                        getLong(maxColumn)
+                        getString(columns.path),
+                        getInt(columns.status),
+                        getInt(columns.reason),
+                        getLong(columns.prg),
+                        getLong(columns.max)
                     )
                 )
             }
@@ -338,4 +338,14 @@ data class DownloadProgress(
 
     /** Readable file size. */
     private fun Long.toFileSize(context: Context) = Formatter.formatShortFileSize(context, this)
+}
+
+// cache for column indexes
+private class Columns(c: Cursor) {
+    val id = c.getColumnIndex(DownloadManager.COLUMN_ID)
+    val path = c.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI)
+    val status = c.getColumnIndex(DownloadManager.COLUMN_STATUS)
+    val reason = c.getColumnIndex(DownloadManager.COLUMN_REASON)
+    val prg = c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+    val max = c.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
 }
