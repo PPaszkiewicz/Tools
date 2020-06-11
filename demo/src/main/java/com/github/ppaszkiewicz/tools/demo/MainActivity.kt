@@ -1,7 +1,6 @@
 package com.github.ppaszkiewicz.tools.demo
 
 import android.os.Bundle
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
@@ -17,9 +16,6 @@ import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceA
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity3
 import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
 import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences
-import com.github.ppaszkiewicz.tools.toolbox.downloadManager.DownloadProgressObserver
-import com.github.ppaszkiewicz.tools.toolbox.downloadManager.downloadManager
-import com.github.ppaszkiewicz.tools.toolbox.downloadManager.getDownloadProgresses
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startActivity
 import kotlinx.android.synthetic.main.activity_main.*
 
@@ -83,6 +79,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
         // layouts test
         btnViewsTest1.setOnClickListener { startActivity<SaveStateTestActivity>() }
+//        btnSyncLiveDataTest1.setOnClickListener { startActivity<SyncableLiveDataDemoActivity>() }
 
         // preference observer
         enumPref.liveData.observe(this, Observer {
