@@ -14,6 +14,7 @@ import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.TaskService
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity2
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity3
+import com.github.ppaszkiewicz.tools.demo.viewModel.SyncableLiveDataDemoActivity
 import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
 import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startActivity
@@ -79,7 +80,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
         // layouts test
         btnViewsTest1.setOnClickListener { startActivity<SaveStateTestActivity>() }
-//        btnSyncLiveDataTest1.setOnClickListener { startActivity<SyncableLiveDataDemoActivity>() }
+        btnSyncLiveDataTest1.setOnClickListener { startActivity<SyncableLiveDataDemoActivity>() }
 
         // preference observer
         enumPref.liveData.observe(this, Observer {
