@@ -2,8 +2,6 @@ package com.github.ppaszkiewicz.tools.toolbox.viewModel
 
 import androidx.lifecycle.*
 
-// Rough idea that doesn't work properly
-
 /**
  * LiveData that can have its updates paused until all other LiveDatas that share [sync]
  * are updated.
@@ -83,15 +81,13 @@ private class SyncableLiveData<T>(
 
 /**
  * Lifecycle owner that can be manually paused to sync multiple instances of [SyncableLiveData].
- *
- * Calling [destroy] will detach all synchronized livedatas from their sources.
  * */
 class LiveDataSync : LifecycleOwner {
     private val registry = LifecycleRegistry(this)
     override fun getLifecycle() = registry
 
     val isPaused
-        get() = registry.currentState == Lifecycle.State.CREATED
+        get() = registry.currentState == Lifecycle.State.STARTED
 
     init {
         resume()
@@ -100,7 +96,7 @@ class LiveDataSync : LifecycleOwner {
     fun pause() {
         check(registry.currentState == Lifecycle.State.RESUMED) { "Missed resume call" }
         check(registry.currentState != Lifecycle.State.DESTROYED)
-        registry.currentState = Lifecycle.State.CREATED
+        registry.currentState = Lifecycle.State.STARTED
     }
 
     fun resume() {
@@ -108,6 +104,7 @@ class LiveDataSync : LifecycleOwner {
         registry.currentState = Lifecycle.State.RESUMED
     }
 
+    /** Make this sync inoperable - this call is not required. */
     fun destroy(){
         check(registry.currentState != Lifecycle.State.DESTROYED)
         registry.currentState = Lifecycle.State.DESTROYED

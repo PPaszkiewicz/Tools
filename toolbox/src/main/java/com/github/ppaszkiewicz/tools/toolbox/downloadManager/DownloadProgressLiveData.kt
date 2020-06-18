@@ -17,20 +17,25 @@ import androidx.lifecycle.LiveData
  * LiveData wrapper of [DownloadProgressObserver].
  *
  * Emits an empty list when created and when there are no observed IDs left due to
- * [remove] or [removeAll] empty list is emitted as well.
+ * [remove], [removeAll] or [replaceAll].
  * */
 open class DownloadProgressLiveData(val context: Context) :
     LiveData<LongSparseArray<DownloadProgress>>(),
     DownloadProgressObserver.ProgressListener {
+
+    companion object {
+        val DOWNLOAD_MANAGER_INTENT_FILTER = IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE)
+    }
+
+    init {
+        value = DownloadProgressObserver.NO_RESULTS_LIST
+    }
+
     protected val downloadProgressObserver =
         DownloadProgressObserver(context, DownloadProgressObserver.Mode.AUTO, this)
 
     /** If true new values will NOT be emitted if updated list is equal to old one. */
     var preventUpdateWithoutChanges = true
-
-    init {
-        value = DownloadProgressObserver.NO_RESULTS_LIST
-    }
 
     override fun onDownloadProgressUpdate(downloadProgresses: LongSparseArray<DownloadProgress>) {
         if (preventUpdateWithoutChanges) {
@@ -71,8 +76,16 @@ open class DownloadProgressLiveData(val context: Context) :
     /** Replace observed ID. Removes [oldId] if it's present, then adds [newId]. */
     open fun replace(oldId: Long, newId: Long) = downloadProgressObserver.replace(oldId, newId)
 
-    /** Remove all currently observed IDs and replaces them with [newIds]. */
-    open fun replaceAll(vararg newIds: Long) = downloadProgressObserver.replaceAll(*newIds)
+    /** Remove all currently observed IDs and replaces them with [newIds].
+     *
+     * @param emitNothing `true` to [setValue] to empty list if [newIds] is empty (default).
+     *                   `false` to keep last result.
+     * */
+    open fun replaceAll(vararg newIds: Long, emitNothing: Boolean = true) {
+        downloadProgressObserver.replaceAll(*newIds)
+        if (newIds.isEmpty() && emitNothing)
+            value = DownloadProgressObserver.NO_RESULTS_LIST
+    }
 
     /** Replace observed ID. If [oldId] is not present [newId] is not added. */
     open fun replaceOnly(oldId: Long, newId: Long) =
@@ -108,11 +121,7 @@ open class DownloadProgressLiveData(val context: Context) :
 
     override fun onActive() {
         downloadProgressObserver.start()
-        context.registerReceiver(
-            dlManagerBroadcastReceiver, IntentFilter(
-                DownloadManager.ACTION_DOWNLOAD_COMPLETE
-            )
-        )
+        context.registerReceiver(dlManagerBroadcastReceiver, DOWNLOAD_MANAGER_INTENT_FILTER)
     }
 
     override fun onInactive() {
