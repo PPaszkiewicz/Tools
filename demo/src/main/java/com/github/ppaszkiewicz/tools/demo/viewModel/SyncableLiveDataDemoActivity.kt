@@ -12,6 +12,7 @@ import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
 import com.github.ppaszkiewicz.tools.toolbox.viewModel.LiveDataSync
+import com.github.ppaszkiewicz.tools.toolbox.viewModel.ThrottledLiveData
 import com.github.ppaszkiewicz.tools.toolbox.viewModel.createFrom
 import com.github.ppaszkiewicz.tools.toolbox.viewModel.syncedOn
 import kotlinx.android.synthetic.main.activity_buttons.*
@@ -30,7 +31,7 @@ class SyncableLiveDataDemoActivity : AppCompatActivity(R.layout.activity_buttons
         override fun run() {
             h.removeCallbacks(this)
             incrementSource()
-            h.postDelayed(this, 2000)
+            h.postDelayed(this, 500)
         }
     }
 
