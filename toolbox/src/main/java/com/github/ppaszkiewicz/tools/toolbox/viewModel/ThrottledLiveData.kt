@@ -18,6 +18,7 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
     private var delayRunnable: Runnable? = null
         set(value) {
             field?.let { handler.removeCallbacks(it) }
+            value?.let { handler.postDelayed(it, delayMs) }
             field = value
         }
 
@@ -63,23 +64,18 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
         delayRunnable?.run()
     }
 
+    // start counting the delay or clear it if conditions are not met
     private fun startDelay() {
-        if (delayMs > 0 && hasActiveObservers())
-            DelayRunnable().let {
-                delayRunnable = it
-                handler.postDelayed(it, delayMs)
-            }
-        else delayRunnable = null
+        delayRunnable = if (delayMs > 0 && hasActiveObservers()) objDelayRunnable else null
     }
 
-    private inner class DelayRunnable : Runnable {
-        override fun run() {
+    // reusable runnable
+    private val objDelayRunnable = Runnable {
             if (isValueDelayed) {
                 value = delayedValue
                 delayedValue = null
                 isValueDelayed = false
                 startDelay()
             } else delayRunnable = null
-        }
     }
 }
