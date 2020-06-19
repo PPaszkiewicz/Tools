@@ -16,6 +16,10 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
     private var isValueDelayed = false
     private var delayedValue: T? = null
     private var delayRunnable: Runnable? = null
+        set(value) {
+            field?.let { handler.removeCallbacks(it) }
+            field = value
+        }
 
     init {
         addSource(source) { newValue ->
@@ -35,9 +39,9 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
      * If throttling is already stopped this is no-op.
      * */
     fun stopThrottling(immediate: Boolean = false) {
-        if(delayMs <= 0) return
+        if (delayMs <= 0) return
         delayMs *= -1
-        if (immediate) runPendingDelay()
+        if (immediate) delayRunnable?.run()
     }
 
     /**
@@ -56,35 +60,26 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
 
     override fun onInactive() {
         super.onInactive()
-        runPendingDelay()
+        delayRunnable?.run()
     }
 
     private fun startDelay() {
-        delayRunnable?.let { handler.removeCallbacks(it) }
         if (delayMs > 0 && hasActiveObservers())
             DelayRunnable().let {
-                handler.postDelayed(it, delayMs)
                 delayRunnable = it
+                handler.postDelayed(it, delayMs)
             }
         else delayRunnable = null
     }
 
-    private fun runPendingDelay() {
-        delayRunnable?.let {
-            handler.removeCallbacks(it)
-            it.run()
-        }
-    }
-
     private inner class DelayRunnable : Runnable {
         override fun run() {
-            delayRunnable = null
             if (isValueDelayed) {
                 value = delayedValue
                 delayedValue = null
                 isValueDelayed = false
                 startDelay()
-            }
+            } else delayRunnable = null
         }
     }
 }
