@@ -21,6 +21,7 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
             value?.let { handler.postDelayed(it, delayMs) }
             field = value
         }
+    private val objDelayRunnable = Runnable { if (consumeDelayedValue()) startDelay() }
 
     init {
         addSource(source) { newValue ->
@@ -34,22 +35,7 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
         }
     }
 
-    /**
-     * Stop throttling now. If [immediate] emit any pending value now.
-     *
-     * If throttling is already stopped this is no-op.
-     * */
-    fun stopThrottling(immediate: Boolean = false) {
-        if (delayMs <= 0) return
-        delayMs *= -1
-        if (immediate) delayRunnable?.run()
-    }
-
-    /**
-     * Start throttling or modify the delay.
-     *
-     * If [newDelay] is `0` (default) reuse old delay value.
-     * */
+    /** Start throttling or modify the delay. If [newDelay] is `0` (default) reuse previous delay value. */
     fun startThrottling(newDelay: Long = 0L) {
         require(newDelay >= 0L)
         if (newDelay == 0L) when {
@@ -59,9 +45,16 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
         } else delayMs = newDelay
     }
 
+    /** Stop throttling now. If [immediate] emit any pending value now. */
+    fun stopThrottling(immediate: Boolean = false) {
+        if (delayMs <= 0) return
+        delayMs *= -1
+        if (immediate) consumeDelayedValue()
+    }
+
     override fun onInactive() {
         super.onInactive()
-        delayRunnable?.run()
+        consumeDelayedValue()
     }
 
     // start counting the delay or clear it if conditions are not met
@@ -69,13 +62,13 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
         delayRunnable = if (delayMs > 0 && hasActiveObservers()) objDelayRunnable else null
     }
 
-    // reusable runnable
-    private val objDelayRunnable = Runnable {
-            if (isValueDelayed) {
-                value = delayedValue
-                delayedValue = null
-                isValueDelayed = false
-                startDelay()
-            } else delayRunnable = null
+    private fun consumeDelayedValue(): Boolean {
+        delayRunnable = null
+        return if (isValueDelayed) {
+            value = delayedValue
+            delayedValue = null
+            isValueDelayed = false
+            true
+        } else false
     }
 }
