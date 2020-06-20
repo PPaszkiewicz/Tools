@@ -38,11 +38,12 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
     /** Start throttling or modify the delay. If [newDelay] is `0` (default) reuse previous delay value. */
     fun startThrottling(newDelay: Long = 0L) {
         require(newDelay >= 0L)
-        if (newDelay == 0L) when {
+        when {
+            newDelay > 0 -> delayMs = newDelay
             delayMs < 0 -> delayMs *= -1
             delayMs > 0 -> return
             else -> throw IllegalArgumentException("newDelay cannot be zero if old delayMs is zero")
-        } else delayMs = newDelay
+        }
     }
 
     /** Stop throttling now. If [immediate] emit any pending value now. */
