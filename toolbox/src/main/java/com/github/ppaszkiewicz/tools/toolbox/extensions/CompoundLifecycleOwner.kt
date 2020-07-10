@@ -9,14 +9,13 @@ import androidx.lifecycle.LifecycleRegistry
  * [LifecycleOwner] that combines state of multiple [lifecycles].
  *
  * Available modes are:
- * - [Mode.AND] (default: assumes the lowest state)
- * - [Mode.OR] (assume the highest state)
+ * - [Mode.AND] _(default)_ assume the lowest state
+ * - [Mode.OR] assume the highest state
  */
 open class CompoundLifecycleOwner(
     vararg val lifecycles: LifecycleOwner,
     val mode: Mode = Mode.AND
-) :
-    LifecycleOwner {
+) : LifecycleOwner {
     enum class Mode {
         /** `RESUMED` when everything is resumed, `DESTROYED` when at least one is. */
         AND,
@@ -36,11 +35,6 @@ open class CompoundLifecycleOwner(
         lifecycles.forEach { it.lifecycle.addObserver(stateObs) }
     }
 
-    private fun destroy() {
-        lifecycles.forEach { it.lifecycle.removeObserver(stateObs) }
-        _lifeCycle.currentState = Lifecycle.State.DESTROYED
-    }
-
     private fun createObserver() = when (mode) {
         Mode.AND -> LifecycleEventObserver { _, ev ->
             if (ev == Lifecycle.Event.ON_DESTROY) destroy()
@@ -52,10 +46,18 @@ open class CompoundLifecycleOwner(
                 lifecycles.maxBy { lifecycle.currentState }!!.lifecycle.currentState
         }
     }
+
+    private fun destroy() {
+        lifecycles.forEach { it.lifecycle.removeObserver(stateObs) }
+        _lifeCycle.currentState = Lifecycle.State.DESTROYED
+    }
 }
 
 /** Alias for construction of [CompoundLifecycleOwner] in [CompoundLifecycleOwner.Mode.AND]. */
 operator fun LifecycleOwner.plus(other: LifecycleOwner) = CompoundLifecycleOwner(this, other)
+
+/** Alias for construction of [CompoundLifecycleOwner] in [CompoundLifecycleOwner.Mode.AND]. */
+infix fun LifecycleOwner.and(other: LifecycleOwner) = this + other
 
 /** Alias for construction of [CompoundLifecycleOwner] in [CompoundLifecycleOwner.Mode.OR]. */
 infix fun LifecycleOwner.or(other: LifecycleOwner) =
