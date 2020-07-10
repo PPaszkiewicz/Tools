@@ -41,7 +41,7 @@ open class CompoundLifecycleOwner(
             else _lifeCycle.currentState =
                 lifecycles.minBy { lifecycle.currentState }!!.lifecycle.currentState
         }
-        Mode.OR -> LifecycleEventObserver { src, ev ->
+        Mode.OR -> LifecycleEventObserver { _, _ ->
             _lifeCycle.currentState =
                 lifecycles.maxBy { lifecycle.currentState }!!.lifecycle.currentState
         }
