@@ -103,6 +103,9 @@ open class DownloadProgressLiveData(val context: Context) :
             value = DownloadProgressObserver.NO_RESULTS_LIST
     }
 
+    /** Check if observed IDs contain given ID. */
+    fun isObserving(id: Long) = downloadProgressObserver.isObserving(id)
+
     /**
      * Callback from download manager broadcasts.
      * */

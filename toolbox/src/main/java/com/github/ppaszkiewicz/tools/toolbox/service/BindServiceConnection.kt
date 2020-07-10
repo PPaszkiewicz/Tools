@@ -12,11 +12,13 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
+import java.lang.ref.WeakReference
 
 /* requires context delegates from delegate.Context.kt */
 
 /**
- * Base for bind service connection implementations.
+ * Base for bind service connection implementations. Implements [LifecycleOwner] that's resumed
+ * only while service is connected.
  *
  * Implementing classes need to call [performBind] and [performUnbind] as they see fit.
  * */
@@ -24,12 +26,18 @@ abstract class BindServiceConnection<T>(
     contextDelegate: ContextDelegate,
     /** Default bind flags to use. */
     bindFlags: Int = Context.BIND_AUTO_CREATE
-) : LiveData<T?>(), ServiceConnection {
+) : LiveData<T?>(), ServiceConnection, LifecycleOwner {
     /** Intent that is used to bind to the service. */
     abstract fun createBindingIntent(context: Context): Intent
 
     /** Transform [binder] object into valid [LiveData] value of this object. */
     abstract fun transformBinder(name: ComponentName, binder: IBinder): T
+
+    /** Used to determine if [onFirstConnect] should trigger. */
+    private var previousValue: WeakReference<T>? = null
+
+    @Suppress("LeakingThis")
+    private val _lifecycle = LifecycleRegistry(this)
 
     /** Context provided by delegate, workaround for fragment lazy context initialization. */
     val context by contextDelegate
@@ -64,6 +72,12 @@ abstract class BindServiceConnection<T>(
      * Triggered when service is connected.
      * */
     var onConnect: ((T) -> Unit)? = null
+
+    /**
+     * Called after [onConnect] when this is first time `bind` call resulted in successful
+     * connection to a service or service object changed.
+     */
+    var onFirstConnect: ((T) -> Unit)? = null
 
     /**
      * Triggered when service is disconnected.
@@ -104,6 +118,9 @@ abstract class BindServiceConnection<T>(
      */
     var onNullBinding: (() -> Unit)? = null
 
+    // satisfy LifecycleOwner
+    override fun getLifecycle() = _lifecycle
+
     // core implementation
 
     /** Perform binding during specific triggering event. */
@@ -140,6 +157,7 @@ abstract class BindServiceConnection<T>(
         value?.let { service ->
             val callDisconnect = onConnectionLost?.let { it(service) }
             if(callDisconnect == true) onDisconnect?.invoke(service)
+            _lifecycle.currentState = Lifecycle.State.CREATED
             value = null
         } ?: Log.e("BindServiceConn", "unexpected onServiceDisconnected: service object missing. " +
                 "Connection: ${this::javaClass.name}, Service name: $name")
@@ -149,6 +167,11 @@ abstract class BindServiceConnection<T>(
         transformBinder(name, service).also {
             this.value = it
             onConnect?.invoke(it)
+            if (previousValue?.get() != it) {
+                onFirstConnect?.invoke(it)
+                previousValue = WeakReference(it)
+            }
+            _lifecycle.currentState = Lifecycle.State.RESUMED
         }
     }
 

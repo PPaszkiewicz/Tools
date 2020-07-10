@@ -7,6 +7,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isGone
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startService
@@ -15,8 +16,8 @@ import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
 import kotlinx.android.synthetic.main.activity_buttons.*
 
 
-class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons){
-    companion object{
+class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
+    companion object {
         const val TAG = "BindDemoActivity"
     }
 
@@ -32,8 +33,10 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons){
         button6.isGone = true
 
         title = "Bind service test"
-        textView0.text = "Service will be bound without BIND_AUTO_CREATE flag - it will be destroyed as soon" +
-                " as you unbind from it."
+        textView0.text = """
+            |Using AUTO_CREATE flag will make service come alive even if it's not started.
+            |Using NO FLAGS will require service to be started to connect - additionally if it's stopped while bound restarting it will create NEW service object.
+        """.trimMargin()
 
         button1.setOnClickListener {
             startService<TestService>()
@@ -60,12 +63,19 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons){
         // add all possible listeners
 
         serviceConn.run {
-            observe(this@BindServiceDemoActivity, Observer{
+            observe(this@BindServiceDemoActivity, Observer {
                 textView1.text = it?.foo() ?: "TestService is null"
             })
             onConnect = {
                 Log.d(TAG, "onConnect")
                 textView2.text = "Connected"
+                it.notifyConnected()
+            }
+            onFirstConnect = {
+                Log.d(TAG, "onFirstConnect")
+                it.serviceValue.observe(serviceConn, Observer { bindCount ->
+                    textView3.text = "service was connected to $bindCount times"
+                })
             }
             onDisconnect = {
                 Log.d(TAG, "onDisconnect")
@@ -99,12 +109,18 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons){
     }
 }
 
-class TestService : DirectBindService.Impl(){
-    companion object{
+class TestService : DirectBindService.Impl() {
+    companion object {
         val connectionFactory = DirectBindService.ConnectionFactory<TestService>()
     }
 
     fun foo() = "TestService is alive!"
+
+    fun notifyConnected(){
+        serviceValue.value = (serviceValue.value!! + 1)
+    }
+
+    val serviceValue = MutableLiveData(0)
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("TestService", "STARTED")

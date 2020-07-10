@@ -46,7 +46,7 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
         }
     }
 
-    /** Stop throttling now. If [immediate] emit any pending value now. */
+    /** Stop throttling, if [immediate] emit any pending value now. */
     fun stopThrottling(immediate: Boolean = false) {
         if (delayMs <= 0) return
         delayMs *= -1
