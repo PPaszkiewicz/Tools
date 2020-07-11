@@ -34,7 +34,7 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
 
         title = "Bind service test"
         textView0.text = """
-            |Using AUTO_CREATE flag will make service come alive even if it's not started.
+            |Using AUTO_CREATE flag will make service come alive even if it's not started. It will also prevent service from being destroyed by stop.
             |Using NO FLAGS will require service to be started to connect - additionally if it's stopped while bound restarting it will create NEW service object.
         """.trimMargin()
 
@@ -132,8 +132,10 @@ class TestService : DirectBindService.Impl() {
     }
 
     override fun onBind(intent: Intent): IBinder? {
+        val binder = super.onBind(intent)
         Log.d("TestService", "BINDING $intent")
-        return super.onBind(intent)
+        Log.d("TestService", "BINDING with $binder")
+        return binder
     }
 
     override fun onCreate() {

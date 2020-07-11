@@ -33,8 +33,12 @@ abstract class BindServiceConnection<T>(
     /** Transform [binder] object into valid [LiveData] value of this object. */
     abstract fun transformBinder(name: ComponentName, binder: IBinder): T
 
-    /** Used to determine if [onFirstConnect] should trigger. */
-    private var previousValue: WeakReference<T>? = null
+    /**
+     * Used to determine if [onFirstConnect] should trigger - this is based on the fact that
+     * as long as service is alive we will keep receiving exact same binder object regardless
+     * of how many times connection rebinds.
+     * */
+    private var currentBinder: WeakReference<IBinder>? = null
 
     @Suppress("LeakingThis")
     private val _lifecycle = LifecycleRegistry(this)
@@ -156,20 +160,22 @@ abstract class BindServiceConnection<T>(
     override fun onServiceDisconnected(name: ComponentName) {
         value?.let { service ->
             val callDisconnect = onConnectionLost?.let { it(service) }
-            if(callDisconnect == true) onDisconnect?.invoke(service)
+            if (callDisconnect == true) onDisconnect?.invoke(service)
             _lifecycle.currentState = Lifecycle.State.CREATED
             value = null
-        } ?: Log.e("BindServiceConn", "unexpected onServiceDisconnected: service object missing. " +
-                "Connection: ${this::javaClass.name}, Service name: $name")
+        } ?: Log.e(
+            "BindServiceConn", "unexpected onServiceDisconnected: service object missing. " +
+                    "Connection: ${this::javaClass.name}, Service name: $name"
+        )
     }
 
     override fun onServiceConnected(name: ComponentName, service: IBinder) {
         transformBinder(name, service).also {
             this.value = it
             onConnect?.invoke(it)
-            if (previousValue?.get() != it) {
+            if (!(currentBinder?.get() === service)) {
                 onFirstConnect?.invoke(it)
-                previousValue = WeakReference(it)
+                currentBinder = WeakReference(service)
             }
             _lifecycle.currentState = Lifecycle.State.RESUMED
         }
@@ -261,7 +267,7 @@ abstract class ManualBindServiceConnection<T>(
      * Bind to service using [connectionFlags] (by default [defaultBindFlags]).
      * */
     fun bind(connectionFlags: Int = defaultBindFlags) {
-        if(!isBound) currentBindFlags = connectionFlags
+        if (!isBound) currentBindFlags = connectionFlags
         performBind(connectionFlags)
     }
 
