@@ -7,8 +7,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isGone
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Observer
+import androidx.lifecycle.*
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startService
 import com.github.ppaszkiewicz.tools.toolbox.extensions.stopService
@@ -84,11 +83,11 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
             onConnectionLost = {
                 Log.d(TAG, "onSuddenDisconnect")
                 textView2.text = "Disconnect (connection lost)"
-                false
+                true
             }
             onBindingDied = {
                 Log.d(TAG, "onBindingDied")
-                false
+                true
             }
             onNullBinding = {
                 Log.d(TAG, "onNullBinding")
@@ -100,6 +99,15 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
                 textView00.text = "Connection bound = false ($currentBindFlags)"
             }
         }
+
+        // observe lifecycle
+        textView4.text = "Event: --, state: ${serviceConn.lifecycle.currentState.name}"
+        serviceConn.lifecycle.addObserver(object: LifecycleEventObserver{
+            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+                textView4.text = "Event: ${event.name}, state: ${source.lifecycle.currentState.name}"
+            }
+
+        })
     }
 
     override fun onStop() {

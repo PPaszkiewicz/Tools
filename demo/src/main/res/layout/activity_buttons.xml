@@ -70,4 +70,10 @@
             tools:text="textView3"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content" />
+
+    <TextView
+            android:id="@+id/textView4"
+            tools:text="textView4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" />
 </LinearLayout>

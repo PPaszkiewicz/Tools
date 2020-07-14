@@ -17,10 +17,15 @@ import java.lang.ref.WeakReference
 /* requires context delegates from delegate.Context.kt */
 
 /**
- * Base for bind service connection implementations. Implements [LifecycleOwner] that's resumed
- * only while service is connected.
+ * Base for bind service connection implementations.
  *
  * Implementing classes need to call [performBind] and [performUnbind] as they see fit.
+ * ---
+ * Implements following [LifecycleOwner]:
+ * - `RESUMED` right after [onFirstConnect] and [onConnect] call
+ * - `STOPPED` right before [onDisconnect] call
+ *
+ * Note that it will never enter `DESTROYED` state unless manually requested with [dispatchDestroyLifecycle].
  * */
 abstract class BindServiceConnection<T>(
     contextDelegate: ContextDelegate,
@@ -41,7 +46,7 @@ abstract class BindServiceConnection<T>(
     private var currentBinder: WeakReference<IBinder>? = null
 
     @Suppress("LeakingThis")
-    private val _lifecycle = LifecycleRegistry(this)
+    private var _lifecycle = LifecycleRegistry(this)
 
     /** Context provided by delegate, workaround for fragment lazy context initialization. */
     val context by contextDelegate
@@ -73,15 +78,15 @@ abstract class BindServiceConnection<T>(
     // optionally injectable listeners
 
     /**
-     * Triggered when service is connected.
-     * */
-    var onConnect: ((T) -> Unit)? = null
-
-    /**
-     * Called after [onConnect] when this is first time `bind` call resulted in successful
+     * Called right before [onConnect] when this is first time `bind` call resulted in successful
      * connection to a service or service object changed.
      */
     var onFirstConnect: ((T) -> Unit)? = null
+
+    /**
+     * Triggered when service is connected or reconnected.
+     * */
+    var onConnect: ((T) -> Unit)? = null
 
     /**
      * Triggered when service is disconnected.
@@ -96,7 +101,7 @@ abstract class BindServiceConnection<T>(
      * In most cases it should be impossible to trigger for services running in same process bound with
      * [Context.BIND_AUTO_CREATE].
      *
-     * If this is `null` or returns `true` then [onDisconnect] will be called afterwards.
+     * Return `true` to consume callback or [onDisconnect] will be called afterwards.
      **/
     var onConnectionLost: ((T) -> Boolean)? = null
 
@@ -113,7 +118,7 @@ abstract class BindServiceConnection<T>(
     /**
      * Triggered when binding dies.
      *
-     * If this is `null` or returns `true` then [onUnbind] and [onBind] are called while rebinding.
+     * Return `true` to consume callback or [onUnbind] and [onBind] will be called while rebinding.
      */
     var onBindingDied: (() -> Boolean)? = null
 
@@ -141,9 +146,12 @@ abstract class BindServiceConnection<T>(
         if (isBound) {
             isBound = false
             context.unbindService(this)
-            value?.let { onDisconnect?.invoke(it) }
+            value?.let {
+                _lifecycle.currentState = Lifecycle.State.CREATED
+                onDisconnect?.invoke(it)
+            }
             onUnbind?.invoke()
-            value = null
+            if(value != null) value = null
         }
     }
 
@@ -159,9 +167,9 @@ abstract class BindServiceConnection<T>(
 
     override fun onServiceDisconnected(name: ComponentName) {
         value?.let { service ->
-            val callDisconnect = onConnectionLost?.let { it(service) }
-            if (callDisconnect == true) onDisconnect?.invoke(service)
             _lifecycle.currentState = Lifecycle.State.CREATED
+            val callbackConsumed = onConnectionLost?.let { it(service) }
+            if (callbackConsumed != true) onDisconnect?.invoke(service)
             value = null
         } ?: Log.e(
             "BindServiceConn", "unexpected onServiceDisconnected: service object missing. " +
@@ -172,26 +180,44 @@ abstract class BindServiceConnection<T>(
     override fun onServiceConnected(name: ComponentName, service: IBinder) {
         transformBinder(name, service).also {
             this.value = it
-            onConnect?.invoke(it)
             if (!(currentBinder?.get() === service)) {
                 onFirstConnect?.invoke(it)
                 currentBinder = WeakReference(service)
             }
+            onConnect?.invoke(it)
             _lifecycle.currentState = Lifecycle.State.RESUMED
         }
     }
 
     override fun onBindingDied(name: ComponentName?) {
-        val doCallbacks = onBindingDied?.invoke() ?: true
+        val callbackConsumed = onBindingDied?.invoke() ?: false
         if (autoRebindDeadBinding) {
-            performRebind(doCallbacks, defaultBindFlags)
+            performRebind(!callbackConsumed, defaultBindFlags)
         } else if (isBound) {
             isBound = false
         }
     }
 
+    override fun observe(owner: LifecycleOwner, observer: Observer<in T?>) {
+        require(owner !== this) { "Invalid LifecycleOwner - service connection is not allowed observe self." }
+        super.observe(owner, observer)
+    }
+
     override fun onNullBinding(name: ComponentName?) {
         onNullBinding?.invoke()
+    }
+
+    /**
+     * Force connections lifecycle to move from `STOPPED` state into `DESTROYED` state and create
+     * new internal lifecycle object.
+     *
+     * Use this only if you need to forcefully disconnect all listeners that were observing
+     * this lifecycle.
+     * */
+    fun dispatchDestroyLifecycle() {
+        check (_lifecycle.currentState < Lifecycle.State.RESUMED)
+        _lifecycle.currentState = Lifecycle.State.DESTROYED
+        _lifecycle = LifecycleRegistry(this)
     }
 
     /** Base for connection factories that connect to service of type [T]. */
