@@ -151,7 +151,7 @@ abstract class BindServiceConnection<T>(
                 onDisconnect?.invoke(it)
             }
             onUnbind?.invoke()
-            if(value != null) value = null
+            if (value != null) value = null
         }
     }
 
@@ -215,7 +215,7 @@ abstract class BindServiceConnection<T>(
      * this lifecycle.
      * */
     fun dispatchDestroyLifecycle() {
-        check (_lifecycle.currentState < Lifecycle.State.RESUMED)
+        check(_lifecycle.currentState < Lifecycle.State.RESUMED)
         _lifecycle.currentState = Lifecycle.State.DESTROYED
         _lifecycle = LifecycleRegistry(this)
     }
