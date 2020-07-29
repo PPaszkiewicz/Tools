@@ -31,18 +31,19 @@ abstract class CompoundLifecycleOwner(vararg val lifecycles: LifecycleOwner) : L
      *
      *  [getLifecycle] will throw an exception inside this, use provided [lifecycle] argument if needed.
      *  */
-    abstract fun initLifecycle(lifecycle: Lifecycle)
+    abstract fun initLifecycle(lifecycle: LifecycleRegistry)
 
     /** `RESUMED` when everything is resumed, `DESTROYED` when at least one is. */
     open class And(vararg lifecycles: LifecycleOwner) : CompoundLifecycleOwner(*lifecycles),
         LifecycleEventObserver {
 
-        override fun initLifecycle(lifecycle: Lifecycle) {
+        override fun initLifecycle(lifecycle: LifecycleRegistry) {
             // if any of provided lifecycles is destroyed just destroy the compound immediately
             val destroyed =
                 lifecycles.find { it.lifecycle.currentState == Lifecycle.State.DESTROYED }
-            if (destroyed != null) lifecycle.currentState != Lifecycle.State.DESTROYED
-            else lifecycles.forEach { it.lifecycle.addObserver(this) }
+            if (destroyed != null) {
+                lifecycle.currentState = Lifecycle.State.DESTROYED
+            } else lifecycles.forEach { it.lifecycle.addObserver(this) }
         }
 
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
@@ -64,7 +65,7 @@ abstract class CompoundLifecycleOwner(vararg val lifecycles: LifecycleOwner) : L
     /** `RESUMED` when at least one is resumed, `DESTROYED` when everything is. */
     open class Or(vararg lifecycles: LifecycleOwner) : CompoundLifecycleOwner(*lifecycles),
         LifecycleEventObserver {
-        override fun initLifecycle(lifecycle: Lifecycle) {
+        override fun initLifecycle(lifecycle: LifecycleRegistry) {
             lifecycles.forEach { it.lifecycle.addObserver(this) }
         }
 
