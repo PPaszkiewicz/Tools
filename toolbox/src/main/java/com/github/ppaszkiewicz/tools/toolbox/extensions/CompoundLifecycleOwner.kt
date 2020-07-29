@@ -45,15 +45,15 @@ abstract class CompoundLifecycleOwner(vararg val lifecycles: LifecycleOwner) : L
             else lifecycles.forEach { it.lifecycle.addObserver(this) }
         }
 
-        private fun destroy() {
-            lifecycles.forEach { it.lifecycle.removeObserver(this) }
-            lifecycle.currentState = Lifecycle.State.DESTROYED
-        }
-
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
             if (event == Lifecycle.Event.ON_DESTROY) destroy()
             else lifecycle.currentState =
-                lifecycles.minBy { lifecycle.currentState }!!.lifecycle.currentState
+                lifecycles.minBy { it.lifecycle.currentState }!!.lifecycle.currentState
+        }
+
+        private fun destroy() {
+            lifecycles.forEach { it.lifecycle.removeObserver(this) }
+            lifecycle.currentState = Lifecycle.State.DESTROYED
         }
 
         // builder operators allowing for chaining
@@ -70,7 +70,7 @@ abstract class CompoundLifecycleOwner(vararg val lifecycles: LifecycleOwner) : L
 
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
             lifecycle.currentState =
-                lifecycles.maxBy { lifecycle.currentState }!!.lifecycle.currentState
+                lifecycles.maxBy { it.lifecycle.currentState }!!.lifecycle.currentState
             if (event == Lifecycle.Event.ON_DESTROY) source.lifecycle.removeObserver(this)
         }
 
