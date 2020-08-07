@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.tools.toolbox.viewModel
+package com.github.ppaszkiewicz.tools.toolbox.liveData
 
 import androidx.lifecycle.*
 

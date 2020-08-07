@@ -9,7 +9,7 @@ import com.github.ppaszkiewicz.tools.coroutines.service.QueuedTaskService
 import com.github.ppaszkiewicz.tools.coroutines.service.TaskServiceJob
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.DemoTaskService.Companion.EXTRA_PARAMS
 import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
-import com.github.ppaszkiewicz.tools.toolbox.viewModel.LiveDataProgressMap
+import com.github.ppaszkiewicz.tools.toolbox.liveData.LiveDataProgressMap
 import kotlinx.android.parcel.Parcelize
 import kotlinx.coroutines.CancellationException
 import kotlin.random.Random
