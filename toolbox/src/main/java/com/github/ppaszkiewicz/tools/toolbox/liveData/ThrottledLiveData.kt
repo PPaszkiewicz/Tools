@@ -35,8 +35,11 @@ class ThrottledLiveData<T>(source: LiveData<T>, delayMs: Long) : MediatorLiveDat
         }
     }
 
-    /** Start throttling or modify the delay. If [newDelay] is `0` (default) reuse previous delay value. */
-    fun startThrottling(newDelay: Long = 0L) {
+    /** Start throttling using previous [delayMs]. */
+    fun startThrottling() = startThrottling(0L)
+
+    /** Start throttling or modify the delay. If [newDelay] is `0` reuse previous delay value. */
+    fun startThrottling(newDelay: Long) {
         require(newDelay >= 0L)
         when {
             newDelay > 0 -> delayMs = newDelay

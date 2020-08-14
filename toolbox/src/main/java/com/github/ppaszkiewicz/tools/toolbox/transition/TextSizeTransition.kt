@@ -53,6 +53,8 @@ class TextSizeTransition : Transition {
         sizeTo = -1f
     }
 
+    override fun getTransitionProperties() = arrayOf(TRANS_KEY)
+
     override fun captureStartValues(transitionValues: TransitionValues) {
         if (sizeFrom == -1f) {
             captureValues(transitionValues)

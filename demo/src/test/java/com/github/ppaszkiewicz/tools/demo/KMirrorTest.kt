@@ -97,8 +97,6 @@ class PrivateContainerMirror : PrivateContainer(), KMirror by KMirror.ofClass<Pr
     val list: List<Int> by this
 
     // lazy method reflections
-    // there are three ways of calling method reflection: this(), invoke() or reflectMethod()
-    // all of them act the same way but might prove to be more readable depending on context
     val noReturn by reflectMethod()
     val method by reflectMethod()
     val overload by reflectMethod<String>(String::class.java)  // can also use invoke operator name

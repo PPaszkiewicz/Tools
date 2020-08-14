@@ -58,6 +58,8 @@ sealed class SinglePropertyTransition<T : Any> : Transition {
         }
     }
 
+    override fun getTransitionProperties() = arrayOf(getPropertyKey())
+
     @Suppress("UNCHECKED_CAST")
     final override fun createAnimator(
         sceneRoot: ViewGroup?,
