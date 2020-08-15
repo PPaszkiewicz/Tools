@@ -33,7 +33,7 @@
                 android:id="@+id/btnLoaderTest1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Loader Test 1"/>
+                android:text="Loader"/>
 
         <TextView
                 android:text="Service test: queuing tasks within service"
@@ -45,11 +45,11 @@
                 android:id="@+id/btnServiceTest1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Task Service Test 1"/>
+                android:text="Task Service"/>
 
 
         <TextView
-                android:text="Demo of layouts handling duplicate id save states"
+                android:text="Demos of layouts etc"
                 android:gravity="center"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"/>
@@ -58,13 +58,19 @@
                 android:id="@+id/btnViewsTest1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Sate state layouts Demo"/>
+                android:text="Sate state layouts"/>
 
         <Button
                 android:id="@+id/btnSyncLiveDataTest1"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Sync livedata test"/>
+                android:text="Sync livedata"/>
+
+        <Button
+                android:id="@+id/btnRecyclerTest"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Nested wrap recycler"/>
 
         <TextView
                 android:text="Demo of bound service"
@@ -77,7 +83,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAllCaps="false"
-                android:text="Bound service test"/>
+                android:text="Bound service"/>
 
         <TextView
                 android:text="Demo of lingering service"
@@ -90,22 +96,21 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAllCaps="false"
-                android:text="Lingering service demo 1 (lifecycle)"/>
+                android:text="Lingering service 1 (lifecycle)"/>
 
         <Button
                 android:id="@+id/btnLingeringTest2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAllCaps="false"
-                android:text="Lingering service demo 2 (manual)"/>
+                android:text="Lingering service 2 (manual)"/>
 
         <Button
                 android:id="@+id/btnLingeringTest3"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textAllCaps="false"
-                android:text="Lingering service demo 3 (liveData)"/>
-
+                android:text="Lingering service 3 (liveData)"/>
 
         <TextView
                 android:text="Preferences demo (livedata listener)"

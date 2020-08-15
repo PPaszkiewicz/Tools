@@ -31,6 +31,7 @@
         <activity android:name=".lingeringServiceDemo.LingeringServiceActivity3" />
         <activity android:name=".bindService.BindServiceDemoActivity" />
         <activity android:name=".viewModel.SyncableLiveDataDemoActivity" />
+        <activity android:name=".recyclerView.NestedRecyclerDemoActivity" />
 
         <service android:name="com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.DemoTaskService"/>
         <service android:name=".lingeringServiceDemo.DemoLingeringService"/>
