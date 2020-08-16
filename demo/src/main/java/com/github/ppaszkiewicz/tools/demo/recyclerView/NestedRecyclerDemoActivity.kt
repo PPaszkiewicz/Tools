@@ -31,22 +31,13 @@ class NestedRecyclerDemoActivity : AppCompatActivity(R.layout.activity_recycler)
         btnUseLinear.setOnClickListener {
             injectLayoutManager(LinearLayoutManager(this))
         }
+        btnScrollTo.setOnClickListener {
+            recyclerView.scrollToPosition(500)
+        }
+        btnScrollToSmooth.setOnClickListener {
+            recyclerView.smoothScrollToPosition(500)
+        }
     }
-
-    //todo: scrollto/smoothscrollto is not supported (yet)
-//    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-//        return when(event.keyCode){
-//            KeyEvent.KEYCODE_Q -> {
-//                recyclerView.scrollToPosition(0)
-//                true
-//            }
-//            KeyEvent.KEYCODE_A -> {
-//                recyclerView.scrollToPosition((recyclerView.adapter?.itemCount ?: 1) -1)
-//                true
-//            }
-//            else -> super.dispatchKeyEvent(event)
-//        }
-//    }
 
     private fun injectLayoutManager(layoutManager: RecyclerView.LayoutManager) {
         // clear out any existing components

@@ -1,6 +1,7 @@
 package com.github.ppaszkiewicz.tools.toolbox.recyclerView
 
 import android.graphics.Point
+import android.graphics.PointF
 import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
@@ -10,17 +11,17 @@ import android.util.SparseIntArray
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
+import android.widget.HorizontalScrollView
+import android.widget.ScrollView
 import androidx.core.util.*
-import androidx.core.view.marginBottom
-import androidx.core.view.marginLeft
-import androidx.core.view.marginRight
-import androidx.core.view.marginTop
+import androidx.core.view.*
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 import com.github.ppaszkiewicz.tools.toolbox.recyclerView.NestedWrapLayoutManager.Companion.HORIZONTAL
 import com.github.ppaszkiewicz.tools.toolbox.recyclerView.NestedWrapLayoutManager.Companion.VERTICAL
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.sign
 
 /**
  * Layout manager that handles wrap height (or width in horizontal mode) within a scroll view and
@@ -42,7 +43,8 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     val scrollParent: ViewGroup,
     val orientation: Int = VERTICAL,
     val forceListener: Boolean = true
-) : RecyclerView.LayoutManager(), NestedScrollView.OnScrollChangeListener {
+) : RecyclerView.LayoutManager(), NestedScrollView.OnScrollChangeListener,
+    RecyclerView.SmoothScroller.ScrollVectorProvider {
     companion object {
         const val TAG = "NWLayoutM"
 
@@ -96,6 +98,10 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
      */
     var layoutStrategy = LAYOUT_FIXED
 
+    /** Object used to call methods from [scrollParent], mostly to handle compatibility
+     * cases. */
+    var scrollParentHandler = ScrollParentHandler()
+
     /// ---- end -----------------------------------------------------------------------------------
 
     /** Currently displayed list of items. */
@@ -124,9 +130,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     /** Currently managed recyclerView. */
     private val recyclerView: RecyclerView
         get() = mRecyclerView ?: getChildAt(0)!!.parent as RecyclerView
-
-    /** Attached scroll listener - used only for unspecified scroll views on low apis. */
-    private var mScrollListener: ViewTreeObserver.OnScrollChangedListener? = null
 
     /** Contains modified items that needs hard relayout. */
     private var changedItems: Set<Int>? = null
@@ -227,7 +230,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                     // item count was reduced, clamp to max current possible size
                     range = coercedRange(
                         itemCount - 1 - viewCountToFit(orientationHelper.parentContentSize()) - outOfBoundsViews,
-                        itemCount -1
+                        itemCount - 1
                     )
                 }
                 range
@@ -404,36 +407,47 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         }
     }
 
+    override fun scrollToPosition(position: Int) {
+        require(position >= 0)
+        recyclerView.stopScroll()
+        scrollParentHandler.stopSmoothScroll(scrollParent)
+        orientationHelper.apply {
+            if (childCount == 0) scrollScrollParentTo(0)
+            else {
+                val itemPosition =
+                    itemSize * position.coerceAtMost(itemCount) + recyclerViewStartPadding
+                scrollScrollParentTo(itemPosition)
+            }
+        }
+    }
+
+    override fun smoothScrollToPosition(
+        recyclerView: RecyclerView,
+        state: RecyclerView.State,
+        position: Int
+    ) {
+        require(position >= 0)
+        recyclerView.stopScroll()
+        orientationHelper.apply {
+            val itemPosition =
+                itemSize * position.coerceAtMost(itemCount) + recyclerViewStartPadding
+            smoothScrollScrollParentTo(itemPosition)
+        }
+    }
+
+    override fun computeScrollVectorForPosition(targetPosition: Int) =
+        orientationHelper.computeScrollVectorForPosition(targetPosition)
+
     override fun onAttachedToWindow(view: RecyclerView?) {
         super.onAttachedToWindow(view)
         mRecyclerView = view
-        if (forceListener) when {
-            scrollParent is NestedScrollView -> scrollParent.setOnScrollChangeListener(this)
-            Build.VERSION.SDK_INT >= 23 -> scrollParent.setOnScrollChangeListener { v, scrollX, scrollY, oldScrollX, oldScrollY ->
-                onScrollTick()
-            }
-            else -> {
-                // low api fallback: flickering might happen because observer is less precise
-                val scrollObs = ViewTreeObserver.OnScrollChangedListener {
-                    onScrollTick()
-                }
-                scrollParent.viewTreeObserver.addOnScrollChangedListener(scrollObs)
-                mScrollListener = scrollObs
-            }
-        }
+        if (forceListener) scrollParentHandler.attachScrollListener(this, scrollParent)
     }
 
     override fun onDetachedFromWindow(view: RecyclerView?, recycler: RecyclerView.Recycler?) {
         super.onDetachedFromWindow(view, recycler)
         mRecyclerView = null
-        if (forceListener) when {
-            scrollParent is NestedScrollView -> scrollParent.setOnScrollChangeListener(null as NestedScrollView.OnScrollChangeListener?)
-            Build.VERSION.SDK_INT >= 23 -> scrollParent.setOnScrollChangeListener(null)
-            else -> {
-                scrollParent.viewTreeObserver?.removeOnScrollChangedListener(mScrollListener)
-                mScrollListener = null
-            }
-        }
+        if (forceListener) scrollParentHandler.detachScrollListener(this, scrollParent)
     }
 
     override fun onScrollChange(
@@ -534,12 +548,24 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         }
 
     /** Method implementation that differ depending on selected orientation. */
-    private abstract class OrientationHelper {
+    private abstract class OrientationHelper : RecyclerView.SmoothScroller.ScrollVectorProvider {
         /** Relevant item size - height vertically, width horizontally */
         abstract val itemSize: Int
 
-        /** Relevant visible recycler start position - y vertically, x horizontally */
+        /**
+         * Current location of recyclerView relative to rendering area of scroll parent
+         * (ignores parents padding if it clips).
+         *
+         * This value changes as recyclerview or nested parent are scrolled.
+         * */
         abstract fun recyclerScrollLocation(): Int
+
+        /**
+         * Absolute location of recyclerView in scroll parent.
+         *
+         * This value does not change as recyclerview or nested parent are scrolled.
+         */
+        abstract fun recyclerLocationInScrollParent(): Int
 
         /** How many pixels of content are visible in scrollable direction */
         abstract fun parentContentSize(): Int
@@ -553,15 +579,31 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         /** Unspecified layout params.*/
         abstract fun generateDefaultLayoutParams(): RecyclerView.LayoutParams
 
+        /**
+         * Scroll the scroll parent to specific x or y relative to [recyclerLocationInScrollParent] -
+         * that means if [xy] is `0` recyclerview should become aligned to top/left of it.
+         * */
+        abstract fun scrollScrollParentTo(xy: Int)
+
+        /**
+         * Smooth scroll the scroll parent to specific x or y relative to [recyclerLocationInScrollParent] -
+         * that means if [xy] is `0` recyclerview should become aligned to top/left of it.
+         * */
+        abstract fun smoothScrollScrollParentTo(xy: Int)
+
         /** Relevant content size (without paddings). */
         abstract val recyclerViewContentSize: Int
+
+        /** Relevant padding before first item. */
+        abstract val recyclerViewStartPadding: Int
     }
 
     private inner class VerticalOrientationHelper : OrientationHelper() {
         override val itemSize
             get() = itemHeight
 
-        override fun recyclerScrollLocation() = recyclerView.nestedTop() + paddingTop
+        override fun recyclerScrollLocation() = recyclerView.nestedScrollTop() + paddingTop
+        override fun recyclerLocationInScrollParent() = recyclerView.nestedTop()
         override fun parentContentSize() = scrollParent.run {
             height - takeIfPaddingClips { paddingTop + paddingBottom }
         }
@@ -600,15 +642,42 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             RecyclerView.LayoutParams.WRAP_CONTENT
         )
 
-        // top padding is already removed when calculating first item position
+        override fun scrollScrollParentTo(xy: Int) {
+            scrollParent.scrollTo(scrollParent.scrollX, recyclerLocationInScrollParent() + xy)
+        }
+
+        override fun smoothScrollScrollParentTo(xy: Int) {
+            scrollParentHandler.smoothScrollTo(
+                scrollParent,
+                scrollParent.scrollX,
+                recyclerLocationInScrollParent() + xy
+            )
+        }
+
         override val recyclerViewContentSize: Int
             get() = recyclerView.height - recyclerView.paddingBottom - recyclerView.paddingTop
 
+        override val recyclerViewStartPadding: Int
+            get() = recyclerView.paddingTop
+
+        override fun computeScrollVectorForPosition(targetPosition: Int): PointF? {
+            val itemLocation = itemSize * targetPosition + recyclerViewStartPadding
+            val recyclerScrollPosition = recyclerScrollLocation() +
+                    scrollParent.takeIfPaddingClips { paddingTop }
+            return PointF(0f, (recyclerScrollPosition - itemLocation).sign.toFloat())
+        }
+
         /** TOP position relative to nested scroll view parent */
-        private tailrec fun View.nestedTop(current: Int = 0): Int = when (val p = parent) {
+        private tailrec fun View.nestedScrollTop(current: Int = 0): Int = when (val p = parent) {
             scrollParent -> {
                 top + current - scrollParent.scrollY - scrollParent.takeIfPaddingClips { paddingTop }
             }
+            is ViewGroup -> p.nestedScrollTop(top + current)
+            else -> throw IllegalStateException("Invalid scrollParent provided!!")
+        }
+
+        private tailrec fun View.nestedTop(current: Int = 0): Int = when (val p = parent) {
+            scrollParent -> top + current
             is ViewGroup -> p.nestedTop(top + current)
             else -> throw IllegalStateException("Invalid scrollParent provided!!")
         }
@@ -625,7 +694,8 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         override val itemSize
             get() = itemWidth
 
-        override fun recyclerScrollLocation() = recyclerView.nestedLeft() + paddingLeft
+        override fun recyclerScrollLocation() = recyclerView.nestedScrollLeft() + paddingLeft
+        override fun recyclerLocationInScrollParent() = recyclerView.nestedLeft()
         override fun parentContentSize() = scrollParent.run {
             width - takeIfPaddingClips { paddingLeft + paddingRight }
         }
@@ -664,15 +734,42 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             RecyclerView.LayoutParams.MATCH_PARENT
         )
 
-        // left padding is already removed when calculating first item position
+        override fun scrollScrollParentTo(xy: Int) {
+            scrollParent.scrollTo(recyclerLocationInScrollParent() + xy, scrollParent.scrollY)
+        }
+
+        override fun smoothScrollScrollParentTo(xy: Int) {
+            scrollParentHandler.smoothScrollTo(
+                scrollParent,
+                recyclerLocationInScrollParent() + xy,
+                scrollParent.scrollY
+            )
+        }
+
         override val recyclerViewContentSize: Int
             get() = recyclerView.width - recyclerView.paddingLeft - recyclerView.paddingRight
 
+        override val recyclerViewStartPadding: Int
+            get() = recyclerView.paddingLeft
+
+        override fun computeScrollVectorForPosition(targetPosition: Int): PointF? {
+            val itemLocation = itemSize * targetPosition + recyclerViewStartPadding
+            val recyclerScrollPosition = recyclerScrollLocation() +
+                    scrollParent.takeIfPaddingClips { paddingLeft }
+            return PointF((recyclerScrollPosition - itemLocation).sign.toFloat(), 0f)
+        }
+
         /** LEFT position relative to nested scroll view parent */
-        private tailrec fun View.nestedLeft(current: Int = 0): Int = when (val p = parent) {
+        private tailrec fun View.nestedScrollLeft(current: Int = 0): Int = when (val p = parent) {
             scrollParent -> {
                 left + current - scrollParent.scrollX - scrollParent.takeIfPaddingClips { paddingLeft }
             }
+            is ViewGroup -> p.nestedScrollLeft(left + current)
+            else -> throw IllegalStateException("Invalid scrollParent provided!!")
+        }
+
+        private tailrec fun View.nestedLeft(current: Int = 0): Int = when (val p = parent) {
+            scrollParent -> left + current
             is ViewGroup -> p.nestedLeft(left + current)
             else -> throw IllegalStateException("Invalid scrollParent provided!!")
         }
@@ -682,6 +779,60 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             scrollsHorizontally = true
             f()
             scrollsHorizontally = it
+        }
+    }
+
+    /** Proxy handling compatibility cases. */
+    open class ScrollParentHandler {
+        /** Attached scroll listener - used only for unspecified scroll views on low apis. */
+        var legacyScrollListener: ViewTreeObserver.OnScrollChangedListener? = null
+
+        open fun attachScrollListener(lm: NestedWrapLayoutManager, scrollParent: ViewGroup) {
+            when {
+                scrollParent is NestedScrollView -> scrollParent.setOnScrollChangeListener(lm)
+                Build.VERSION.SDK_INT >= 23 -> scrollParent.setOnScrollChangeListener { v, scrollX, scrollY, oldScrollX, oldScrollY ->
+                    lm.onScrollTick()
+                }
+                else -> {
+                    // low api fallback: flickering might happen because observer is less precise
+                    val scrollObs = ViewTreeObserver.OnScrollChangedListener {
+                        lm.onScrollTick()
+                    }
+                    scrollParent.viewTreeObserver.addOnScrollChangedListener(scrollObs)
+                    legacyScrollListener = scrollObs
+                }
+            }
+        }
+
+        open fun detachScrollListener(lm: NestedWrapLayoutManager, scrollParent: ViewGroup) {
+            when {
+                scrollParent is NestedScrollView -> scrollParent.setOnScrollChangeListener(null as NestedScrollView.OnScrollChangeListener?)
+                Build.VERSION.SDK_INT >= 23 -> scrollParent.setOnScrollChangeListener(null)
+                else -> {
+                    scrollParent.viewTreeObserver?.removeOnScrollChangedListener(
+                        legacyScrollListener
+                    )
+                    legacyScrollListener = null
+                }
+            }
+        }
+
+        open fun smoothScrollTo(scrollParent: ViewGroup, x: Int, y: Int) {
+            when {
+                scrollParent is NestedScrollView -> scrollParent.smoothScrollTo(x, y)
+                scrollParent is ScrollView -> scrollParent.smoothScrollTo(x, y)
+                scrollParent is HorizontalScrollView -> scrollParent.smoothScrollTo(x, y)
+                else -> Log.e(
+                    TAG,
+                    "ScrollParentHandler.smoothScrollTo: no smooth scroll method in ${scrollParent::class.java.name}"
+                )
+            }
+        }
+
+        open fun stopSmoothScroll(scrollParent: ViewGroup) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) scrollParent.stopNestedScroll()
+            // there isn't universal stop smooth scroll api so stop it by requesting smooth scroll to current location
+            smoothScrollTo(scrollParent, scrollParent.scrollX, scrollParent.scrollY)
         }
     }
 
@@ -728,5 +879,4 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         0 -> 0
         else -> measuredHeight + marginTop + marginBottom
     }
-
 }
