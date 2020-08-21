@@ -1,5 +1,6 @@
 package com.github.ppaszkiewicz.tools.toolbox.lifecycle
 
+import android.os.Looper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
@@ -32,7 +33,7 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
     /**
      * Called when lazily creating lifecycle, attach the observers here.
      *
-     *  [getLifecycle] will throw an exception inside this, use provided [lifecycle] argument if needed.
+     * [getLifecycle] will throw an exception inside this, use provided [lifecycle] argument if needed.
      *  */
     abstract fun initLifecycle(lifecycle: LifecycleRegistry)
 
@@ -63,11 +64,7 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
         }
 
         // builder operators allowing for chaining
-        operator fun plus(another: LifecycleOwner) =
-            And(
-                *lifecycles.toTypedArray(),
-                another
-            )
+        operator fun plus(another: LifecycleOwner) = And(*lifecycles.toTypedArray(), another)
         infix fun and(another: LifecycleOwner) = this + another
     }
 
@@ -89,27 +86,17 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
         }
 
         // builder operators allowing for chaining
-        infix fun or(another: LifecycleOwner) =
-            Or(
-                *lifecycles.toTypedArray(),
-                another
-            )
+        infix fun or(another: LifecycleOwner) = Or(*lifecycles.toTypedArray(), another)
     }
 }
 
 /** Alias for construction of [CompoundLifecycleOwner.And]. */
 operator fun LifecycleOwner.plus(other: LifecycleOwner) =
-    CompoundLifecycleOwner.And(
-        this,
-        other
-    )
+    CompoundLifecycleOwner.And(this, other)
 
 /** Alias for construction of [CompoundLifecycleOwner.And]. */
 infix fun LifecycleOwner.and(other: LifecycleOwner) = this + other
 
 /** Alias for construction of [CompoundLifecycleOwner.Or]. */
 infix fun LifecycleOwner.or(other: LifecycleOwner) =
-    CompoundLifecycleOwner.Or(
-        this,
-        other
-    )
+    CompoundLifecycleOwner.Or(this, other)

@@ -5,12 +5,13 @@ import androidx.test.runner.AndroidJUnit4
 import com.github.ppaszkiewicz.tools.toolbox.extensions.awaitValue
 import com.github.ppaszkiewicz.tools.toolbox.extensions.awaitValueForever
 import com.github.ppaszkiewicz.tools.toolbox.extensions.awaitNull
+import com.github.ppaszkiewicz.tools.toolbox.extensions.awaitValueOrNull
 import kotlinx.coroutines.*
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class SuspendLiveDataTest{
+class SuspendLiveDataTest {
 
     @Test
     fun testExecution() = runBlocking {
@@ -27,7 +28,8 @@ class SuspendLiveDataTest{
         }
 
         println("waiting for value y...")
-        val y = ld.awaitNull()  // wait for value to be set to null, unitialized livedata doesn't count
+        // wait for value to be set to null since unitialized livedata doesn't count
+        val y = ld.awaitNull()
 
         GlobalScope.launch(Dispatchers.Main) {
             delay(500)
@@ -36,7 +38,7 @@ class SuspendLiveDataTest{
         }
 
         println("waiting for value z...")
-        val z = ld2.awaitValue{ it.x == 55 }    // wait for condition
+        val z = ld2.awaitValue { it.x == 55 }    // wait for condition
 
         GlobalScope.launch(Dispatchers.Main) {
             delay(500)
@@ -61,5 +63,55 @@ class SuspendLiveDataTest{
         assert(!n)
     }
 
-    data class TestData(val x : Int)
+    @Test
+    fun testCancellation() = runBlocking {
+        val ld = MutableLiveData<TestData>()
+        val job = async{ ld.awaitValueOrNull() }
+        delay(300)
+        job.cancel()
+        val result = try {
+            job.await()
+        }catch (exception : CancellationException){
+            exception
+        }
+        println("cancellation result: $result")
+    }
+
+    @Test
+    fun testTimeout() = runBlocking {
+        val ld = MutableLiveData<TestData>()
+        val job = async{ ld.awaitValueOrNull() }
+        delay(1200)
+        val result = try {
+            job.await()
+        }catch (exception : TimeoutCancellationException){
+            exception
+        }
+        println("timeout result: $result")
+    }
+
+    // see what happens if coroutine is cancelled/times out before it can attach an observer
+    @Test
+    fun testMainThreadClog() = runBlocking {
+        val ld = object : MutableLiveData<TestData>(){
+            override fun onActive() {
+                println("observer got attached")
+            }
+        }
+        val clogJob = launch(Dispatchers.Main){
+            println("clogging up main thread")
+            Thread.sleep(1200)  // if clog is longer than 1000 ms await will timeout
+            ld.value = TestData(123)
+        }
+        val jobToCancel = async{ ld.awaitValueOrNull() }
+        val result = try {
+            jobToCancel.await()
+        }catch (exception : TimeoutCancellationException){
+            exception
+        }
+        clogJob.join()
+        println("clog result: $result")
+    }
+
+    data class TestData(val x: Int)
 }

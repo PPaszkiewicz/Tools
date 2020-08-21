@@ -9,10 +9,13 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.resume
 
+// default timeout is rather short but enough for most livedatas backed by local providers like
+// sensors or database to return
 private const val DEFAULT_TIMEOUT = 1000L
+private const val DISABLE_TIMEOUT = Long.MIN_VALUE
 
 /**
- * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until value fulfills [condition].
+ * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until livedata value fulfills [condition].
  *
  * @return first value that fulfills [condition]
  * @throws [TimeoutCancellationException] on timeout
@@ -21,8 +24,10 @@ suspend fun <T> LiveData<T>.awaitValue(
     timeOut: Long = DEFAULT_TIMEOUT,
     condition: (T) -> Boolean
 ): T {
-    // fast exit case for non nullable value (don't check for null since it might mean livedata
-    // is not initialized)
+    // fast exit case for non nullable value
+    // - don't check null because it might mean livedata is not initialized
+    // - possible issue: if livedata is NOT active and condition is satisfied here outdated value
+    // might be returned an if livedata implementation relies on invalidation during onActive()
     value?.takeIf(condition)?.let { return it }
 
     var obs: Observer<T>? = null
@@ -38,25 +43,25 @@ suspend fun <T> LiveData<T>.awaitValue(
                 }
             }
             obs = valueObserver
-            mainHandler.post { observeForever(valueObserver) }
+            mainHandler.post {
+                if (continuation.isActive) observeForever(valueObserver)
+                else obs = null
+            }
         }
     }
+
     return try {
-        if (timeOut == Long.MIN_VALUE) suspendBlock()   // magic value that disables timeout
+        if (timeOut == DISABLE_TIMEOUT) suspendBlock()
         else withTimeout(timeOut) { suspendBlock() }
     } finally {
-        obs?.let {
-            mainHandler.post {
-                obs?.let {
-                    removeObserver(it)
-                }
-            }
+        if (obs != null) mainHandler.post {
+            obs?.let { removeObserver(it) } // double check because obs might change between threads
         }
     }
 }
 
 /**
- * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until value is non-null.
+ * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until livedata value is non-null.
  *
  * @return first non-null value
  * @throws [TimeoutCancellationException] on timeout
@@ -65,7 +70,7 @@ suspend fun <T> LiveData<T>.awaitValue(timeOut: Long = DEFAULT_TIMEOUT) =
     awaitValue(timeOut, isNotNullCondition)!!
 
 /**
- * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until value fulfills [condition].
+ * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until livedata value fulfills [condition].
  *
  * @return first value that fulfills [condition] or null on timeout
  **/
@@ -81,7 +86,7 @@ suspend fun <T> LiveData<T>.awaitValueOrNull(
 }
 
 /**
- * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until value is non-null.
+ * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until livedata value is non-null.
  *
  * @return first non-null value or null on timeout
  **/
@@ -89,7 +94,7 @@ suspend fun <T> LiveData<T>.awaitValueOrNull(timeOut: Long = DEFAULT_TIMEOUT) =
     awaitValue(timeOut, isNotNullCondition)
 
 /**
- * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until value is `null`.
+ * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until livedata value is `null`.
  *
  * @return `true` if value becomes `null`, `false` otherwise
  **/
@@ -107,7 +112,7 @@ suspend fun <T> LiveData<T>.awaitNull(timeOut: Long = DEFAULT_TIMEOUT): Boolean 
 // is ever emitted
 
 /**
- * Suspend coroutine **indefinitely** until value fulfills [condition].
+ * Suspend coroutine **indefinitely** until livedata value fulfills [condition].
  *
  * You must have a guarantee that value satisfying [condition] will be emitted or
  * coroutine will never continue.
@@ -115,10 +120,10 @@ suspend fun <T> LiveData<T>.awaitNull(timeOut: Long = DEFAULT_TIMEOUT): Boolean 
  * @return first value that fulfills [condition]
  **/
 suspend fun <T> LiveData<T>.awaitValueForever(condition: (T?) -> Boolean) =
-    awaitValue(Long.MIN_VALUE, condition)
+    awaitValue(DISABLE_TIMEOUT, condition)
 
 /**
- * Suspend coroutine **indefinitely** until value is not null.
+ * Suspend coroutine **indefinitely** until livedata value is not null.
  *
  * You must have a guarantee that non-null value will be emitted or coroutine will never continue.
  *
@@ -127,14 +132,14 @@ suspend fun <T> LiveData<T>.awaitValueForever(condition: (T?) -> Boolean) =
 suspend fun <T> LiveData<T>.awaitValueForever() = awaitValueForever(isNotNullCondition)!!
 
 /**
- * Suspend coroutine **indefinitely** until value is `null`.
+ * Suspend coroutine **indefinitely** until livedata value is `null`.
  *
  * You must have a guarantee that null value will be emitted or coroutine will never continue.
  *
  * @return `true` if value becomes `null`
  **/
 suspend fun <T> LiveData<T>.awaitNullForever(): Boolean {
-    awaitValue(Long.MIN_VALUE, isNullCondition)
+    awaitValueForever(isNullCondition)
     return true
 }
 
