@@ -24,8 +24,7 @@ import java.lang.ref.WeakReference
  * Implements following [LifecycleOwner]:
  * - `RESUMED` right after [onFirstConnect] and [onConnect] call
  * - `STOPPED` right before [onDisconnect] call
- *
- * Note that it will never enter `DESTROYED` state unless manually requested with [dispatchDestroyLifecycle].
+ * - `DESTROYED` after calling [dispatchDestroyLifecycle]
  * */
 abstract class BindServiceConnection<T>(
     contextDelegate: ContextDelegate,
@@ -51,17 +50,28 @@ abstract class BindServiceConnection<T>(
     /** Context provided by delegate, workaround for fragment lazy context initialization. */
     val context by contextDelegate
 
-    /**
-     * Bind flags used as when binding.
-     *
-     * By default this is [Context.BIND_AUTO_CREATE].
-     * */
-    var defaultBindFlags = bindFlags
+    /** Holds configuration. */
+    val config = Config(bindFlags)
 
-    /**
-     * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
-     */
-    var autoRebindDeadBinding = true
+    /** Holds configuration. */
+    class Config internal constructor(
+        /**
+         * Bind flags used as when binding.
+         *
+         * By default this is [Context.BIND_AUTO_CREATE].
+         * */
+        var defaultBindFlags: Int,
+        /**
+         * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
+         */
+        var autoRebindDeadBinding: Boolean = true,
+        /**
+         * Implicitly call [BindServiceConnection.dispatchDestroyLifecycle] after [BindServiceConnection.onConnectionLost].
+         *
+         * Default: `true`
+         */
+        var invalidateLifecycleOnConnectionLoss: Boolean = true
+    )
 
     /** Raised if [bind] was called without matching [unbind]. */
     var isBound = false
@@ -170,6 +180,7 @@ abstract class BindServiceConnection<T>(
             _lifecycle.currentState = Lifecycle.State.CREATED
             val callbackConsumed = onConnectionLost?.let { it(service) }
             if (callbackConsumed != true) onDisconnect?.invoke(service)
+            if(config.invalidateLifecycleOnConnectionLoss) dispatchDestroyLifecycle()
             value = null
         } ?: Log.e(
             "BindServiceConn", "unexpected onServiceDisconnected: service object missing. " +
@@ -180,7 +191,8 @@ abstract class BindServiceConnection<T>(
     override fun onServiceConnected(name: ComponentName, service: IBinder) {
         transformBinder(name, service).also {
             this.value = it
-            if (!(currentBinder?.get() === service)) {
+            val oldBinder = currentBinder?.get()
+            if (!(oldBinder === service)) {
                 onFirstConnect?.invoke(it)
                 currentBinder = WeakReference(service)
             }
@@ -190,9 +202,10 @@ abstract class BindServiceConnection<T>(
     }
 
     override fun onBindingDied(name: ComponentName?) {
+        // this should always be called after onServiceDisconnected ?
         val callbackConsumed = onBindingDied?.invoke() ?: false
-        if (autoRebindDeadBinding) {
-            performRebind(!callbackConsumed, defaultBindFlags)
+        if (config.autoRebindDeadBinding) {
+            performRebind(!callbackConsumed, config.defaultBindFlags)
         } else if (isBound) {
             isBound = false
         }
@@ -316,7 +329,7 @@ abstract class ManualBindServiceConnection<T>(
     /**
      * Bind to service using [connectionFlags] (by default [defaultBindFlags]).
      * */
-    fun bind(connectionFlags: Int = defaultBindFlags) {
+    fun bind(connectionFlags: Int = config.defaultBindFlags) {
         if (!isBound) currentBindFlags = connectionFlags
         performBind(connectionFlags)
     }
@@ -346,7 +359,7 @@ abstract class ObservableBindServiceConnection<T>(
 ) : BindServiceConnection<T>(contextDelegate, bindFlags) {
     // override livedata methods
     override fun onActive() {
-        performBind(defaultBindFlags)
+        performBind(config.defaultBindFlags)
     }
 
     override fun onInactive() {
@@ -357,7 +370,7 @@ abstract class ObservableBindServiceConnection<T>(
 /**
  * Connection to service that is a [LifecycleObserver] and aligns binding with [bindingLifecycleState].
  *
- * This automatically calls [dispatchDestroyLifecycle] when observed lifecycle is detroyed.
+ * This automatically calls [dispatchDestroyLifecycle] when observed lifecycle is destroyed.
  * */
 abstract class LifecycleBindServiceConnection<T>(
     contextDelegate: ContextDelegate,
@@ -382,17 +395,17 @@ abstract class LifecycleBindServiceConnection<T>(
     fun onLifecycleEvent(source: LifecycleOwner, event: Lifecycle.Event) {
         when (bindingLifecycleState) {
             Lifecycle.State.STARTED -> when (event) {
-                Lifecycle.Event.ON_START -> performBind(defaultBindFlags)
+                Lifecycle.Event.ON_START -> performBind(config.defaultBindFlags)
                 Lifecycle.Event.ON_STOP -> performUnbind()
                 else -> Unit // ignored
             }
             Lifecycle.State.RESUMED -> when (event) {
-                Lifecycle.Event.ON_RESUME -> performBind(defaultBindFlags)
+                Lifecycle.Event.ON_RESUME -> performBind(config.defaultBindFlags)
                 Lifecycle.Event.ON_PAUSE -> performUnbind()
                 else -> Unit // ignored
             }
             Lifecycle.State.CREATED -> when (event) {
-                Lifecycle.Event.ON_CREATE -> performBind(defaultBindFlags)
+                Lifecycle.Event.ON_CREATE -> performBind(config.defaultBindFlags)
                 Lifecycle.Event.ON_DESTROY -> performUnbind()
                 else -> Unit // ignored
             }
