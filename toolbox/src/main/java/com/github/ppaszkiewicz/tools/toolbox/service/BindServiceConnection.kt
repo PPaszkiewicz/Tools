@@ -22,12 +22,17 @@ import java.lang.ref.WeakReference
  * Implementing classes need to call [performBind] and [performUnbind] as they see fit.
  * ---
  * Implements following [LifecycleOwner]:
+ * - `null` before first [onFirstConnect]
  * - `RESUMED` right after [onFirstConnect] and [onConnect] call
  * - `STOPPED` right before [onDisconnect] call
  * - `DESTROYED` after calling [dispatchDestroyLifecycle]
  *
- * By default [dispatchDestroyLifecycle] is called when service connection is lost so all listeners
- * will be disconnected (and in case of [LifecycleBindServiceConnection] when observed lifecycle is destroyed).
+ * By default [dispatchDestroyLifecycle] is called:
+ * - before [onConnectionLost]
+ * - before [onFirstConnect] (if service was restarted while unbound)
+ * - [LifecycleBindServiceConnection]: when observed lifecycle is destroyed
+ *
+ * For other cases it should be called manually when object hosting this connection is destroyed.
  * */
 abstract class BindServiceConnection<T>(
     contextDelegate: ContextDelegate,
@@ -202,13 +207,18 @@ abstract class BindServiceConnection<T>(
     }
 
     override fun onServiceConnected(name: ComponentName, service: IBinder) {
+        val lcCreated = if (_mlifecycle == null) {
+            _mlifecycle = LifecycleRegistry(this); true
+        } else false
+        val oldBinder = currentBinder?.get()
         transformBinder(name, service).also {
-            if(_mlifecycle == null) _mlifecycle = LifecycleRegistry(this)
             this.value = it
-            val oldBinder = currentBinder?.get()
             if (!(oldBinder === service)) {
-                if(config.lifecycleRepresentsConnection && currentBinder != null){
-                    Log.w("BindServiceConn", "service was restarted while connection was unbound - invalidating lifecycle")
+                if (!lcCreated && config.lifecycleRepresentsConnection && currentBinder != null) {
+                    Log.w(
+                        "BindServiceConn",
+                        "service was restarted while connection was unbound - invalidating lifecycle"
+                    )
                     dispatchDestroyLifecycle()
                     _mlifecycle = LifecycleRegistry(this)
                 }
@@ -221,7 +231,7 @@ abstract class BindServiceConnection<T>(
     }
 
     override fun onBindingDied(name: ComponentName?) {
-        // this should always be called after onServiceDisconnected ?
+        // this is always triggered after onServiceDisconnected ?
         val callbackConsumed = onBindingDied?.invoke() ?: false
         if (config.autoRebindDeadBinding) {
             performRebind(!callbackConsumed, config.defaultBindFlags)
@@ -250,7 +260,7 @@ abstract class BindServiceConnection<T>(
      * */
     fun dispatchDestroyLifecycle(releaseBinderRef: Boolean = true) {
         if (releaseBinderRef) currentBinder = null
-        if(_mlifecycle == null) return  // safe exit case
+        if (_mlifecycle == null) return  // safe exit case
         check(mLifecycle.currentState < Lifecycle.State.RESUMED) { "Cannot be called while binding is active" }
         mLifecycle.currentState = Lifecycle.State.DESTROYED
         _mlifecycle = null
@@ -274,7 +284,7 @@ abstract class BindServiceConnection<T>(
         ) = attach(fragment, lifecycle(fragment.contextDelegate, bindFlags, bindState))
 
         /**
-         * Create [LifecycleBindServiceConnection] that observes each fragment view lifecycle.
+         * Create [LifecycleBindServiceConnection] that observes view lifecycle of [fragment] when it's ready.
          * */
         fun viewLifecycle(
             fragment: Fragment,
