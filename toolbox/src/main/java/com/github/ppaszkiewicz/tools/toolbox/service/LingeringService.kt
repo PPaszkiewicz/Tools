@@ -144,23 +144,21 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
         fun lifecycle(
             activity: AppCompatActivity,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = lifecycle(activity.contextDelegate, activity.lifecycle, bindState)
+        ) = attach(activity, lifecycle(activity.contextDelegate, bindState))
 
         /** Create [LingeringLifecycleServiceConnection] - this uses fragment lifecycle to connect to service automatically, so
          * it will always linger for given delay. */
         fun lifecycle(
             fragment: Fragment,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = lifecycle(fragment.contextDelegate, fragment.lifecycle, bindState)
+        ) = attach(fragment, lifecycle(fragment.contextDelegate, bindState))
 
-        /** Create [LingeringLifecycleServiceConnection] - this uses given lifecycle to connect to service automatically, so
+        /** Create [LingeringLifecycleServiceConnection] - this can observe lifecycle to connect to service automatically, so
          * it will always linger for given delay. */
         fun lifecycle(
             contextDelegate: ContextDelegate,
-            lifecycle: Lifecycle,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
         ) = LingeringLifecycleServiceConnection(contextDelegate, serviceClass, bindState)
-            .apply { lifecycle.addObserver(this) }
 
         /** Create [LingeringObservableServiceConnection], it will be bound when there are active observers and
          * linger when last observer disconnects. */
@@ -179,6 +177,10 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
         /** Create manual connection. See [LingeringManualServiceConnection] how to control it. */
         fun manual(fragment: Fragment) =
             LingeringManualServiceConnection(fragment.contextDelegate, serviceClass)
+
+        /** Make [conn] observe [lOwner]. */
+        protected fun attach(lOwner: LifecycleOwner, conn: LingeringLifecycleServiceConnection<T>) =
+            conn.apply { lOwner.lifecycle.addObserver(this) }
     }
 }
 
@@ -235,7 +237,10 @@ private fun <T : LingeringService> BindServiceConnection<T>.lingeringUnbind(fini
         }
         isBound = false
         context.unbindService(this)
-        value?.let{ onDisconnect?.invoke(it) }
+        value?.let{
+            _lifecycle.currentState = Lifecycle.State.CREATED
+            onDisconnect?.invoke(it)
+        }
         onUnbind?.invoke()
     }
 }

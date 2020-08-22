@@ -6,6 +6,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.toolbox.service.BindServiceConnection
+import com.github.ppaszkiewicz.tools.toolbox.service.BindServiceConnectionCallbacks
+import com.github.ppaszkiewicz.tools.toolbox.service.LingeringLifecycleServiceConnection
 import kotlinx.android.synthetic.main.activity_service.*
 
 /** Uses lifecycle to automatically handle connection*/
@@ -15,7 +17,7 @@ class LingeringServiceActivity : AppCompatActivity(R.layout.activity_service){
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         textView.text = "Service handled by lifecycle\nsee logs for service state"
-        setLogCallbacks(serviceConn)
+        logCallbacks().injectInto(serviceConn)
     }
 }
 
@@ -26,7 +28,7 @@ class LingeringServiceActivity2 : AppCompatActivity(R.layout.activity_service){
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         textView.text = "Service handled manually - doesn't linger on finish \nsee logs for service state"
-        setLogCallbacks(serviceConn)
+        logCallbacks().injectInto(serviceConn)
     }
 
     override fun onStart() {
@@ -47,18 +49,27 @@ class LingeringServiceActivity3 : AppCompatActivity(R.layout.activity_service){
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         textView.text = "Service handled by liveData state\nsee logs for service state"
-        setLogCallbacks(serviceConn)
+        logCallbacks().injectInto(serviceConn)
         serviceConn.observe(this, Observer {
             Log.d("DEMO_ACT", "connected to $it")
         })
     }
 }
 
-private fun setLogCallbacks(serviceConnection: BindServiceConnection<*>){
-    serviceConnection.onBind = {
+private fun logCallbacks() = object : BindServiceConnectionCallbacks<DemoLingeringService>(){
+    override fun onBind() {
         Log.d("DEMO_ACT", "service is bound")
     }
-    serviceConnection.onUnbind = {
+
+    override fun onUnbind() {
         Log.d("DEMO_ACT", "service is unbound")
+    }
+
+    override fun onFirstConnect(service: DemoLingeringService) {
+        Log.d("DEMO_ACT", "connected first time to $service")
+    }
+
+    override fun onConnect(service: DemoLingeringService) {
+        Log.d("DEMO_ACT", "connected or reconnected to $service")
     }
 }

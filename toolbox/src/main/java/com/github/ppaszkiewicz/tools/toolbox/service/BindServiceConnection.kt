@@ -46,7 +46,7 @@ abstract class BindServiceConnection<T>(
     private var currentBinder: WeakReference<IBinder>? = null
 
     @Suppress("LeakingThis")
-    private var _lifecycle = LifecycleRegistry(this)
+    internal var _lifecycle = LifecycleRegistry(this)
 
     /** Context provided by delegate, workaround for fragment lazy context initialization. */
     val context by contextDelegate
@@ -211,13 +211,16 @@ abstract class BindServiceConnection<T>(
      * Force connections lifecycle to move from `STOPPED` state into `DESTROYED` state and create
      * new internal lifecycle object.
      *
-     * Use this only if you need to forcefully disconnect all listeners that were observing
-     * this lifecycle.
+     * Use this to forcefully disconnect all listeners that were observing this lifecycle.
+     *
+     * @param releaseBinderRef (default: `true`) discard internal weak binder reference. This will force
+     * [onFirstConnect] to be called on next connection even if it reconnects to same service.
      * */
-    fun dispatchDestroyLifecycle() {
-        check(_lifecycle.currentState < Lifecycle.State.RESUMED)
+    fun dispatchDestroyLifecycle(releaseBinderRef: Boolean = true) {
+        check(_lifecycle.currentState < Lifecycle.State.RESUMED) { "Cannot be called while binding is active" }
         _lifecycle.currentState = Lifecycle.State.DESTROYED
         _lifecycle = LifecycleRegistry(this)
+        if (releaseBinderRef) currentBinder = null
     }
 
     /** Base for connection factories that connect to service of type [T]. */
@@ -227,14 +230,25 @@ abstract class BindServiceConnection<T>(
             activity: AppCompatActivity,
             bindFlags: Int = Context.BIND_AUTO_CREATE,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = lifecycle(activity.contextDelegate, activity.lifecycle, bindFlags, bindState)
+        ) = attach(activity, lifecycle(activity.contextDelegate, bindFlags, bindState))
 
         /** Create [LifecycleBindServiceConnection] - this uses fragment lifecycle to connect to service automatically. */
         fun lifecycle(
             fragment: Fragment,
             bindFlags: Int = Context.BIND_AUTO_CREATE,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = lifecycle(fragment.contextDelegate, fragment.lifecycle, bindFlags, bindState)
+        ) = attach(fragment, lifecycle(fragment.contextDelegate, bindFlags, bindState))
+
+        /**
+         * Create [LifecycleBindServiceConnection] that observes each fragment view lifecycle.
+         * */
+        fun viewLifecycle(
+            fragment: Fragment,
+            bindFlags: Int = Context.BIND_AUTO_CREATE
+        ) = attach(
+            fragment, fragment.viewLifecycleOwnerLiveData,
+            lifecycle(fragment.contextDelegate, bindFlags, Lifecycle.State.RESUMED)
+        )
 
         /** Create [ObservableBindServiceConnection], it will be bound when there are active observers. */
         fun observable(context: Context, bindFlags: Int = Context.BIND_AUTO_CREATE) =
@@ -252,12 +266,10 @@ abstract class BindServiceConnection<T>(
         fun manual(fragment: Fragment, bindFlags: Int = Context.BIND_AUTO_CREATE) =
             manual(fragment.contextDelegate, bindFlags)
 
-
         // implementations
-        /** Create [LifecycleBindServiceConnection] - this uses given lifecycle to connect to service automatically. */
+        /** Create [LifecycleBindServiceConnection] - this can observe lifecycle to connect to service automatically. */
         abstract fun lifecycle(
             contextDelegate: ContextDelegate,
-            lifecycle: Lifecycle,
             bindFlags: Int = Context.BIND_AUTO_CREATE,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
         ): LifecycleBindServiceConnection<T>
@@ -271,6 +283,18 @@ abstract class BindServiceConnection<T>(
         abstract fun manual(
             contextDelegate: ContextDelegate, bindFlags: Int = Context.BIND_AUTO_CREATE
         ): ManualBindServiceConnection<T>
+
+        // internal to attach observers
+        /** Make [conn] observe [lOwner]. */
+        protected fun attach(lOwner: LifecycleOwner, conn: LifecycleBindServiceConnection<T>) =
+            conn.apply { lOwner.lifecycle.addObserver(this) }
+
+        /** Make [conn] observe any lifecycle emitted by [ldOwner] as long as [lOwner] is alive. */
+        protected fun attach(
+            lOwner: LifecycleOwner,
+            ldOwner: LiveData<LifecycleOwner>,
+            conn: LifecycleBindServiceConnection<T>
+        ) = conn.apply { ldOwner.observe(lOwner, Observer { it?.lifecycle?.addObserver(this) }) }
     }
 }
 
@@ -330,7 +354,11 @@ abstract class ObservableBindServiceConnection<T>(
     }
 }
 
-/** Connection to service that is a [LifecycleObserver] and aligns binding with [bindingLifecycleState]. */
+/**
+ * Connection to service that is a [LifecycleObserver] and aligns binding with [bindingLifecycleState].
+ *
+ * This automatically calls [dispatchDestroyLifecycle] when observed lifecycle is detroyed.
+ * */
 abstract class LifecycleBindServiceConnection<T>(
     contextDelegate: ContextDelegate,
     /**
@@ -370,5 +398,6 @@ abstract class LifecycleBindServiceConnection<T>(
             }
             else -> throw IllegalStateException("invalid bindingLifecycleEvent")
         }
+        if (event == Lifecycle.Event.ON_DESTROY) dispatchDestroyLifecycle(true)
     }
 }

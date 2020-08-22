@@ -85,11 +85,9 @@ interface DirectBindService {
         BindServiceConnection.ConnectionFactory<T>() {
         override fun lifecycle(
             contextDelegate: ContextDelegate,
-            lifecycle: Lifecycle,
             bindFlags: Int,
             bindState: Lifecycle.State
         ) = DirectLifecycleServiceConnection(contextDelegate, serviceClass, bindState, bindFlags)
-            .apply { lifecycle.addObserver(this) }
 
         override fun observable(contextDelegate: ContextDelegate, bindFlags: Int) =
             DirectObservableServiceConnection(contextDelegate, serviceClass, bindFlags)
