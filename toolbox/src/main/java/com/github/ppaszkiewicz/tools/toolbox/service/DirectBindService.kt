@@ -43,7 +43,11 @@ interface DirectBindService {
         }
     }
 
-    /** Default [DirectBindService] implementation extending [LifecycleService].*/
+    /**
+     * Default [DirectBindService] implementation extending [LifecycleService].
+     *
+     * Requires `androidx.lifecycle:lifecycle-extensions:2.2.0`
+     * */
     abstract class LifecycleImpl : LifecycleService(), DirectBindService {
         @Suppress("LeakingThis")
         private val binder = DirectBinder(this)

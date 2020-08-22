@@ -25,6 +25,9 @@ import java.lang.ref.WeakReference
  * - `RESUMED` right after [onFirstConnect] and [onConnect] call
  * - `STOPPED` right before [onDisconnect] call
  * - `DESTROYED` after calling [dispatchDestroyLifecycle]
+ *
+ * By default [dispatchDestroyLifecycle] is called when service connection is lost so all listeners
+ * will be disconnected (and in case of [LifecycleBindServiceConnection] when observed lifecycle is destroyed).
  * */
 abstract class BindServiceConnection<T>(
     contextDelegate: ContextDelegate,
@@ -66,7 +69,7 @@ abstract class BindServiceConnection<T>(
          */
         var autoRebindDeadBinding: Boolean = true,
         /**
-         * Implicitly call [BindServiceConnection.dispatchDestroyLifecycle] after [BindServiceConnection.onConnectionLost].
+         * Implicitly call [BindServiceConnection.dispatchDestroyLifecycle] before [BindServiceConnection.onConnectionLost].
          *
          * Default: `true`
          */
@@ -178,9 +181,9 @@ abstract class BindServiceConnection<T>(
     override fun onServiceDisconnected(name: ComponentName) {
         value?.let { service ->
             _lifecycle.currentState = Lifecycle.State.CREATED
+            if(config.invalidateLifecycleOnConnectionLoss) dispatchDestroyLifecycle()
             val callbackConsumed = onConnectionLost?.let { it(service) }
             if (callbackConsumed != true) onDisconnect?.invoke(service)
-            if(config.invalidateLifecycleOnConnectionLoss) dispatchDestroyLifecycle()
             value = null
         } ?: Log.e(
             "BindServiceConn", "unexpected onServiceDisconnected: service object missing. " +

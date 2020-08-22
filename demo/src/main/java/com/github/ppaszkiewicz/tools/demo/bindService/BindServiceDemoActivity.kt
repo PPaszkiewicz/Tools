@@ -1,11 +1,16 @@
 package com.github.ppaszkiewicz.tools.demo.bindService
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationCompat
+import androidx.core.content.getSystemService
 import androidx.core.view.isGone
 import androidx.lifecycle.*
 import com.github.ppaszkiewicz.tools.demo.R
@@ -102,9 +107,10 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
 
         // observe lifecycle
         textView4.text = "Event: --, state: ${serviceConn.lifecycle.currentState.name}"
-        serviceConn.lifecycle.addObserver(object: LifecycleEventObserver{
+        serviceConn.lifecycle.addObserver(object : LifecycleEventObserver {
             override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-                textView4.text = "Event: ${event.name}, state: ${source.lifecycle.currentState.name}"
+                textView4.text =
+                    "Event: ${event.name}, state: ${source.lifecycle.currentState.name}"
             }
 
         })
@@ -124,7 +130,7 @@ class TestService : DirectBindService.Impl() {
 
     fun foo() = "TestService is alive!"
 
-    fun notifyConnected(){
+    fun notifyConnected() {
         serviceValue.value = (serviceValue.value!! + 1)
     }
 
@@ -132,6 +138,7 @@ class TestService : DirectBindService.Impl() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("TestService", "STARTED")
+
 //        GlobalScope.launch(Dispatchers.Main){
 //            delay(3000)
 //            stopSelf()
@@ -149,9 +156,29 @@ class TestService : DirectBindService.Impl() {
     override fun onCreate() {
         Log.d("TestService", "CREATED")
         super.onCreate()
+        val nm = getSystemService<NotificationManager>()!!
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            nm.getNotificationChannel("CHANNEL_ID") == null
+        ) {
+            val channel = NotificationChannel(
+                "CHANNEL_ID",
+                "CHANNEL_NAME",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+            // disable sound
+            channel.setSound(null, null)
+            nm.createNotificationChannel(channel)
+        }
+        val n = NotificationCompat.Builder(this, "CHANNEL_ID")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentText("Test service")
+            .build()
+        nm.notify(0, n)
     }
 
     override fun onDestroy() {
+        val nm = getSystemService<NotificationManager>()!!
+        nm.cancel(0)
         super.onDestroy()
         Log.d("TestService", "DESTROYED")
     }
