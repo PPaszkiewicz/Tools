@@ -26,20 +26,24 @@ open class LoopRunnable(
         runBlock
     )
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_START)
     override fun run() {
         handler.removeCallbacks(this)
-        if (runBlock()) handler.postDelayed(this, periodMs)
-    }
-
-    /** Start repost loop without immediate run. */
-    open fun runDelayed() {
-        handler.postDelayed(this, periodMs)
+        if (runBlock()) {
+            handler.postDelayed(this, periodMs)
+        }
     }
 
     /** Invoke [runBlock] without affecting posting loop. */
     open fun runOnce() = runBlock()
 
+    /** Start reposting loop, invoking first run immediately. */
+    @OnLifecycleEvent(Lifecycle.Event.ON_START)
+    open fun start() = run()
+
+    /** Start repost loop without immediate run. */
+    open fun startDelayed() {
+        handler.postDelayed(this, periodMs)
+    }
     /** Stop reposting loop. */
     @OnLifecycleEvent(Lifecycle.Event.ON_STOP)
     open fun stop() = handler.removeCallbacks(this)

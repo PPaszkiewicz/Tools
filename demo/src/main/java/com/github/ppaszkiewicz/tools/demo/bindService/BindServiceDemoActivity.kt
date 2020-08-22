@@ -14,8 +14,10 @@ import androidx.core.content.getSystemService
 import androidx.core.view.isGone
 import androidx.lifecycle.*
 import com.github.ppaszkiewicz.tools.demo.R
+import com.github.ppaszkiewicz.tools.toolbox.extensions.LoopRunnable
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startService
 import com.github.ppaszkiewicz.tools.toolbox.extensions.stopService
+import com.github.ppaszkiewicz.tools.toolbox.lifecycle.plus
 import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
 import kotlinx.android.synthetic.main.activity_buttons.*
 
@@ -77,9 +79,19 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
             }
             onFirstConnect = {
                 Log.d(TAG, "onFirstConnect")
+                checkLeakedObservers(it)
+                // lifecycle of activity, connection and service itself can be combined when observing
+                // livedata inside the service
+                //val compoundLifecycleOwner = this@BindServiceDemoActivity + serviceConn
+
                 it.serviceValue.observe(serviceConn, Observer { bindCount ->
                     textView3.text = "service was connected to $bindCount times"
                 })
+                it.serviceLifeSpan.observe(serviceConn, Observer { time ->
+                    textView5.text = "Service is alive for $time seconds."
+                    Log.d("T", "Service is alive for $time")
+                })
+                observeState()
             }
             onDisconnect = {
                 Log.d(TAG, "onDisconnect")
@@ -106,7 +118,10 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
         }
 
         // observe lifecycle
-        textView4.text = "Event: --, state: ${serviceConn.lifecycle.currentState.name}"
+        textView4.text = "Event: --, state: none"
+    }
+
+    private fun observeState() {
         serviceConn.lifecycle.addObserver(object : LifecycleEventObserver {
             override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
                 textView4.text =
@@ -116,10 +131,28 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
         })
     }
 
+    private fun checkLeakedObservers(service : TestService){
+        if (service.serviceValue.hasObservers()) {
+            Log.e(
+                TAG,
+                if (service.serviceValue.hasActiveObservers()) {
+                    "Service has leaked active observers!"
+                } else
+                    "Service has leaked (inactive) observers!"
+            )
+        } else Log.d(TAG, "Service has no leaks.")
+    }
+
     override fun onStop() {
         // using manual connection for this demo, have to handle unbinding
         serviceConn.unbind()
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        // using manual connection for this demo, have to handle lifecycle destruction
+        serviceConn.dispatchDestroyLifecycle()
+        super.onDestroy()
     }
 }
 
@@ -135,14 +168,16 @@ class TestService : DirectBindService.Impl() {
     }
 
     val serviceValue = MutableLiveData(0)
+    val serviceLifeSpan = MutableLiveData(0)
+
+    private val lifeSpanLoop = LoopRunnable(1000) {
+        val incrementValue = serviceLifeSpan.value!! + 1
+        serviceLifeSpan.value = incrementValue
+        true
+    }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("TestService", "STARTED")
-
-//        GlobalScope.launch(Dispatchers.Main){
-//            delay(3000)
-//            stopSelf()
-//        }
         return START_STICKY
     }
 
@@ -174,11 +209,13 @@ class TestService : DirectBindService.Impl() {
             .setContentText("Test service")
             .build()
         nm.notify(0, n)
+        lifeSpanLoop.startDelayed()
     }
 
     override fun onDestroy() {
         val nm = getSystemService<NotificationManager>()!!
         nm.cancel(0)
+        lifeSpanLoop.stop()
         super.onDestroy()
         Log.d("TestService", "DESTROYED")
     }

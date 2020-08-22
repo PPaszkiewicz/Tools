@@ -12,7 +12,6 @@ import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.LiveData
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
-import com.github.ppaszkiewicz.tools.toolbox.service.LingeringService.Companion
 
 /*
  *   /* requires DirectBindService.kt, BindServiceConnection.kt and context delegates from delegate.Context.kt */
@@ -238,7 +237,7 @@ private fun <T : LingeringService> BindServiceConnection<T>.lingeringUnbind(fini
         isBound = false
         context.unbindService(this)
         value?.let{
-            _lifecycle.currentState = Lifecycle.State.CREATED
+            mLifecycle.currentState = Lifecycle.State.CREATED
             onDisconnect?.invoke(it)
         }
         onUnbind?.invoke()

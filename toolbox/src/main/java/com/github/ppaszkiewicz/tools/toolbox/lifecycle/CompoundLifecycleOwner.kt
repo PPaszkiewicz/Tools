@@ -1,6 +1,5 @@
 package com.github.ppaszkiewicz.tools.toolbox.lifecycle
 
-import android.os.Looper
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner

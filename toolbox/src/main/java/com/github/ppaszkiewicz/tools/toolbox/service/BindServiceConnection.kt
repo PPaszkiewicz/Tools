@@ -47,8 +47,15 @@ abstract class BindServiceConnection<T>(
      * */
     private var currentBinder: WeakReference<IBinder>? = null
 
+    private var _mlifecycle: LifecycleRegistry? = null
+
     @Suppress("LeakingThis")
-    internal var _lifecycle = LifecycleRegistry(this)
+    internal val mLifecycle: LifecycleRegistry
+        get() {
+            if (!config.lifecycleRepresentsConnection) _mlifecycle = LifecycleRegistry(this)
+            return _mlifecycle
+                ?: throw IllegalStateException("Cannot access lifecycle before service connects. To modify this behavior disable config.invalidateLifecycleOnConnectionLoss")
+        }
 
     /** Context provided by delegate, workaround for fragment lazy context initialization. */
     val context by contextDelegate
@@ -69,11 +76,14 @@ abstract class BindServiceConnection<T>(
          */
         var autoRebindDeadBinding: Boolean = true,
         /**
-         * Implicitly call [BindServiceConnection.dispatchDestroyLifecycle] before [BindServiceConnection.onConnectionLost].
+         * Call [BindServiceConnection.dispatchDestroyLifecycle] before [BindServiceConnection.onConnectionLost].
+         *
+         * This makes lifecycle represent a single connection rather than general connection state. When this is set
+         * it's impossible to access lifecycle before service connects.
          *
          * Default: `true`
          */
-        var invalidateLifecycleOnConnectionLoss: Boolean = true
+        var lifecycleRepresentsConnection: Boolean = true
     )
 
     /** Raised if [bind] was called without matching [unbind]. */
@@ -141,7 +151,7 @@ abstract class BindServiceConnection<T>(
     var onNullBinding: (() -> Unit)? = null
 
     // satisfy LifecycleOwner
-    override fun getLifecycle() = _lifecycle
+    override fun getLifecycle() = mLifecycle
 
     // core implementation
 
@@ -160,7 +170,7 @@ abstract class BindServiceConnection<T>(
             isBound = false
             context.unbindService(this)
             value?.let {
-                _lifecycle.currentState = Lifecycle.State.CREATED
+                mLifecycle.currentState = Lifecycle.State.CREATED
                 onDisconnect?.invoke(it)
             }
             onUnbind?.invoke()
@@ -180,8 +190,8 @@ abstract class BindServiceConnection<T>(
 
     override fun onServiceDisconnected(name: ComponentName) {
         value?.let { service ->
-            _lifecycle.currentState = Lifecycle.State.CREATED
-            if(config.invalidateLifecycleOnConnectionLoss) dispatchDestroyLifecycle()
+            mLifecycle.currentState = Lifecycle.State.CREATED
+            if (config.lifecycleRepresentsConnection) dispatchDestroyLifecycle()
             val callbackConsumed = onConnectionLost?.let { it(service) }
             if (callbackConsumed != true) onDisconnect?.invoke(service)
             value = null
@@ -193,14 +203,20 @@ abstract class BindServiceConnection<T>(
 
     override fun onServiceConnected(name: ComponentName, service: IBinder) {
         transformBinder(name, service).also {
+            if(_mlifecycle == null) _mlifecycle = LifecycleRegistry(this)
             this.value = it
             val oldBinder = currentBinder?.get()
             if (!(oldBinder === service)) {
+                if(config.lifecycleRepresentsConnection && currentBinder != null){
+                    Log.w("BindServiceConn", "service was restarted while connection was unbound - invalidating lifecycle")
+                    dispatchDestroyLifecycle()
+                    _mlifecycle = LifecycleRegistry(this)
+                }
                 onFirstConnect?.invoke(it)
                 currentBinder = WeakReference(service)
             }
             onConnect?.invoke(it)
-            _lifecycle.currentState = Lifecycle.State.RESUMED
+            mLifecycle.currentState = Lifecycle.State.RESUMED
         }
     }
 
@@ -224,8 +240,8 @@ abstract class BindServiceConnection<T>(
     }
 
     /**
-     * Force connections lifecycle to move from `STOPPED` state into `DESTROYED` state and create
-     * new internal lifecycle object.
+     * Force connections lifecycle to move from `STOPPED` state into `DESTROYED` state and release
+     * internal lifecycle object.
      *
      * Use this to forcefully disconnect all listeners that were observing this lifecycle.
      *
@@ -233,10 +249,12 @@ abstract class BindServiceConnection<T>(
      * [onFirstConnect] to be called on next connection even if it reconnects to same service.
      * */
     fun dispatchDestroyLifecycle(releaseBinderRef: Boolean = true) {
-        check(_lifecycle.currentState < Lifecycle.State.RESUMED) { "Cannot be called while binding is active" }
-        _lifecycle.currentState = Lifecycle.State.DESTROYED
-        _lifecycle = LifecycleRegistry(this)
         if (releaseBinderRef) currentBinder = null
+        if(_mlifecycle == null) return  // safe exit case
+        check(mLifecycle.currentState < Lifecycle.State.RESUMED) { "Cannot be called while binding is active" }
+        mLifecycle.currentState = Lifecycle.State.DESTROYED
+        _mlifecycle = null
+
     }
 
     /** Base for connection factories that connect to service of type [T]. */
