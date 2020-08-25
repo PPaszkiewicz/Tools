@@ -16,7 +16,7 @@ class LingeringServiceActivity : AppCompatActivity(R.layout.activity_service){
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        textView.text = "Service handled by lifecycle\nsee logs for service state"
+        textView.text = "Service handled by lifecycle\nsee logs or notification for service state"
         logCallbacks().injectInto(serviceConn)
     }
 }
@@ -27,7 +27,7 @@ class LingeringServiceActivity2 : AppCompatActivity(R.layout.activity_service){
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        textView.text = "Service handled manually - doesn't linger on finish \nsee logs for service state"
+        textView.text = "Service handled manually - doesn't linger on finish \nsee logs or notification for service state"
         logCallbacks().injectInto(serviceConn)
     }
 
@@ -48,7 +48,7 @@ class LingeringServiceActivity3 : AppCompatActivity(R.layout.activity_service){
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        textView.text = "Service handled by liveData state\nsee logs for service state"
+        textView.text = "Service handled by liveData state\nsee logs or notification for service state"
         logCallbacks().injectInto(serviceConn)
         serviceConn.observe(this, Observer {
             Log.d("DEMO_ACT", "connected to $it")

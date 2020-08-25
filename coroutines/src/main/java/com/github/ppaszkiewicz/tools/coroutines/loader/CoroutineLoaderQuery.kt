@@ -27,8 +27,10 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
     /** True if this query joined ongoing task, false if it spawned a new one. */
     var isJoined: Boolean = false
         internal set
+
     /** True if this query hit result in preResult block - in that case task is always null. */
     internal var preResult = false
+
     /** True if this query hit result in cache block - in that case task is always null. */
     internal var wasCacheHit = false
 
@@ -47,7 +49,8 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
     private var progressCallback: CoroutineLoaderProgress.OnProgressListener<Q, R, T>? = null
     private var cancellationCallback: CoroutineLoaderCancellation.OnCancelListener<Q, R, T>? = null
     private var errorCallback: CoroutineLoaderError.OnErrorListener<Q, R, T>? = null
-    private var weakRefLostCallback : CoroutineLoaderCallback.OnRefLostListener<Q, R>? = null
+    private var weakRefLostCallback: CoroutineLoaderCallback.OnRefLostListener<Q, R>? = null
+
     /** Run when task finishes or cache is hit. */
     private var resultCallback: CoroutineLoaderResult.Listener<Q, R, T>? = null
 
@@ -70,12 +73,15 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
     /** Task was started. */
     val isStarted
         get() = task?.isSet == true
+
     /** Task is running. */
     val isActive
         get() = task?.isActive == true
+
     /** Query finished successfully for any reason. */
     val isCompleted
         get() = preResult || wasCacheHit || isAsyncFinished
+
     /** Raised after async query or cache hit completes successfully. Always false if [preResult] is true. */
     var isAsyncFinished = false
         private set
@@ -98,7 +104,7 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
      * @param reason cancellation message
      * @param cancelTask it true this will force cancel observed task (cancelling ALL attached queries)
      * */
-    fun cancel(reason: String? = null, cancelTask : Boolean = false) {
+    fun cancel(reason: String? = null, cancelTask: Boolean = false) {
         isCancelled = true
         //remove self from task on sync thread
         task.also {
@@ -111,11 +117,11 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
                 release()
             } else {
                 // task should trigger this querys cancellation callback and then release
-                if(cancelTask) {
-                    it.loader.scope.launch(it.loader.sync){
+                if (cancelTask) {
+                    it.loader.scope.launch(it.loader.sync) {
                         it.performCancel(CancellationException(reason))
                     }
-                }else
+                } else
                     it.cancelQuery(this, reason)
             }
         }
@@ -135,7 +141,7 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
      * */
     internal fun postProgress(progress: CoroutineLoaderProgress<Q, R>) {
         if (!isAsyncFinished) {
-            post(progress){
+            post(progress) {
                 progressCallback?.onTaskProgress(it, progress)
                 //todo: MORE HANDLING FOR REFERENCE LOST (should disconnect from task?)
             }
@@ -143,27 +149,28 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
     }
 
     /** Callback to receive and execute it if [resultReceiver] is valid. Only call from UI thread. */
-    internal fun postResult(result: CoroutineLoaderResult<Q, R>) = post(result){
-            resultCallback?.onTaskResult(it, result)
-        }
+    internal fun postResult(result: CoroutineLoaderResult<Q, R>) = post(result) {
+        resultCallback?.onTaskResult(it, result)
+    }
 
     /** Callback to receive and execute it if [resultReceiver] is valid. Calling thread not specified. */
-    internal fun postCancellation(cancellation: CoroutineLoaderCancellation<Q, R>) = post(cancellation){
+    internal fun postCancellation(cancellation: CoroutineLoaderCancellation<Q, R>) =
+        post(cancellation) {
             cancellationCallback?.onTaskCancelled(it, cancellation)
         }
 
     /** Callback to receive and execute it if [resultReceiver] is valid. Calling thread not specified. */
-    internal fun postError(error: CoroutineLoaderError<Q, R>) =post(error){
-            errorCallback?.onTaskError(it, error)
+    internal fun postError(error: CoroutineLoaderError<Q, R>) = post(error) {
+        errorCallback?.onTaskError(it, error)
     }
 
     /** Internal: post callback to interface and default callback, or handle weak ref lost.*/
-    private inline fun <C : CoroutineLoaderCallback<Q,R>>post(callback:C, f : (T) -> Unit){
+    private inline fun <C : CoroutineLoaderCallback<Q, R>> post(callback: C, f: (T) -> Unit) {
         try {
             resultReceiver?.get()?.also(f)?.also {
                 defaultCallback?.onTaskCallback(it, callback)
             }
-        }catch (rl: RefLostCancellationException){
+        } catch (rl: RefLostCancellationException) {
             weakRefLostCallback?.onRefLost(callback)
         }
     }
@@ -184,11 +191,12 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
     /** Query builder that prepares all callbacks before query is executed.*/
     class Builder<Q : Any, R : Any, T : Any>(private val key: Q, private val resultReceiver: T) {
         private var progressCallback: CoroutineLoaderProgress.OnProgressListener<Q, R, T>? = null
-        private var cancellationCallback: CoroutineLoaderCancellation.OnCancelListener<Q, R, T>? = null
+        private var cancellationCallback: CoroutineLoaderCancellation.OnCancelListener<Q, R, T>? =
+            null
         private var errorCallback: CoroutineLoaderError.OnErrorListener<Q, R, T>? = null
         private var resultCallback: CoroutineLoaderResult.Listener<Q, R, T>? = null
         private var defaultCallback: CoroutineLoaderCallback.Listener<Q, R, T>? = null
-        private var weakRefLostCallback : CoroutineLoaderCallback.OnRefLostListener<Q, R>? = null
+        private var weakRefLostCallback: CoroutineLoaderCallback.OnRefLostListener<Q, R>? = null
         private var useWeakRef = true
 
         /** Progress is guaranteed to be called on UI thread. */
@@ -199,10 +207,8 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
 
         /** Progress is guaranteed to be called on UI thread. */
         inline fun progress(crossinline callback: (T, CoroutineLoaderProgress<Q, R>) -> Unit): Builder<Q, R, T> =
-            progress(object :
-                CoroutineLoaderProgress.OnProgressListener<Q, R, T> {
-                override fun onTaskProgress(resultReceiver: T, progress: CoroutineLoaderProgress<Q, R>) =
-                    callback(resultReceiver, progress)
+            progress(CoroutineLoaderProgress.OnProgressListener { resultReceiver, progress ->
+                callback(resultReceiver, progress)
             })
 
         /** Progress is guaranteed to be called on UI thread. This invokes callback with [resultReceiver] as receiver. */
@@ -217,14 +223,13 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
 
         /** Cancellation callback - not guaranteed to be called on UI thread. */
         inline fun cancel(crossinline callback: (T, CoroutineLoaderCancellation<Q, R>) -> Unit): Builder<Q, R, T> =
-            cancel(object :
-                CoroutineLoaderCancellation.OnCancelListener<Q, R, T> {
-                override fun onTaskCancelled(resultReceiver: T, cancellation: CoroutineLoaderCancellation<Q, R>) =
-                    callback(resultReceiver, cancellation)
+            cancel(CoroutineLoaderCancellation.OnCancelListener { resultReceiver, cancellation ->
+                callback(resultReceiver, cancellation)
             })
 
         /** Cancellation callback - not guaranteed to be called on UI thread. This invokes callback with [resultReceiver] as receiver. */
-        inline fun onCancel(crossinline callback: T.(CoroutineLoaderCancellation<Q, R>) -> Unit) = cancel(callback)
+        inline fun onCancel(crossinline callback: T.(CoroutineLoaderCancellation<Q, R>) -> Unit) =
+            cancel(callback)
 
         /** Error callback - not guaranteed to be called on UI thread. */
         fun error(callback: CoroutineLoaderError.OnErrorListener<Q, R, T>): Builder<Q, R, T> {
@@ -234,13 +239,13 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
 
         /** Error callback - not guaranteed to be called on UI thread. */
         inline fun error(crossinline callback: (T, CoroutineLoaderError<Q, R>) -> Unit): Builder<Q, R, T> =
-            error(object : CoroutineLoaderError.OnErrorListener<Q, R, T> {
-                override fun onTaskError(resultReceiver: T, error: CoroutineLoaderError<Q, R>) =
-                    callback(resultReceiver, error)
+            error(CoroutineLoaderError.OnErrorListener { resultReceiver, error ->
+                callback(resultReceiver, error)
             })
 
         /** Error callback - not guaranteed to be called on UI thread. This invokes callback with [resultReceiver] as receiver. */
-        inline fun onError(crossinline callback: T.(CoroutineLoaderError<Q, R>) -> Unit) = error(callback)
+        inline fun onError(crossinline callback: T.(CoroutineLoaderError<Q, R>) -> Unit) =
+            error(callback)
 
         /** Result is guaranteed to be called on UI thread. */
         fun result(callback: CoroutineLoaderResult.Listener<Q, R, T>): Builder<Q, R, T> {
@@ -250,14 +255,13 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
 
         /** Result is guaranteed to be called on UI thread. */
         inline fun result(crossinline callback: (T, result: CoroutineLoaderResult<Q, R>) -> Unit): Builder<Q, R, T> =
-            result(object :
-                CoroutineLoaderResult.Listener<Q, R, T> {
-                override fun onTaskResult(resultReceiver: T, result: CoroutineLoaderResult<Q, R>) =
-                    callback(resultReceiver, result)
+            result(CoroutineLoaderResult.Listener { resultReceiver, result ->
+                callback(resultReceiver, result)
             })
 
         /** Result is guaranteed to be called on UI thread. This invokes callback with [resultReceiver] as receiver. */
-        inline fun onResult(crossinline callback: T.(result: CoroutineLoaderResult<Q, R>) -> Unit) = result(callback)
+        inline fun onResult(crossinline callback: T.(result: CoroutineLoaderResult<Q, R>) -> Unit) =
+            result(callback)
 
 
         /** Callback from all events. Triggered after respective callbacks do, on their thread. */
@@ -268,14 +272,13 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
 
         /** Callback from all events. Triggered after respective callbacks do, on their thread. */
         inline fun callback(crossinline callback: (T, call: CoroutineLoaderCallback<Q, R>) -> Unit): Builder<Q, R, T> =
-            callback(object :
-                CoroutineLoaderCallback.Listener<Q, R, T> {
-                override fun onTaskCallback(resultReceiver: T, callback: CoroutineLoaderCallback<Q, R>) =
-                    callback(resultReceiver, callback)
+            callback(CoroutineLoaderCallback.Listener { resultReceiver, callback2 ->
+                callback(resultReceiver, callback2)
             })
 
         /** Callback from all events. Triggered after respective callbacks do, on their thread. This invokes callback with [resultReceiver] as receiver. */
-        inline fun onCallback(crossinline callback: T.(call: CoroutineLoaderCallback<Q, R>) -> Unit) = callback(callback)
+        inline fun onCallback(crossinline callback: T.(call: CoroutineLoaderCallback<Q, R>) -> Unit) =
+            callback(callback)
 
 
         /** Callback when weak reference is lost. If not implemented losing reference is silent cancellation. */
@@ -285,14 +288,14 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
         }
 
         /** Callback when weak reference is lost. If not implemented losing reference is silent cancellation. */
-        inline fun weakRefLost(crossinline callback: (call: CoroutineLoaderCallback<Q, R>) -> Unit) : Builder<Q, R, T> =
-                weakRefLost(object :
-                CoroutineLoaderCallback.OnRefLostListener<Q, R>{
-                    override fun onRefLost(lostCallback: CoroutineLoaderCallback<Q, R>) = callback(lostCallback)
-                })
+        inline fun weakRefLost(crossinline callback: (call: CoroutineLoaderCallback<Q, R>) -> Unit): Builder<Q, R, T> =
+            weakRefLost(CoroutineLoaderCallback.OnRefLostListener { lostCallback ->
+                callback(lostCallback)
+            })
 
         /** Callback when weak reference is lost. If not implemented losing reference is silent cancellation. */
-        inline fun onWeakRefLost(crossinline callback: (call: CoroutineLoaderCallback<Q, R>) -> Unit) = weakRefLost(callback)
+        inline fun onWeakRefLost(crossinline callback: (call: CoroutineLoaderCallback<Q, R>) -> Unit) =
+            weakRefLost(callback)
 
         /**
          * Use weak reference to [resultReceiver], prevents result from leaking. This is default.
@@ -317,7 +320,8 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
             it.resultCallback = resultCallback
             it.defaultCallback = defaultCallback
             it.weakRefLostCallback = weakRefLostCallback
-            it.resultReceiver = if (useWeakRef) resultReceiver.asWeakRef() else resultReceiver.asHardRef()
+            it.resultReceiver =
+                if (useWeakRef) resultReceiver.asWeakRef() else resultReceiver.asHardRef()
         }
     }
 
@@ -336,11 +340,7 @@ class CoroutineLoaderQuery<Q : Any, R : Any, T : Any> internal constructor(
 
         /** Result is guaranteed to be called on UI thread. */
         inline fun result(crossinline callback: (result: CoroutineLoaderResult<Q, R>) -> Unit): NoRefBuilder<Q, R> =
-            result(object :
-                CoroutineLoaderResult.Listener<Q, R, Unit> {
-                override fun onTaskResult(resultReceiver: Unit, result: CoroutineLoaderResult<Q, R>) =
-                    callback(result)
-            })
+            result { resultReceiver, result -> callback(result) }
 
         internal fun build() = CoroutineLoaderQuery<Q, R, Unit>(key).also {
             it.resultCallback = resultCallback

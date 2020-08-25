@@ -49,9 +49,7 @@ inline fun <reified T : Fragment> AppCompatActivity.fragments(
 inline fun <reified T : Fragment> Fragment.parentFragments(
     tag: String? = null,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Activity(
-    this
-).createDelegate(tag, fragmentFactory)
+) = FragmentManagerProvider.Activity(this).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from parent fragment manager (one this fragment is in).
@@ -64,9 +62,7 @@ inline fun <reified T : Fragment> Fragment.parentFragments(
 inline fun <reified T : Fragment> Fragment.parentFragments(
     usePropName: Boolean,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Activity(
-    this
-).createDelegate(usePropName, fragmentFactory)
+) = FragmentManagerProvider.Activity(this).createDelegate(usePropName, fragmentFactory)
 
 /**
  * Obtain fragment of this type from host activity fragment manager.
@@ -79,9 +75,7 @@ inline fun <reified T : Fragment> Fragment.parentFragments(
 inline fun <reified T : Fragment> Fragment.activityFragments(
     tag: String? = null,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Parent(
-    this
-).createDelegate(tag, fragmentFactory)
+) = FragmentManagerProvider.Parent(this).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from host activity fragment manager.
@@ -94,9 +88,7 @@ inline fun <reified T : Fragment> Fragment.activityFragments(
 inline fun <reified T : Fragment> Fragment.activityFragments(
     usePropName: Boolean,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Parent(
-    this
-).createDelegate(usePropName, fragmentFactory)
+) = FragmentManagerProvider.Parent(this).createDelegate(usePropName, fragmentFactory)
 
 /**
  * Obtain fragment of this type from this fragments child fragment manager.
@@ -109,9 +101,7 @@ inline fun <reified T : Fragment> Fragment.activityFragments(
 inline fun <reified T : Fragment> Fragment.fragments(
     tag: String? = null,
     noinline fragmentFactory: (() -> T)? = null
-) = FragmentManagerProvider.Child(
-    this
-).createDelegate(tag, fragmentFactory)
+) = FragmentManagerProvider.Child(this).createDelegate(tag, fragmentFactory)
 
 /**
  * Obtain fragment of this type from this fragments child fragment manager.
@@ -134,6 +124,7 @@ inline fun <reified T : Fragment> Fragment.fragments(
 sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager> {
     override fun getValue(thisRef: Any, property: KProperty<*>) = get()
     abstract fun get(): FragmentManager
+
     // returns provide value
     class Direct(private val fm: FragmentManager) : FragmentManagerProvider() {
         override fun get() = fm
@@ -160,8 +151,7 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager> {
         return FragmentManagerDelegatePrimary(
             this,
             if (usePropName) null else T::class.java.name,
-            buildImpl
-                ?: NewInstanceFragmentFactory()
+            buildImpl ?: NewInstanceFragmentFactory()
         )
     }
 
@@ -173,8 +163,7 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager> {
         return FragmentManagerDelegatePrimary(
             this,
             tag ?: T::class.java.name,
-            buildImpl
-                ?: NewInstanceFragmentFactory()
+            buildImpl ?: NewInstanceFragmentFactory()
         )
     }
 }
@@ -217,19 +206,10 @@ class FragmentManagerDelegatePrimary<T : Fragment>(
     buildImpl: () -> T
 ) : FragmentDelegate<T>(manager, tag, buildImpl) {
     /** Assumes fragment is initialized elsewhere, throws exception if it's is missing instead of instantiating it. */
-    fun required(): FragmentDelegate<T> =
-        FragmentManagerDelegateSecondary(
-            manager,
-            tag,
-            null
-        )
+    fun required(): FragmentDelegate<T> = FragmentManagerDelegateSecondary(manager, tag, null)
 
     /** Assume fragment might not exist, return null if it's is missing instead of instantiating it. */
-    fun nullable() =
-        FragmentDelegateNullable<T>(
-            manager,
-            tag
-        )
+    fun nullable() = FragmentDelegateNullable<T>(manager, tag)
 }
 
 /** Fragment delegate spawned by [FragmentManagerDelegatePrimary]. */
@@ -264,16 +244,12 @@ class FragmentDelegateNullable<T : Fragment>(
 /** Get object that returns this fragment manager. */
 @PublishedApi
 internal val FragmentManager.provider: FragmentManagerProvider
-    get() = FragmentManagerProvider.Direct(
-        this
-    )
+    get() = FragmentManagerProvider.Direct(this)
 
 /** Default fragment factory. */
 @PublishedApi
 internal inline fun <reified T : Fragment> NewInstanceFragmentFactory() =
-    NewInstanceFragmentFactory(
-        T::class.java
-    )
+    NewInstanceFragmentFactory(T::class.java)
 
 /** Default fragment factory. */
 @PublishedApi

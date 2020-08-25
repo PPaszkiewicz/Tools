@@ -8,14 +8,14 @@ sealed class CoroutineLoaderCallback<Q : Any, R : Any>(
     val originalKey: Q
 ) {
     /** Listener that can receive all callbacks. */
-    interface Listener<Q : Any, R : Any, T : Any> {
+    fun interface Listener<Q : Any, R : Any, T : Any> {
         fun onTaskCallback(resultReceiver: T, callback: CoroutineLoaderCallback<Q, R>)
     }
 
     /**
      * Debug/error handling interface, invoked when weak reference is lost. Otherwise weak ref loss is silent.
      **/
-    interface OnRefLostListener<Q : Any, R : Any> {
+    fun interface OnRefLostListener<Q : Any, R : Any> {
         fun onRefLost(lostCallback: CoroutineLoaderCallback<Q, R>)
     }
 }
@@ -55,7 +55,7 @@ class CoroutineLoaderResult<Q : Any, R : Any> internal constructor(
     }
 
     /*** Listener for result from [CoroutineLoaderTask]. */
-    interface Listener<Q : Any, R : Any, T : Any> {
+    fun interface Listener<Q : Any, R : Any, T : Any> {
         /** [CoroutineLoaderTask] finished, handle result here. */
         fun onTaskResult(resultReceiver: T, result: CoroutineLoaderResult<Q, R>)
     }
@@ -75,7 +75,7 @@ class CoroutineLoaderProgress<Q : Any, R : Any> internal constructor(key: Q, ori
      *
      * Progress uses [Any] type due to requirement of generics (and it's only optional interface).*
      * */
-    interface OnProgressListener<Q : Any, R : Any, T : Any> {
+    fun interface OnProgressListener<Q : Any, R : Any, T : Any> {
         /** Updated progress of ongoing [CoroutineLoaderTask].         * */
         fun onTaskProgress(resultReceiver: T, progress: CoroutineLoaderProgress<Q, R>)
     }
@@ -91,7 +91,7 @@ class CoroutineLoaderProgress<Q : Any, R : Any> internal constructor(key: Q, ori
 class CoroutineLoaderError<Q : Any, R : Any> internal constructor(key: Q, originalKey: Q, val exception: Throwable?) :
     CoroutineLoaderCallback<Q, R>(key, originalKey) {
     /***Listener for errors from [CoroutineLoaderTask].     */
-    interface OnErrorListener<Q : Any, R : Any, T : Any> {
+    fun interface OnErrorListener<Q : Any, R : Any, T : Any> {
         /** [CoroutineLoaderTask] failed, forwarded exception here. */
         fun onTaskError(resultReceiver: T, error: CoroutineLoaderError<Q, R>)
     }
@@ -112,7 +112,7 @@ class CoroutineLoaderCancellation<Q : Any, R : Any> internal constructor(
     val cancellationType: CancellationType
 ) : CoroutineLoaderCallback<Q, R>(key, originalKey) {
     /*** Listener for cancellations from [CoroutineLoaderTask].     */
-    interface OnCancelListener<Q : Any, R : Any, T : Any> {
+    fun interface OnCancelListener<Q : Any, R : Any, T : Any> {
         /** [CoroutineLoaderTask] was cancelled, forwarded reason. */
         fun onTaskCancelled(resultReceiver: T, cancellation: CoroutineLoaderCancellation<Q, R>)
     }

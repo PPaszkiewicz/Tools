@@ -23,7 +23,7 @@ class DemoTaskService : QueuedTaskService<Boolean>() {
         const val EXTRA_PARAMS = "EXTRA_PARAMS"
 
         /** Connection factory to this service.  */
-        val connectionFactory = DirectBindService.ConnectionFactory(DemoTaskService::class.java)
+        val connectionFactory = DirectBindService.ConnectionFactory<DemoTaskService>()
 
         fun loadTask(context: Context, key: String, params: JobParams) =
             startServiceImpl(context, ACTION_ADD_TASK, key, params)

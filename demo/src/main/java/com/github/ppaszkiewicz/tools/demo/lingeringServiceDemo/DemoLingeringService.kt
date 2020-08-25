@@ -1,11 +1,15 @@
 package com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.OnLifecycleEvent
+import androidx.core.app.NotificationCompat
+import androidx.core.content.getSystemService
+import androidx.lifecycle.*
+import com.github.ppaszkiewicz.tools.demo.R
+import com.github.ppaszkiewicz.tools.toolbox.extensions.LoopRunnable
 import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
 import com.github.ppaszkiewicz.tools.toolbox.service.LingeringService
 
@@ -15,6 +19,14 @@ class DemoLingeringService : LingeringService(){
         const val TAG = "DEMO_SERVICE"
         /** Connection factory to this service. */
         val connectionFactory = ConnectionFactory<DemoLingeringService>()
+    }
+
+    val serviceLifeSpan = MutableLiveData(0)
+
+    private val lifeSpanLoop = LoopRunnable(1000) {
+        val incrementValue = serviceLifeSpan.value!! + 1
+        serviceLifeSpan.value = incrementValue
+        true
     }
 
     init {
@@ -27,16 +39,37 @@ class DemoLingeringService : LingeringService(){
                 Log.d(TAG, "observer, event is $event")
             }
         })
+        lifeSpanLoop.observe(this)
     }
 
     override fun onCreate() {
         super.onCreate()
         Log.d(TAG, "onCreate")
+        val nm = getSystemService<NotificationManager>()!!
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            nm.getNotificationChannel("CHANNEL_ID") == null
+        ) {
+            val channel = NotificationChannel(
+                "CHANNEL_ID",
+                "CHANNEL_NAME",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+            // disable sound
+            channel.setSound(null, null)
+            nm.createNotificationChannel(channel)
+        }
+        val n = NotificationCompat.Builder(this, "CHANNEL_ID")
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setContentText("Test lingering service")
+            .build()
+        nm.notify(1, n)
         Toast.makeText(this, "service created", Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        val nm = getSystemService<NotificationManager>()!!
+        nm.cancel(1)
         Log.d(TAG, "onDestroy")
         Toast.makeText(this, "service destroyed", Toast.LENGTH_SHORT).show()
     }
