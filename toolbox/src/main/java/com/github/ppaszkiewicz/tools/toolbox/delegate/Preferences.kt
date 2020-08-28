@@ -276,7 +276,7 @@ class RWEnumPref<T : Enum<T>>(
 
     override fun SP.get(key: String, default: T): T {
         val s = getString(key, null) ?: return default
-        val enum = enumClass.enumConstants.find { it.name == s }
+        val enum = enumClass.enumConstants!!.find { it.name == s }
         return enum ?: default
     }
 }

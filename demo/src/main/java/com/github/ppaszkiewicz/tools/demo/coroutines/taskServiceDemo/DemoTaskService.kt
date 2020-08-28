@@ -64,19 +64,19 @@ class DemoTaskService : QueuedTaskService<Boolean>() {
         Log.d(TAG, "onTaskFinished: ${intent.dataString}")
         // callback to modify database etc. on UI thread
         if(testIsActive)
-            progressMap.setResult(intent.dataString.toInt(), result)
+            progressMap.setResult(intent.dataString!!.toInt(), result)
     }
 
     override fun onTaskCancelled(intent: Intent, message: String?, cancellingAll: Boolean) {
         Log.d(TAG, "onTaskCancelled: ${intent.dataString}")
         if(testIsActive)
-            progressMap.setError(intent.dataString.toInt(), TaskCancelledException(cancellingAll, message))
+            progressMap.setError(intent.dataString!!.toInt(), TaskCancelledException(cancellingAll, message))
     }
 
     override fun onTaskError(intent: Intent, cause: Throwable) {
         Log.e(TAG, "onTaskError: ${intent.dataString} $cause")
         if(testIsActive)
-            progressMap.setError(intent.dataString.toInt(), cause)
+            progressMap.setError(intent.dataString!!.toInt(), cause)
     }
 
     override fun onDestroy() {
@@ -103,7 +103,7 @@ class DemoServiceJob : TaskServiceJob<Boolean>() {
 
     override suspend fun doInBackground(intent: Intent): Boolean {
         Log.d(TAG, "loading in service for ${intent.dataString}")
-        val key = intent.dataString.toInt()
+        val key = intent.dataString!!.toInt()
         val params = intent.getParcelableExtra<JobParams>(EXTRA_PARAMS)// cast params
         val random = Random(key)
         repeat(params.duration) {
