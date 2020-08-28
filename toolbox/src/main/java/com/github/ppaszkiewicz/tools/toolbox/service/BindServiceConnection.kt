@@ -38,7 +38,7 @@ abstract class BindServiceConnection<T>(
     contextDelegate: ContextDelegate,
     /** Default bind flags to use. */
     bindFlags: Int = Context.BIND_AUTO_CREATE
-) : LiveData<T?>(), ServiceConnection, LifecycleOwner {
+) : LiveData<T?>(), LifecycleOwner {
     /** Intent that is used to bind to the service. */
     abstract fun createBindingIntent(context: Context): Intent
 
@@ -164,7 +164,7 @@ abstract class BindServiceConnection<T>(
     protected open fun performBind(flags: Int) {
         if (!isBound) {
             isBound = true
-            context.bindService(createBindingIntent(context), this, flags)
+            context.bindService(createBindingIntent(context), serviceConnectionObject, flags)
             onBind?.invoke()
         }
     }
@@ -173,7 +173,7 @@ abstract class BindServiceConnection<T>(
     protected open fun performUnbind() {
         if (isBound) {
             isBound = false
-            context.unbindService(this)
+            context.unbindService(serviceConnectionObject)
             value?.let {
                 mLifecycle.currentState = Lifecycle.State.CREATED
                 onDisconnect?.invoke(it)
@@ -186,67 +186,16 @@ abstract class BindServiceConnection<T>(
     /** Perform rebind after unexpected binding death. */
     protected open fun performRebind(doCallbacks: Boolean, flags: Int) {
         if (isBound) {
-            context.unbindService(this)
+            context.unbindService(serviceConnectionObject)
             if (doCallbacks) onUnbind?.invoke()
-            context.bindService(createBindingIntent(context), this, flags)
+            context.bindService(createBindingIntent(context), serviceConnectionObject, flags)
             if (doCallbacks) onBind?.invoke()
-        }
-    }
-
-    override fun onServiceDisconnected(name: ComponentName) {
-        value?.let { service ->
-            mLifecycle.currentState = Lifecycle.State.CREATED
-            if (config.lifecycleRepresentsConnection) dispatchDestroyLifecycle()
-            val callbackConsumed = onConnectionLost?.let { it(service) }
-            if (callbackConsumed != true) onDisconnect?.invoke(service)
-            value = null
-        } ?: Log.e(
-            "BindServiceConn", "unexpected onServiceDisconnected: service object missing. " +
-                    "Connection: ${this::javaClass.name}, Service name: $name"
-        )
-    }
-
-    override fun onServiceConnected(name: ComponentName, service: IBinder) {
-        val lcCreated = if (_mlifecycle == null) {
-            _mlifecycle = LifecycleRegistry(this); true
-        } else false
-        val oldBinder = currentBinder?.get()
-        transformBinder(name, service).also {
-            this.value = it
-            if (!(oldBinder === service)) {
-                if (!lcCreated && config.lifecycleRepresentsConnection && currentBinder != null) {
-                    Log.w(
-                        "BindServiceConn",
-                        "service was restarted while connection was unbound - invalidating lifecycle"
-                    )
-                    dispatchDestroyLifecycle()
-                    _mlifecycle = LifecycleRegistry(this)
-                }
-                onFirstConnect?.invoke(it)
-                currentBinder = WeakReference(service)
-            }
-            onConnect?.invoke(it)
-            mLifecycle.currentState = Lifecycle.State.RESUMED
-        }
-    }
-
-    override fun onBindingDied(name: ComponentName?) {
-        // this is always triggered after onServiceDisconnected ?
-        val callbackConsumed = onBindingDied?.invoke() ?: false
-        if (config.autoRebindDeadBinding) {
-            performRebind(!callbackConsumed, config.defaultBindFlags)
-        } else if (isBound) {
-            isBound = false
         }
     }
 
     override fun observe(owner: LifecycleOwner, observer: Observer<in T?>) {
         require(owner !== this) { "Invalid LifecycleOwner - service connection is not allowed observe self." }
         super.observe(owner, observer)
-    }
-
-    override fun onNullBinding(name: ComponentName?) {
-        onNullBinding?.invoke()
     }
 
     /**
@@ -265,6 +214,60 @@ abstract class BindServiceConnection<T>(
         mLifecycle.currentState = Lifecycle.State.DESTROYED
         _mlifecycle = null
 
+    }
+
+    /** Internal [ServiceConnection] object that's actually registered for binding. **/
+    internal val serviceConnectionObject = object : ServiceConnection {
+        override fun onServiceDisconnected(name: ComponentName) {
+            value?.let { service ->
+                mLifecycle.currentState = Lifecycle.State.CREATED
+                if (config.lifecycleRepresentsConnection) dispatchDestroyLifecycle()
+                val callbackConsumed = onConnectionLost?.let { it(service) }
+                if (callbackConsumed != true) onDisconnect?.invoke(service)
+                value = null
+            } ?: Log.e(
+                "BindServiceConn", "unexpected onServiceDisconnected: service object missing. " +
+                        "Connection: ${this::javaClass.name}, Service name: $name"
+            )
+        }
+
+        override fun onServiceConnected(name: ComponentName, service: IBinder) {
+            val lcCreated = if (_mlifecycle == null) {
+                _mlifecycle = LifecycleRegistry(this@BindServiceConnection); true
+            } else false
+            val oldBinder = currentBinder?.get()
+            transformBinder(name, service).also {
+                this@BindServiceConnection.value = it
+                if (!(oldBinder === service)) {
+                    if (!lcCreated && config.lifecycleRepresentsConnection && currentBinder != null) {
+                        Log.w(
+                            "BindServiceConn",
+                            "service was restarted while connection was unbound - invalidating lifecycle"
+                        )
+                        dispatchDestroyLifecycle()
+                        _mlifecycle = LifecycleRegistry(this@BindServiceConnection)
+                    }
+                    onFirstConnect?.invoke(it)
+                    currentBinder = WeakReference(service)
+                }
+                onConnect?.invoke(it)
+                mLifecycle.currentState = Lifecycle.State.RESUMED
+            }
+        }
+
+        override fun onBindingDied(name: ComponentName?) {
+            // this is always triggered after onServiceDisconnected ?
+            val callbackConsumed = onBindingDied?.invoke() ?: false
+            if (config.autoRebindDeadBinding) {
+                performRebind(!callbackConsumed, config.defaultBindFlags)
+            } else if (isBound) {
+                isBound = false
+            }
+        }
+
+        override fun onNullBinding(name: ComponentName?) {
+            onNullBinding?.invoke()
+        }
     }
 
     /** Base for connection factories that connect to service of type [T]. */
