@@ -52,8 +52,7 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
 
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
             if (event == Lifecycle.Event.ON_DESTROY) destroy()
-            else lifecycle.currentState =
-                lifecycles.minBy { it.lifecycle.currentState }!!.lifecycle.currentState
+            else lifecycle.currentState = lifecycles.minOf { it.lifecycle.currentState }
         }
 
         private fun destroy() {
@@ -76,8 +75,7 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
         }
 
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-            lifecycle.currentState =
-                lifecycles.maxBy { it.lifecycle.currentState }!!.lifecycle.currentState
+            lifecycle.currentState = lifecycles.maxOf { it.lifecycle.currentState }
             if (event == Lifecycle.Event.ON_DESTROY) {
                 source.lifecycle.removeObserver(this)
                 lifecycles.remove(source)

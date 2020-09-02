@@ -13,9 +13,11 @@ class DelegateDemoActivity : AppCompatActivity() {
     // with no arg constructor
     /** this uses class name of [MyFragmentOne] as tag **/
     val f1 by fragments<MyFragmentOne>()
+
     /** this uses argument (CustomTag) as tag **/
     val f2 by fragments<MyFragmentOne>("CustomTag")
-    /** this uses propertny name (f3) as tag **/
+
+    /** this uses property name (f3) as tag **/
     val f3 by fragments<MyFragmentOne>(true)
 
     // with builders
@@ -23,20 +25,22 @@ class DelegateDemoActivity : AppCompatActivity() {
     val f10 by fragments {
         MyFragmentOne.newInstance("testArgument")
     }
+
     /** this uses argument as tag with custom fragment builder. */
     val f20 by fragments("CustomTag2") {
         MyFragmentOne.newInstance("testArgument")
     }
-    /** this uses propertny name (f30) as tag with custom fragment builder. */
+
+    /** this uses property name (f30) as tag with custom fragment builder. */
     val f30 by fragments(true) {
         MyFragmentOne.newInstance("testArgument")
     }
 
     // preference delegates
     val prop by preferences().string("PREF_1", "novalue")
-    val prop2 by preferences("sharedprefskey").enum("PREF_2", MyTestEnum.VAL1){
+    val prop2 by preferences("sharedprefskey").enum("PREF_2", MyTestEnum.VAL1) {
         // listener
-        Log.d("DEBUG","PREF_2 is now $it")
+        Log.d("DEBUG", "PREF_2 is now $it")
     }
 }
 
@@ -62,17 +66,19 @@ class MyFragmentOne : Fragment() {
     val prop2 by preferences().enum("PREF_2", MyTestEnum.VAL1)
 }
 
-class MyFragmentTwo : Fragment(){
+class MyFragmentTwo : Fragment() {
     /** Fragment inside parent (FragmentOne) fragment manager. */
     val nestedFragment by parentFragments<MyFragmentThree>("NestedCustomTag")
+
     /** Even deeper fragment nesting. */
     val nestedNestedFragment by fragments<MyFragmentThree>()
+
     /** Fragment from parent activity. */
     val activityFragment by activityFragments<MyFragmentThree>()
 }
 
 // final dummy fragment
-class MyFragmentThree : Fragment(){
+class MyFragmentThree : Fragment() {
     // some more options to find fragments
     val childF by parentFragments<MyFragmentThree>().required()
     val childF2 by parentFragments<MyFragmentThree>().nullable()
@@ -80,6 +86,6 @@ class MyFragmentThree : Fragment(){
     val parentNotExisting by activityFragments<MyFragmentOne>(false).nullable()
 }
 
-enum class MyTestEnum{
+enum class MyTestEnum {
     VAL1, VAL2, VAL3
 }

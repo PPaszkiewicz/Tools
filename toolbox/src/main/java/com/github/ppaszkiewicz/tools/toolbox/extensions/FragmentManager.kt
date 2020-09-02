@@ -1,5 +1,6 @@
 package com.github.ppaszkiewicz.tools.toolbox.extensions
 
+import androidx.annotation.IdRes
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.FragmentTransaction
@@ -17,6 +18,12 @@ fun <F : Fragment> FragmentManager.findFragmentByClass(clazz: Class<F>) =
     findFragmentByTag(clazz.name) as F?
 
 /**
+ * Add fragment into container using its class name as a tag.
+ * */
+fun FragmentTransaction.addWithClassTag(@IdRes containerViewId: Int, fragment: Fragment) =
+    add(containerViewId, fragment, fragment::class.java.name)
+
+/**
  * Load [fragment] into view with [containerId]. This will detach current fragment and reattach or add new one.
  *
  * If [fragment] is already attached or null this does nothing.
@@ -27,8 +34,8 @@ fun <F : Fragment> FragmentManager.findFragmentByClass(clazz: Class<F>) =
  * Uses [fragment] class name as tag, so it must be unique in this fragment manager scope, otherwise
  * [IllegalStateException] will be thrown.
  * */
-fun FragmentManager.swap(fragment: Fragment?, containerId: Int) =
-    if (fragment != null) swapImpl(fragment, containerId, fragment.javaClass.name, true) else false
+fun FragmentManager.swap(@IdRes containerId: Int, fragment: Fragment?) =
+    if (fragment != null) swapImpl(fragment, containerId, fragment::class.java.name, true) else false
 
 /**
  * Load [fragment] into view with [containerId]. This will detach current fragment and reattach or add new one.
@@ -40,7 +47,7 @@ fun FragmentManager.swap(fragment: Fragment?, containerId: Int) =
  *
  * If fragment is added for the first time then [tag] is used in transaction.
  * */
-fun FragmentManager.swap(fragment: Fragment?, containerId: Int, tag: String) =
+fun FragmentManager.swap(@IdRes containerId: Int, fragment: Fragment?, tag: String) =
     swapImpl(fragment, containerId, tag, false)
 
 /**

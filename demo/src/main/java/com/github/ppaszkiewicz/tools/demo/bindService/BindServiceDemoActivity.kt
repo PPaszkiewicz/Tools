@@ -12,7 +12,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
 import androidx.core.content.getSystemService
 import androidx.core.view.isGone
-import androidx.lifecycle.*
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.MutableLiveData
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.toolbox.extensions.LoopRunnable
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startService
@@ -69,9 +72,9 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
         // add all possible listeners
 
         serviceConn.run {
-            observe(this@BindServiceDemoActivity, Observer {
+            observe(this@BindServiceDemoActivity){
                 textView1.text = it?.foo() ?: "TestService is null"
-            })
+            }
             onConnect = {
                 Log.d(TAG, "onConnect")
                 textView2.text = "Connected"
@@ -84,13 +87,13 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
                 // livedata inside the service
                 //val compoundLifecycleOwner = this@BindServiceDemoActivity + serviceConn
 
-                it.serviceValue.observe(serviceConn, Observer { bindCount ->
+                it.serviceValue.observe(serviceConn) { bindCount ->
                     textView3.text = "service was connected to $bindCount times"
-                })
-                it.serviceLifeSpan.observe(serviceConn, Observer { time ->
+                }
+                it.serviceLifeSpan.observe(serviceConn){ time ->
                     textView5.text = "Service is alive for $time seconds."
                     Log.d("T", "Service is alive for $time")
-                })
+                }
                 observeState()
             }
             onDisconnect = {
