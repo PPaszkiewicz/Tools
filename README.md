@@ -15,6 +15,15 @@ Import in **build.gradle** or **build.gradle.kts**:
 ```gradle
 implementation("com.github.PPaszkiewicz.Tools:coroutines:$version")
 ```
+### Services
+
+ServiceConnection implementation that's lifecycle aware and exposes service callbacks in more
+understandable way than default.
+
+Import in **build.gradle** or **build.gradle.kts**:
+```gradle
+implementation("com.github.PPaszkiewicz.Tools:services:$version")
+```
 ### Toolbox
 
 Mixed bag of kotlin utils. Most files are standalone so they can be copied into a project.
