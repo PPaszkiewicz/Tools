@@ -34,11 +34,8 @@ android {
 }
 
 dependencies {
-    api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9'
+    implementation project(":toolbox")
     implementation("androidx.appcompat:appcompat:1.2.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.0.1")
-    implementation 'androidx.palette:palette-ktx:1.0.0'
-    implementation "androidx.fragment:fragment-ktx:1.2.5"
-    implementation 'androidx.recyclerview:recyclerview:1.2.0-alpha05'
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
+    implementation "androidx.fragment:fragment-ktx:1.2.5"
 }

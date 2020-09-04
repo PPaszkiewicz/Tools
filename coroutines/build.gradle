@@ -31,6 +31,6 @@ android {
 
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.2.0'
-    implementation project(":toolbox")
+    implementation project(":services")
     api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9'
 }

@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.tools.toolbox.service
+package com.github.ppaszkiewicz.kotlin.tools.services
 
 import android.content.ComponentName
 import android.content.Context
@@ -37,13 +37,14 @@ import java.lang.ref.WeakReference
 abstract class BindServiceConnection<T>(
     contextDelegate: ContextDelegate,
     /** Default bind flags to use. */
-    bindFlags: Int = Context.BIND_AUTO_CREATE
-) : LiveData<T?>(), LifecycleOwner {
+    bindFlags: Int = Context.BIND_AUTO_CREATE,
+    private val callbacksProxy: BindServiceConnectionCallbacks.Lambdas.Proxy<T> = BindServiceConnectionCallbacks.Lambdas.Proxy()
+) : LiveData<T?>(), LifecycleOwner, BindServiceConnectionCallbacks.Lambdas<T> by callbacksProxy {
     /** Intent that is used to bind to the service. */
-    abstract fun createBindingIntent(context: Context): Intent
+    internal abstract fun createBindingIntent(context: Context): Intent
 
     /** Transform [binder] object into valid [LiveData] value of this object. */
-    abstract fun transformBinder(name: ComponentName, binder: IBinder): T
+    internal abstract fun transformBinder(name: ComponentName, binder: IBinder): T
 
     /**
      * Used to determine if [onFirstConnect] should trigger - this is based on the fact that
@@ -91,7 +92,7 @@ abstract class BindServiceConnection<T>(
         var lifecycleRepresentsConnection: Boolean = true
     )
 
-    /** Raised if [bind] was called without matching [unbind]. */
+    /** Raised if [performBind] was called without matching [performUnbind]. */
     var isBound = false
         internal set
 
@@ -103,60 +104,20 @@ abstract class BindServiceConnection<T>(
     val service: T?
         get() = value
 
-    // optionally injectable listeners
-
-    /**
-     * Called right before [onConnect] when this is first time `bind` call resulted in successful
-     * connection to a service or service object changed.
-     */
-    var onFirstConnect: ((T) -> Unit)? = null
-
-    /**
-     * Triggered when service is connected or reconnected.
-     * */
-    var onConnect: ((T) -> Unit)? = null
-
-    /**
-     * Triggered when service is disconnected.
-     *
-     * To handle lost connection cases provide [onConnectionLost] callback.
-     **/
-    var onDisconnect: ((T) -> Unit)? = null
-
-    /**
-     * Triggered when service connection is lost due to [ServiceConnection.onServiceDisconnected].
-     *
-     * In most cases it should be impossible to trigger for services running in same process bound with
-     * [Context.BIND_AUTO_CREATE].
-     *
-     * Return `true` to consume callback or [onDisconnect] will be called afterwards.
-     **/
-    var onConnectionLost: ((T) -> Boolean)? = null
-
-    /**
-     * Triggered when service binding is requested.
-     * */
-    var onBind: (() -> Unit)? = null
-
-    /**
-     * Triggered when service unbinding is requested.
-     * */
-    var onUnbind: (() -> Unit)? = null
-
-    /**
-     * Triggered when binding dies.
-     *
-     * Return `true` to consume callback or [onUnbind] and [onBind] will be called while rebinding.
-     */
-    var onBindingDied: (() -> Boolean)? = null
-
-    /**
-     * Called when [ServiceConnection.onNullBinding] occurs.
-     */
-    var onNullBinding: (() -> Unit)? = null
-
     // satisfy LifecycleOwner
     override fun getLifecycle() = mLifecycle
+
+    // modify callbacks
+
+    /** Modify all underlying callbacks to use [callbackInterface]. */
+    fun setCallbackInterface(callbackInterface: BindServiceConnectionCallbacks<T>) {
+        callbacksProxy.c = BindServiceConnectionCallbacks.Lambdas.Adapter(callbackInterface)
+    }
+
+    /** Modify all underlying callbacks to use [callbackLambdas]. */
+    fun setCallbackLambdas(callbackLambdas: BindServiceConnectionCallbacks.Lambdas<T>) {
+        callbacksProxy.c = callbackLambdas
+    }
 
     // core implementation
 

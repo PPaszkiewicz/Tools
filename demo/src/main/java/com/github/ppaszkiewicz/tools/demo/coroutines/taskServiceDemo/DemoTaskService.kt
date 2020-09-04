@@ -8,7 +8,7 @@ import android.util.Log
 import com.github.ppaszkiewicz.tools.coroutines.service.QueuedTaskService
 import com.github.ppaszkiewicz.tools.coroutines.service.TaskServiceJob
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.DemoTaskService.Companion.EXTRA_PARAMS
-import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
+import com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService
 import com.github.ppaszkiewicz.tools.toolbox.liveData.LiveDataProgressMap
 import kotlinx.android.parcel.Parcelize
 import kotlinx.coroutines.CancellationException
@@ -23,7 +23,7 @@ class DemoTaskService : QueuedTaskService<Boolean>() {
         const val EXTRA_PARAMS = "EXTRA_PARAMS"
 
         /** Connection factory to this service.  */
-        val connectionFactory = DirectBindService.ConnectionFactory<DemoTaskService>()
+        val connectionFactory = com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService.ConnectionFactory<DemoTaskService>()
 
         fun loadTask(context: Context, key: String, params: JobParams) =
             startServiceImpl(context, ACTION_ADD_TASK, key, params)

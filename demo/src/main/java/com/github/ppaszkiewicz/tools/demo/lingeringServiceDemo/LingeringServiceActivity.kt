@@ -5,9 +5,9 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.R
-import com.github.ppaszkiewicz.tools.toolbox.service.BindServiceConnection
-import com.github.ppaszkiewicz.tools.toolbox.service.BindServiceConnectionCallbacks
-import com.github.ppaszkiewicz.tools.toolbox.service.LingeringLifecycleServiceConnection
+import com.github.ppaszkiewicz.kotlin.tools.services.BindServiceConnection
+import com.github.ppaszkiewicz.kotlin.tools.services.BindServiceConnectionCallbacks
+import com.github.ppaszkiewicz.kotlin.tools.services.LingeringLifecycleServiceConnection
 import kotlinx.android.synthetic.main.activity_service.*
 
 /** Uses lifecycle to automatically handle connection*/
@@ -17,7 +17,7 @@ class LingeringServiceActivity : AppCompatActivity(R.layout.activity_service){
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         textView.text = "Service handled by lifecycle\nsee logs or notification for service state"
-        logCallbacks().injectInto(serviceConn)
+        serviceConn.setCallbackInterface(logCallbacks())
     }
 }
 
@@ -28,7 +28,7 @@ class LingeringServiceActivity2 : AppCompatActivity(R.layout.activity_service){
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         textView.text = "Service handled manually - doesn't linger on finish \nsee logs or notification for service state"
-        logCallbacks().injectInto(serviceConn)
+        serviceConn.setCallbackInterface(logCallbacks())
     }
 
     override fun onStart() {
@@ -49,14 +49,14 @@ class LingeringServiceActivity3 : AppCompatActivity(R.layout.activity_service){
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         textView.text = "Service handled by liveData state\nsee logs or notification for service state"
-        logCallbacks().injectInto(serviceConn)
+        serviceConn.setCallbackInterface(logCallbacks())
         serviceConn.observe(this, Observer {
             Log.d("DEMO_ACT", "connected to $it")
         })
     }
 }
 
-private fun logCallbacks() = object : BindServiceConnectionCallbacks<DemoLingeringService>(){
+private fun logCallbacks() = object : BindServiceConnectionCallbacks.Adapter<DemoLingeringService>(){
     override fun onBind() {
         Log.d("DEMO_ACT", "service is bound")
     }

@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.tools.toolbox.service
+package com.github.ppaszkiewicz.kotlin.tools.services
 
 import android.content.Context
 import android.content.Intent

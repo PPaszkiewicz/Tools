@@ -10,7 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.R
-import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
+import com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService
 import com.github.ppaszkiewicz.tools.toolbox.liveData.LiveDataSync
 import com.github.ppaszkiewicz.tools.toolbox.liveData.createFrom
 import com.github.ppaszkiewicz.tools.toolbox.liveData.syncedOn
@@ -113,9 +113,9 @@ class SyncableLiveDataDemoActivity : AppCompatActivity(R.layout.activity_buttons
     }
 }
 
-class TestService : DirectBindService.Impl(){
+class TestService : com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService.Impl(){
     companion object{
-        val connectionFactory = DirectBindService.ConnectionFactory<TestService>()
+        val connectionFactory = com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService.ConnectionFactory<TestService>()
     }
 
     fun foo() = "TestService is alive!"

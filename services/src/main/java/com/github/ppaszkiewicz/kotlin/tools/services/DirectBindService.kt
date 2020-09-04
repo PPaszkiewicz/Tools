@@ -1,6 +1,6 @@
 @file:Suppress("UNCHECKED_CAST")
 
-package com.github.ppaszkiewicz.tools.toolbox.service
+package com.github.ppaszkiewicz.kotlin.tools.services
 
 import android.app.Service
 import android.content.ComponentName

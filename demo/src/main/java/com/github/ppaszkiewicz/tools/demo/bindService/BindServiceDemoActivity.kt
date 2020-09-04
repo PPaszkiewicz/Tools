@@ -16,12 +16,12 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
+import com.github.ppaszkiewicz.kotlin.tools.services.BindServiceConnectionCallbacks
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.toolbox.extensions.LoopRunnable
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startService
 import com.github.ppaszkiewicz.tools.toolbox.extensions.stopService
-import com.github.ppaszkiewicz.tools.toolbox.lifecycle.plus
-import com.github.ppaszkiewicz.tools.toolbox.service.DirectBindService
+import com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService
 import kotlinx.android.synthetic.main.activity_buttons.*
 
 
@@ -69,33 +69,64 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
             serviceConn.unbind()
         }
 
-        // add all possible listeners
+        serviceConn.observe(this@BindServiceDemoActivity){
+            textView1.text = it?.foo() ?: "TestService is null"
+        }
+        // add all possible listeners - two ways to do so
+        //setLambdaListeners()
+        setInterfaceCallbacks()
 
-        serviceConn.run {
-            observe(this@BindServiceDemoActivity){
-                textView1.text = it?.foo() ?: "TestService is null"
+        // observe lifecycle
+        textView4.text = "Event: --, state: none"
+    }
+
+    private fun observeState() {
+        serviceConn.lifecycle.addObserver(object : LifecycleEventObserver {
+            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+                textView4.text =
+                    "Event: ${event.name}, state: ${source.lifecycle.currentState.name}"
             }
+
+        })
+    }
+
+    private fun onFirstConnect(service: TestService){
+        Log.d(TAG, "onFirstConnect")
+        checkLeakedObservers(service)
+        // lifecycle of activity, connection and service itself can be combined when observing
+        // livedata inside the service
+        //val compoundLifecycleOwner = this@BindServiceDemoActivity + serviceConn
+
+        service.serviceValue.observe(serviceConn) { bindCount ->
+            textView3.text = "service was connected to $bindCount times"
+        }
+        service.serviceLifeSpan.observe(serviceConn){ time ->
+            textView5.text = "Service is alive for $time seconds."
+            Log.d("T", "Service is alive for $time")
+        }
+        observeState()
+    }
+
+    private fun checkLeakedObservers(service : TestService){
+        if (service.serviceValue.hasObservers()) {
+            Log.e(
+                TAG,
+                if (service.serviceValue.hasActiveObservers()) {
+                    "Service has leaked active observers!"
+                } else
+                    "Service has leaked (inactive) observers!"
+            )
+        } else Log.d(TAG, "Service has no leaks.")
+    }
+
+    private fun setLambdaListeners(){
+        serviceConn.run {
             onConnect = {
                 Log.d(TAG, "onConnect")
                 textView2.text = "Connected"
                 it.notifyConnected()
             }
-            onFirstConnect = {
-                Log.d(TAG, "onFirstConnect")
-                checkLeakedObservers(it)
-                // lifecycle of activity, connection and service itself can be combined when observing
-                // livedata inside the service
-                //val compoundLifecycleOwner = this@BindServiceDemoActivity + serviceConn
-
-                it.serviceValue.observe(serviceConn) { bindCount ->
-                    textView3.text = "service was connected to $bindCount times"
-                }
-                it.serviceLifeSpan.observe(serviceConn){ time ->
-                    textView5.text = "Service is alive for $time seconds."
-                    Log.d("T", "Service is alive for $time")
-                }
-                observeState()
-            }
+            onFirstConnect = ::onFirstConnect // delegate to local method
             onDisconnect = {
                 Log.d(TAG, "onDisconnect")
                 textView2.text = "Disconnect (by unbind)"
@@ -119,31 +150,51 @@ class BindServiceDemoActivity : AppCompatActivity(R.layout.activity_buttons) {
                 textView00.text = "Connection bound = false ($currentBindFlags)"
             }
         }
-
-        // observe lifecycle
-        textView4.text = "Event: --, state: none"
     }
 
-    private fun observeState() {
-        serviceConn.lifecycle.addObserver(object : LifecycleEventObserver {
-            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-                textView4.text =
-                    "Event: ${event.name}, state: ${source.lifecycle.currentState.name}"
+    // alternative way to setup callbacks - by using an interface
+    private fun setInterfaceCallbacks(){
+        val callbackObj = object : BindServiceConnectionCallbacks<TestService>{
+            override fun onFirstConnect(service: TestService) {
+                this@BindServiceDemoActivity.onFirstConnect(service)
             }
 
-        })
-    }
+            override fun onConnect(service: TestService) {
+                Log.d(TAG, "onConnect")
+                textView2.text = "Connected"
+                service.notifyConnected()
+            }
 
-    private fun checkLeakedObservers(service : TestService){
-        if (service.serviceValue.hasObservers()) {
-            Log.e(
-                TAG,
-                if (service.serviceValue.hasActiveObservers()) {
-                    "Service has leaked active observers!"
-                } else
-                    "Service has leaked (inactive) observers!"
-            )
-        } else Log.d(TAG, "Service has no leaks.")
+            override fun onDisconnect(service: TestService) {
+                Log.d(TAG, "onDisconnect")
+                textView2.text = "Disconnect (by unbind)"
+            }
+
+            override fun onConnectionLost(service: TestService): Boolean {
+                Log.d(TAG, "onSuddenDisconnect")
+                textView2.text = "Disconnect (connection lost)"
+                return true
+            }
+
+            override fun onBind() {
+                textView00.text = "Connection bound = true (${serviceConn.currentBindFlags})"
+            }
+
+            override fun onUnbind() {
+                textView00.text = "Connection bound = false (${serviceConn.currentBindFlags})"
+            }
+
+            override fun onBindingDied(): Boolean {
+                Log.d(TAG, "onBindingDied")
+                return true
+            }
+
+            override fun onNullBinding() {
+                Log.d(TAG, "onNullBinding")
+            }
+        }
+
+        serviceConn.setCallbackInterface(callbackObj)
     }
 
     override fun onStop() {

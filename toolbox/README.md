@@ -52,25 +52,6 @@ Various extensions relating to whatever is in the file name.
 ### Reflection
 **KMirror** - interface and utilities for reflecting fields and methods as simple delegates. See demo/tests for sample.
 
-### Service
-**BindServiceConnection** - abstract base for service connection implementations.
-
-**DirectBindService** - abstract marker interface for services that can be bound to directly (within same process).
-Its companion object contains smart connection factory methods.
-
-**DirectBindService.Impl** - default service implementation that can be extended if possible.
-
-**DirectBindService.LifecycleImpl** - default lifecycle service implementation that can be extended if possible.
-
-**DirectBindService.ConnectionFactory** - connection factory for specific direct bind service class. This can be created or inherited by
-that services companion object for convenience.
-
-**LingeringService** - service that auto-starts self to persist for a while after `unbind()`.
-Its companion object contains required connection factory methods.
-
-**LingeringService.ConnectionFactory** - connection factory for specific lingering service class. This can be created or inherited by
-that services companion object for convenience.
-
 ### Transition
 
 Few common transitions and utilities.
@@ -84,7 +65,7 @@ Few common transitions and utilities.
 **SaveChildStateLayouts** - logic for containing save state of all children within their parent.  Prevents collision with duplicate view ids within the layout.
 
 ## License
-Copyright 2019 Paweł Paszkiewicz
+Copyright -2020 Paweł Paszkiewicz
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
