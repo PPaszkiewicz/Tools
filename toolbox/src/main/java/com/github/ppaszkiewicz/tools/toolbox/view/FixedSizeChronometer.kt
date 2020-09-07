@@ -37,14 +37,15 @@ class FixedSizeChronometer @JvmOverloads constructor(
 
     }
 
-    override fun setText(text: CharSequence, type: BufferType) {
+    override fun setText(text: CharSequence?, type: BufferType) {
+        val txtLength = text?.length ?: 0
         when (resizePolicy) {
             ResizePolicy.ALWAYS -> mConsumeLayoutRequest = false
-            ResizePolicy.ON_LENGTH_CHANGED -> if (text.length == mTextLength) mConsumeLayoutRequest = true
+            ResizePolicy.ON_LENGTH_CHANGED -> if (txtLength == mTextLength) mConsumeLayoutRequest = true
             ResizePolicy.NEVER -> mConsumeLayoutRequest = true
             ResizePolicy.IF_NOT_LAID_OUT -> mConsumeLayoutRequest = width != 0 && height != 0
         }
-        mTextLength = text.length
+        mTextLength = txtLength
         super.setText(text, type)
     }
 
