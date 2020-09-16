@@ -27,7 +27,7 @@ suspend fun <T> LiveData<T>.awaitValue(
     // fast exit case for non nullable value
     // - don't check null because it might mean livedata is not initialized
     // - possible issue: if livedata is NOT active and condition is satisfied here outdated value
-    // might be returned an if livedata implementation relies on invalidation during onActive()
+    // might be returned if livedata implementation relies on invalidation during onActive()
     value?.takeIf(condition)?.let { return it }
 
     var obs: Observer<T>? = null
