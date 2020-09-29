@@ -38,8 +38,8 @@ abstract class BindServiceConnection<T>(
     contextDelegate: ContextDelegate,
     /** Default bind flags to use. */
     bindFlags: Int = Context.BIND_AUTO_CREATE,
-    private val callbacksProxy: BindServiceConnectionCallbacks.Lambdas.Proxy<T> = BindServiceConnectionCallbacks.Lambdas.Proxy()
-) : LiveData<T?>(), LifecycleOwner, BindServiceConnectionCallbacks.Lambdas<T> by callbacksProxy {
+    private val callbacksProxy: BindServiceConnectionLambdas.Proxy<T> = BindServiceConnectionLambdas.Proxy()
+) : LiveData<T?>(), LifecycleOwner, BindServiceConnectionLambdas<T> by callbacksProxy {
     /** Intent that is used to bind to the service. */
     internal abstract fun createBindingIntent(context: Context): Intent
 
@@ -111,11 +111,11 @@ abstract class BindServiceConnection<T>(
 
     /** Modify all underlying callbacks to use [callbackInterface]. */
     fun setCallbackInterface(callbackInterface: BindServiceConnectionCallbacks<T>) {
-        callbacksProxy.c = BindServiceConnectionCallbacks.Lambdas.Adapter(callbackInterface)
+        callbacksProxy.c = BindServiceConnectionLambdas.Adapter(callbackInterface)
     }
 
     /** Modify all underlying callbacks to use [callbackLambdas]. */
-    fun setCallbackLambdas(callbackLambdas: BindServiceConnectionCallbacks.Lambdas<T>) {
+    fun setCallbackLambdas(callbackLambdas: BindServiceConnectionLambdas<T>) {
         callbacksProxy.c = callbackLambdas
     }
 
