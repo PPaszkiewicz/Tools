@@ -41,10 +41,10 @@ abstract class BindServiceConnection<T>(
     private val callbacksProxy: BindServiceConnectionLambdas.Proxy<T> = BindServiceConnectionLambdas.Proxy()
 ) : LiveData<T?>(), LifecycleOwner, BindServiceConnectionLambdas<T> by callbacksProxy {
     /** Intent that is used to bind to the service. */
-    internal abstract fun createBindingIntent(context: Context): Intent
+    protected abstract fun createBindingIntent(context: Context): Intent
 
     /** Transform [binder] object into valid [LiveData] value of this object. */
-    internal abstract fun transformBinder(name: ComponentName, binder: IBinder): T
+    protected abstract fun transformBinder(name: ComponentName, binder: IBinder): T
 
     /**
      * Used to determine if [onFirstConnect] should trigger - this is based on the fact that
@@ -60,7 +60,7 @@ abstract class BindServiceConnection<T>(
         get() {
             if (!config.lifecycleRepresentsConnection) _mlifecycle = LifecycleRegistry(this)
             return _mlifecycle
-                ?: throw IllegalStateException("Cannot access lifecycle before service connects. To modify this behavior disable config.invalidateLifecycleOnConnectionLoss")
+                ?: throw IllegalStateException("Cannot access lifecycle before service connects. To modify this behavior disable config.lifecycleRepresentsConnection")
         }
 
     /** Context provided by delegate, workaround for fragment lazy context initialization. */
@@ -166,7 +166,7 @@ abstract class BindServiceConnection<T>(
      * Use this to forcefully disconnect all listeners that were observing this lifecycle.
      *
      * @param releaseBinderRef (default: `true`) discard internal weak binder reference. This will force
-     * [onFirstConnect] to be called on next connection even if it reconnects to same service.
+     * [onFirstConnect] to be called on next connection even if it reconnects to the same service.
      * */
     fun dispatchDestroyLifecycle(releaseBinderRef: Boolean = true) {
         if (releaseBinderRef) currentBinder = null

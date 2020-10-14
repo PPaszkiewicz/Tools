@@ -12,7 +12,7 @@ import kotlin.coroutines.resume
 // default timeout is rather short but enough for most livedatas backed by local providers like
 // sensors or database to return
 private const val DEFAULT_TIMEOUT = 1000L
-private const val DISABLE_TIMEOUT = Long.MIN_VALUE
+private const val DISABLE_TIMEOUT = -1L
 
 /**
  * Suspend coroutine up to [timeOut] _(default: 1000ms)_ until livedata value fulfills [condition].
