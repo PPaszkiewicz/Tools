@@ -40,7 +40,68 @@ class YourActivity : AppCompatActivity() {
 ```
 This will automatically bind to your service for as long as activity is alive.
 
-For more complex sample see demo package.
+## Other service classes
+
+If you cannot inherit from `DirectBindService.Impl` you have to create `DirectBinder` and parse binding
+intent manually:
+
+ ```kotlin
+class YourService : NotificationListenerService(), DirectBindService {
+    companion object {
+        val connectionFactory = DirectBindService.ConnectionFactory<YourService>()
+    }
+
+    val mBinder = DirectBinder(this)
+
+    override fun onBind(intent: Intent): IBinder? {
+        if(intent.action == DirectBindService.BIND_DIRECT_ACTION)
+            return mBinder
+        return super.onBind(intent)
+    }
+
+    /** service implementation **/
+}
+ ```
+
+Usage in activity remains the same.
+
+## Third party services
+
+When you cannot access and modify the service class to bind to (for example when using AIDL) use
+`RemoteBindService.ConnectionFactory`:
+
+```kotlin
+// create static factory object to use across project
+object MyAidlConnectionFactory : RemoteBindService.ConnectionFactory<MyAidlInterface>(aidlProxy)
+
+private val aidlProxy = object : BindServiceConnectionProxy<MyAidlInterface> {
+    override fun createBindingIntent(context: Context): Intent {
+        val aidlService = ComponentName("com.sample.sample", "com.sample.sample.MyAidlService")
+        return Intent(MyAidlInterface.BIND_ACTION).setComponent(aidlService)
+    }
+
+    override fun transformBinder(name: ComponentName, binder: IBinder): MyAidlInterface {
+        return MyAidlInterface.Stub.asInterface(binder)
+    }
+}
+```
+
+Then usage in activity is same as before, we just use this connection factory:
+
+```kotlin
+class YourActivity : AppCompatActivity() {
+    val connection = MyAidlConnectionFactory.lifecycle(this)
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // inject basic listeners
+        connection.onConnect = {
+            Log.d("Demo", "Connected to service : $it")
+        }
+        // rest of onCreate
+    }
+}
+```
 
 ## Classes
 
@@ -65,6 +126,9 @@ Its companion object contains required connection factory methods.
 
 **LingeringService.ConnectionFactory** - connection factory for specific lingering service class. This can be created or inherited by
 that services companion object for convenience.
+
+**RemoteBindService.ConnectionFactory** - connection factory that can be supplied custom intent and binder
+handling behavior.
 
 ## License
 Copyright 2019-2020 Paweł Paszkiewicz

@@ -39,13 +39,8 @@ abstract class BindServiceConnection<T>(
     /** Default bind flags to use. */
     bindFlags: Int = Context.BIND_AUTO_CREATE,
     private val callbacksProxy: BindServiceConnectionLambdas.Proxy<T> = BindServiceConnectionLambdas.Proxy()
-) : LiveData<T?>(), LifecycleOwner, BindServiceConnectionLambdas<T> by callbacksProxy {
-    /** Intent that is used to bind to the service. */
-    protected abstract fun createBindingIntent(context: Context): Intent
-
-    /** Transform [binder] object into valid [LiveData] value of this object. */
-    protected abstract fun transformBinder(name: ComponentName, binder: IBinder): T
-
+) : LiveData<T?>(), LifecycleOwner, BindServiceConnectionProxy<T>,
+    BindServiceConnectionLambdas<T> by callbacksProxy {
     /**
      * Used to determine if [onFirstConnect] should trigger - this is based on the fact that
      * as long as service is alive we will keep receiving exact same binder object regardless

@@ -75,6 +75,16 @@ interface DirectBindService {
         inline fun <reified T : DirectBindService> createIntentFor(context: Context) =
             createIntentFor(context, T::class.java)
 
+        /** Create direct binding proxy implementation to use as delegate. */
+        fun <T : DirectBindService> proxy(serviceClass: Class<T>) =
+            object : BindServiceConnectionProxy<T> {
+                override fun createBindingIntent(context: Context) =
+                    createIntentFor(context, serviceClass)
+
+                override fun transformBinder(name: ComponentName, binder: IBinder) =
+                    (binder as DirectBinder).service as T
+            }
+
         /** Create [ConnectionFactory] factory for [DirectBindService] of class [T]. */
         inline fun <reified T : DirectBindService> ConnectionFactory() =
             ConnectionFactory(T::class.java)
@@ -109,13 +119,8 @@ open class DirectManualServiceConnection<T : DirectBindService>(
     val serviceClass: Class<T>,
     /** Default bind flags to use. */
     bindFlags: Int = BIND_AUTO_CREATE
-) : ManualBindServiceConnection<T>(contextDelegate, bindFlags) {
-    override fun createBindingIntent(context: Context) =
-        DirectBindService.createIntentFor(context, serviceClass)
-
-    override fun transformBinder(name: ComponentName, binder: IBinder) =
-        (binder as DirectBinder).service as T
-}
+) : ManualBindServiceConnection<T>(contextDelegate, bindFlags),
+    BindServiceConnectionProxy<T> by DirectBindService.proxy(serviceClass)
 
 /**
  * Binds to a DirectBindService when it has active [LiveData] observers and provides basic callbacks.
@@ -125,13 +130,8 @@ open class DirectObservableServiceConnection<T : DirectBindService>(
     val serviceClass: Class<T>,
     /** Default bind flags to use. */
     bindFlags: Int = BIND_AUTO_CREATE
-) : ObservableBindServiceConnection<T>(contextDelegate, bindFlags) {
-    override fun createBindingIntent(context: Context) =
-        DirectBindService.createIntentFor(context, serviceClass)
-
-    override fun transformBinder(name: ComponentName, binder: IBinder) =
-        (binder as DirectBinder).service as T
-}
+) : ObservableBindServiceConnection<T>(contextDelegate, bindFlags),
+    BindServiceConnectionProxy<T> by DirectBindService.proxy(serviceClass)
 
 /**
  * Binds to a DirectBindService based on lifecycle and provides basic callbacks.
@@ -142,10 +142,5 @@ open class DirectLifecycleServiceConnection<T : DirectBindService>(
     bindingLifecycleState: Lifecycle.State,
     /** Default bind flags to use. */
     bindFlags: Int = BIND_AUTO_CREATE
-) : LifecycleBindServiceConnection<T>(contextDelegate, bindingLifecycleState, bindFlags) {
-    override fun createBindingIntent(context: Context) =
-        DirectBindService.createIntentFor(context, serviceClass)
-
-    override fun transformBinder(name: ComponentName, binder: IBinder) =
-        (binder as DirectBinder).service as T
-}
+) : LifecycleBindServiceConnection<T>(contextDelegate, bindingLifecycleState, bindFlags),
+    BindServiceConnectionProxy<T> by DirectBindService.proxy(serviceClass)
