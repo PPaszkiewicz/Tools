@@ -54,7 +54,7 @@ class YourService : NotificationListenerService(), DirectBindService {
     val mBinder = DirectBinder(this)
 
     override fun onBind(intent: Intent): IBinder? {
-        if(intent.action == DirectBindService.BIND_DIRECT_ACTION)
+        if (intent.action == DirectBindService.BIND_DIRECT_ACTION)
             return mBinder
         return super.onBind(intent)
     }
