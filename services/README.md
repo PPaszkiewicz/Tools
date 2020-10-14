@@ -109,7 +109,7 @@ class YourActivity : AppCompatActivity() {
 
 **BindServiceConnectionCallbacks** - interface for connection callbacks.
 
-**BindServiceConnectionCallbacks.Lambdas** - callback interface with hot pluggable lambdas instead of methods.
+**BindServiceConnectionLambdas** - callback interface that defines hot pluggable lambdas instead of methods.
 
 **DirectBindService** - abstract marker interface for services that can be bound to directly (within same process).
 Its companion object contains smart connection factory methods.
