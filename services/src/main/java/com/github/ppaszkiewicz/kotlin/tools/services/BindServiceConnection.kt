@@ -74,6 +74,8 @@ abstract class BindServiceConnection<T>(
         var defaultBindFlags: Int,
         /**
          * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
+         *
+         * This is NO-OP below API 28.
          */
         var autoRebindDeadBinding: Boolean = true,
         /**
@@ -211,6 +213,7 @@ abstract class BindServiceConnection<T>(
             }
         }
 
+        // added in API level 28
         override fun onBindingDied(name: ComponentName?) {
             // this is always triggered after onServiceDisconnected ?
             val callbackConsumed = onBindingDied?.invoke() ?: false
@@ -221,6 +224,7 @@ abstract class BindServiceConnection<T>(
             }
         }
 
+        // added in API level 26
         override fun onNullBinding(name: ComponentName?) {
             onNullBinding?.invoke()
         }

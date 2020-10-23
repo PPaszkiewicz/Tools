@@ -1,5 +1,7 @@
 package com.github.ppaszkiewicz.kotlin.tools.services
 
+import androidx.annotation.RequiresApi
+
 /**
  * Callback interface for [BindServiceConnection] that defines hot pluggable lambdas instead of methods.
  * */
@@ -46,11 +48,15 @@ interface BindServiceConnectionLambdas<T> {
      * Triggered when binding dies.
      *
      * Return `true` to consume callback or [onUnbind] and [onBind] will be called while rebinding.
+     *
+     * **Works only from API level 28.**
      */
     var onBindingDied: (() -> Boolean)?
 
     /**
      * Called when [ServiceConnection.onNullBinding] occurs.
+     *
+     * **Works only from API level 26.**
      */
     var onNullBinding: (() -> Unit)?
 

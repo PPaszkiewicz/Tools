@@ -59,7 +59,7 @@ class DemoLingeringService : com.github.ppaszkiewicz.kotlin.tools.services.Linge
             nm.createNotificationChannel(channel)
         }
         val n = NotificationCompat.Builder(this, "CHANNEL_ID")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_service)
             .setContentText("Test lingering service")
             .build()
         nm.notify(1, n)

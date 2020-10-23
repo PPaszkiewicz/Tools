@@ -259,7 +259,7 @@ class TestService : DirectBindService.Impl() {
             nm.createNotificationChannel(channel)
         }
         val n = NotificationCompat.Builder(this, "CHANNEL_ID")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_service)
             .setContentText("Test service")
             .build()
         nm.notify(0, n)

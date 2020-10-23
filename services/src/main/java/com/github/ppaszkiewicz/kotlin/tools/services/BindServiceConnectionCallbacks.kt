@@ -49,11 +49,15 @@ interface BindServiceConnectionCallbacks<T> {
      * Triggered when binding dies.
      *
      * Return `true` to consume callback or [onUnbind] and [onBind] will be called while rebinding.
+     *
+     * **Works only from API level 28.**
      */
     fun onBindingDied(): Boolean
 
     /**
      * Called when [ServiceConnection.onNullBinding] occurs.
+     *
+     * **Works only from API level 26.**
      */
     fun onNullBinding()
 
