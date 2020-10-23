@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.os.Build
 import android.os.IBinder
 import android.system.Os.bind
 import android.util.Log
@@ -75,9 +76,14 @@ abstract class BindServiceConnection<T>(
         /**
          * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
          *
-         * This is NO-OP below API 28.
+         * This works natively starting from API 28, for lower versions compatibility behavior is
+         * enabled by [autoRebindDeadBindingCompat].
          */
         var autoRebindDeadBinding: Boolean = true,
+        /**
+         * Force rebind when connection dies on devices below API 28.
+         */
+        var autoRebindDeadBindingCompat : Boolean = true,
         /**
          * Call [BindServiceConnection.dispatchDestroyLifecycle] before [BindServiceConnection.onConnectionLost].
          *
@@ -187,6 +193,12 @@ abstract class BindServiceConnection<T>(
                 "BindServiceConn", "unexpected onServiceDisconnected: service object missing. " +
                         "Connection: ${this::javaClass.name}, Service name: $name"
             )
+            // compat behavior - assume this event killed the binding
+            if(Build.VERSION.SDK_INT < Build.VERSION_CODES.P
+                && config.autoRebindDeadBindingCompat
+                && config.autoRebindDeadBinding){
+                onBindingDied(name)
+            }
         }
 
         override fun onServiceConnected(name: ComponentName, service: IBinder) {

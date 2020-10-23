@@ -49,7 +49,7 @@ interface BindServiceConnectionLambdas<T> {
      *
      * Return `true` to consume callback or [onUnbind] and [onBind] will be called while rebinding.
      *
-     * **Works only from API level 28.**
+     * **Works natively from API level 28. For lower versions compat behavior applies (triggered after [onConnectionLost]). **
      */
     var onBindingDied: (() -> Boolean)?
 
