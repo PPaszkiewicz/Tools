@@ -12,21 +12,28 @@ import androidx.recyclerview.widget.RecyclerView
  *
  * Usually it's easier to have a container (Frame or Constraint layouts) in ViewHolder, but this is for
  * special case where it's not possible or inefficient (ViewHolders shared between different LayoutManagers).
+ *
+ * You can use `android:gravity` to declare it in layout xml.
  * */
-class GravityGridLayoutManager : GridLayoutManager {
+open class GravityGridLayoutManager : GridLayoutManager {
     constructor(
-        context: Context?,
+        context: Context,
         attrs: AttributeSet?,
         defStyleAttr: Int,
         defStyleRes: Int
-    ) : super(context, attrs, defStyleAttr, defStyleRes)
+    ) : super(context, attrs, defStyleAttr, defStyleRes) {
+        if (attrs == null) return
+        val ta = context.obtainStyledAttributes(attrs, intArrayOf(android.R.attr.gravity), defStyleAttr, defStyleRes)
+        gravity = ta.getInt(0, Gravity.START or Gravity.TOP)
+        ta.recycle()
+    }
 
-    constructor(context: Context?, spanCount: Int, gravity: Int) : super(context, spanCount) {
+    constructor(context: Context, spanCount: Int, gravity: Int) : super(context, spanCount) {
         this.gravity = gravity
     }
 
     constructor(
-        context: Context?,
+        context: Context,
         spanCount: Int,
         orientation: Int,
         reverseLayout: Boolean,
