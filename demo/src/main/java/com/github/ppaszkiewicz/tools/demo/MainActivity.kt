@@ -11,6 +11,7 @@ import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParams
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParamsDialog
 import com.github.ppaszkiewicz.tools.demo.coroutines.loaderDemo.LoaderActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.TaskServiceActivity
+import com.github.ppaszkiewicz.tools.demo.databinding.ActivityMainBinding
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity2
 import com.github.ppaszkiewicz.tools.demo.lingeringServiceDemo.LingeringServiceActivity3
@@ -18,13 +19,13 @@ import com.github.ppaszkiewicz.tools.demo.recyclerView.NestedRecyclerDemoActivit
 import com.github.ppaszkiewicz.tools.demo.viewModel.SyncableLiveDataDemoActivity
 import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
 import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences
+import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startActivity
-import kotlinx.android.synthetic.main.activity_main.*
 
 /**
  * Activity for selecting test.
  * */
-class MainActivity : AppCompatActivity(R.layout.activity_main) {
+class MainActivity : AppCompatActivity() {
     companion object {
         const val TAG = "MainActivity"
         const val SAVE_PARAMS = "SAVE_PARAMS"
@@ -46,48 +47,54 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
     // boolean stored in shared preferences
     var storedPreference by preferences().boolean("Bool", false)
+
     // delegate object storing enum in shared preferences: kept explicitly bc livedata will be used too
     val enumPref = preferences().enum("EnumPref", TestEnum.OFF)
     var storedPrefEnum by enumPref
 
+    // viewbinding (created by delegate)
+    val binding by viewBinding<ActivityMainBinding>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setSupportActionBar(toolbar)
+        with(binding) {
+            setSupportActionBar(toolbar)
 
-        savedInstanceState?.let {
-            // restore edited params
-            params = it.getParcelable(SAVE_PARAMS)!!
-        }
-
-        // task tests
-        btnLoaderTest1.setOnClickListener {
-            startActivity<LoaderActivity> {
-                putExtra(TestActivityBase.EXTRA_LOADER_ARGS, params)
+            savedInstanceState?.let {
+                // restore edited params
+                params = it.getParcelable(SAVE_PARAMS)!!
             }
-        }
-        btnServiceTest1.setOnClickListener {
-            startActivity<TaskServiceActivity>{
-                putExtra(TestActivityBase.EXTRA_LOADER_ARGS, params)
+
+            // task tests
+            btnLoaderTest1.setOnClickListener {
+                startActivity<LoaderActivity> {
+                    putExtra(TestActivityBase.EXTRA_LOADER_ARGS, params)
+                }
             }
+            btnServiceTest1.setOnClickListener {
+                startActivity<TaskServiceActivity> {
+                    putExtra(TestActivityBase.EXTRA_LOADER_ARGS, params)
+                }
+            }
+
+            // binding service test
+            btnBoundService.setOnClickListener { startActivity<BindServiceDemoActivity>() }
+
+            // lingering service tests
+            btnLingeringTest1.setOnClickListener { startActivity<LingeringServiceActivity>() }
+            btnLingeringTest2.setOnClickListener { startActivity<LingeringServiceActivity2>() }
+            btnLingeringTest3.setOnClickListener { startActivity<LingeringServiceActivity3>() }
+
+            // layouts test
+            btnViewsTest1.setOnClickListener { startActivity<SaveStateTestActivity>() }
+            btnSyncLiveDataTest1.setOnClickListener { startActivity<SyncableLiveDataDemoActivity>() }
+            btnRecyclerTest.setOnClickListener { startActivity<NestedRecyclerDemoActivity>() }
+
+            // preference observer
+            enumPref.liveData.observe(this@MainActivity, Observer {
+                txtPreferenceValue.text = it.toString()
+            })
         }
-
-        // binding service test
-        btnBoundService.setOnClickListener { startActivity<BindServiceDemoActivity>() }
-
-        // lingering service tests
-        btnLingeringTest1.setOnClickListener { startActivity<LingeringServiceActivity>() }
-        btnLingeringTest2.setOnClickListener { startActivity<LingeringServiceActivity2>() }
-        btnLingeringTest3.setOnClickListener { startActivity<LingeringServiceActivity3>() }
-
-        // layouts test
-        btnViewsTest1.setOnClickListener { startActivity<SaveStateTestActivity>() }
-        btnSyncLiveDataTest1.setOnClickListener { startActivity<SyncableLiveDataDemoActivity>() }
-        btnRecyclerTest.setOnClickListener { startActivity<NestedRecyclerDemoActivity>() }
-
-        // preference observer
-        enumPref.liveData.observe(this, Observer {
-            txtPreferenceValue.text = it.toString()
-        })
     }
 
     override fun onSaveInstanceState(outState: Bundle) {

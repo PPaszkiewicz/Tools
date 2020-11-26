@@ -7,7 +7,6 @@ import androidx.core.view.children
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.coroutines.ProgressTextView
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
-import kotlinx.android.synthetic.main.activity_test.*
 import kotlin.random.Random
 
 //todo: unstable test
@@ -24,9 +23,9 @@ class TaskServiceActivity : TestActivityBase() {
         serviceConnection.onConnect = ::onConnected
         serviceConnection.onDisconnect = ::onDisconnected
 
-        test_button_1.setOnClickListener { startAllTasks() }
-        test_button_2.setOnClickListener { DemoTaskService.cancelAllTasks(this) }
-        test_button_3.setOnClickListener {
+        binding.testButton1.setOnClickListener { startAllTasks() }
+        binding.testButton2.setOnClickListener { DemoTaskService.cancelAllTasks(this) }
+        binding.testButton3.setOnClickListener {
             serviceConnection.value?.let {service ->
                 // force kill service and recreate activity?
                 DemoTaskService.cancelAllTasks(this)
@@ -52,7 +51,7 @@ class TaskServiceActivity : TestActivityBase() {
 
         val r = Random(System.currentTimeMillis())
         // begin tasks in the service
-        layTestLoaderContainer.children.forEach { view ->
+        binding.layTestLoaderContainer.children.forEach { view ->
             // cast to custom progress view
             view as ProgressTextView
 
@@ -98,7 +97,7 @@ class TaskServiceActivity : TestActivityBase() {
     }
 
     private fun attachObservers(){
-        layTestLoaderContainer.children.forEach { view ->
+        binding.layTestLoaderContainer.children.forEach { view ->
             // cast to custom progress view
             view as ProgressTextView
             // if there is more views than tasks, modulo key down

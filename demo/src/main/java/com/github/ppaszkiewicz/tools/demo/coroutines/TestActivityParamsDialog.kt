@@ -1,17 +1,16 @@
 package com.github.ppaszkiewicz.tools.demo.coroutines
 
 import android.content.Context
-import android.view.View
+import android.view.LayoutInflater
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
-import com.github.ppaszkiewicz.tools.demo.R
-import kotlinx.android.synthetic.main.view_params_edit.view.*
+import com.github.ppaszkiewicz.tools.demo.databinding.ViewParamsEditBinding
 
 /** Dialog for editing [TestActivityParams]. */
 object TestActivityParamsDialog {
     fun createAndShow(context: Context, srcParams: TestActivityParams, onChanged: (TestActivityParams) -> Unit) {
-        val paramsView = View.inflate(context, R.layout.view_params_edit, null)
-        paramsView.apply {
+        val paramsBinding = ViewParamsEditBinding.inflate(LayoutInflater.from(context))
+        paramsBinding.apply {
             srcParams.apply {
                 etRows.int = taskCountRows
                 etColumns.int = taskCountColumns
@@ -24,10 +23,10 @@ object TestActivityParamsDialog {
         }
         AlertDialog.Builder(context)
             .setTitle("Edit task params")
-            .setView(paramsView)
+            .setView(paramsBinding.root)
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(android.R.string.ok){_,_ ->
-                val newParams = paramsView.run {
+                val newParams = paramsBinding.run {
                     TestActivityParams(
                         etRows.int,
                         etColumns.int,

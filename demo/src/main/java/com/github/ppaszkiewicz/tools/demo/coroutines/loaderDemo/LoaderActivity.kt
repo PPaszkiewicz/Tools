@@ -6,7 +6,6 @@ import androidx.core.view.children
 import com.github.ppaszkiewicz.tools.coroutines.loader.CancellationType
 import com.github.ppaszkiewicz.tools.demo.coroutines.ProgressTextView
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
-import kotlinx.android.synthetic.main.activity_test.*
 import java.lang.IllegalStateException
 import kotlin.random.Random
 
@@ -23,20 +22,20 @@ class LoaderActivity : TestActivityBase() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        test_button_1.setOnClickListener { startLoader() }
-        test_button_2.setOnClickListener { cancelLoader() }
-        test_button_3.setOnClickListener {
+        binding.testButton1.setOnClickListener { startLoader() }
+        binding.testButton2.setOnClickListener { cancelLoader() }
+        binding.testButton3.setOnClickListener {
             // to lazy to refresh layout right now, force user to refresh activity
             recreate()
         }
     }
 
     private fun startLoader() {
-        test_button_1.isEnabled = false
+        binding.testButton1.isEnabled = false
         if (demoLoader.wasReleased) throw IllegalStateException("unable to start after release")
         val r = Random(System.currentTimeMillis())
         // begin loader and attach views as callbacks
-        layTestLoaderContainer.children.forEach {view ->
+        binding.layTestLoaderContainer.children.forEach {view ->
             // cast to custom progress view
             view as ProgressTextView
 
@@ -89,8 +88,8 @@ class LoaderActivity : TestActivityBase() {
 
     private fun cancelLoader() {
         demoLoader.release("Manually cancelling all")
-        test_button_1.isEnabled = false
-        test_button_2.isEnabled = false
+        binding.testButton1.isEnabled = false
+        binding.testButton2.isEnabled = false
     }
 
     override fun onDestroy() {

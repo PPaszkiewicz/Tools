@@ -158,7 +158,7 @@ abstract class BindServiceConnection<T>(
     }
 
     override fun observe(owner: LifecycleOwner, observer: Observer<in T?>) {
-        require(owner !== this) { "Invalid LifecycleOwner - service connection is not allowed observe self." }
+        require(owner !== this) { "Invalid LifecycleOwner - service connection is not allowed to observe self." }
         super.observe(owner, observer)
     }
 
@@ -311,7 +311,7 @@ abstract class BindServiceConnection<T>(
         /** Make [conn] observe any lifecycle emitted by [ldOwner] as long as [lOwner] is alive. */
         protected fun attach(
             lOwner: LifecycleOwner,
-            ldOwner: LiveData<LifecycleOwner>,
+            ldOwner: LiveData<LifecycleOwner?>,
             conn: LifecycleBindServiceConnection<T>
         ) = conn.apply { ldOwner.observe(lOwner, Observer { it?.lifecycle?.addObserver(this) }) }
     }

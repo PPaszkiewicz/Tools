@@ -23,7 +23,12 @@ open class GravityGridLayoutManager : GridLayoutManager {
         defStyleRes: Int
     ) : super(context, attrs, defStyleAttr, defStyleRes) {
         if (attrs == null) return
-        val ta = context.obtainStyledAttributes(attrs, intArrayOf(android.R.attr.gravity), defStyleAttr, defStyleRes)
+        val ta = context.obtainStyledAttributes(
+            attrs,
+            intArrayOf(android.R.attr.gravity),
+            defStyleAttr,
+            defStyleRes
+        )
         gravity = ta.getInt(0, Gravity.START or Gravity.TOP)
         ta.recycle()
     }

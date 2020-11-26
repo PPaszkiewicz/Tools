@@ -8,9 +8,9 @@ import android.view.Gravity
 import android.widget.GridLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.setMargins
-import com.github.ppaszkiewicz.tools.demo.R
-import kotlinx.android.parcel.Parcelize
-import kotlinx.android.synthetic.main.activity_test.*
+import com.github.ppaszkiewicz.tools.demo.databinding.ActivityTestBinding
+import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
+import kotlinx.parcelize.Parcelize
 
 // extras for activity  and service intents
 
@@ -21,12 +21,13 @@ abstract class TestActivityBase : AppCompatActivity() {
     }
 
     val testActivityParams by lazy<TestActivityParams> {
-        intent.getParcelableExtra(EXTRA_LOADER_ARGS)
+        intent.getParcelableExtra(EXTRA_LOADER_ARGS)!!
     }
+
+    val binding by viewBinding<ActivityTestBinding>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_test)
 
         Log.d("TestActivity", "starting activity: ${this.javaClass.simpleName}, $testActivityParams")
 
@@ -34,7 +35,7 @@ abstract class TestActivityBase : AppCompatActivity() {
         val columns = testActivityParams.taskCountColumns
         val maxTaskCount = testActivityParams.taskCount
 
-        layTestLoaderContainer.apply {
+        binding.layTestLoaderContainer.apply {
             val isLandscape = resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
             rowCount = if (isLandscape) columns else rows
             columnCount = if (isLandscape) rows else columns
