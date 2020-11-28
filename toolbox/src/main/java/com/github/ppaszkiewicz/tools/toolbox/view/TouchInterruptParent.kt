@@ -44,14 +44,21 @@ interface TouchInterruptParent {
      * */
     fun interruptOngoingTouchEvent(event: MotionEvent?, beginDrag: Boolean)
 
+    /** [interruptOngoingTouchEvent] is performing interrupt and sending mocked touch events now. */
+    fun isInterruptingTouchEventNow() : Boolean
+
     /** Helper with default implementation. */
     class Helper(val view: View) : TouchInterruptParent {
         private var lastTouchEvent: MotionEvent? = null
         private var interruptTouch: Boolean = false
+        private var isInterrupting = false
+
+        override fun isInterruptingTouchEventNow() = isInterrupting
 
         override fun interruptOngoingTouchEvent(event: MotionEvent?, beginDrag: Boolean) {
             interruptTouch = true
             (event ?: lastTouchEvent)?.let {
+                isInterrupting = true
                 // dispatch mocked up event to send cancel to currently touched views
                 it.action = MotionEvent.ACTION_UP
                 view.dispatchTouchEvent(it)
@@ -60,6 +67,7 @@ interface TouchInterruptParent {
                     it.action = MotionEvent.ACTION_DOWN
                     view.onTouchEvent(it)
                 }
+                isInterrupting = false
             }
         }
 
@@ -93,6 +101,8 @@ class MotionLayoutTouchInterrupt @JvmOverloads constructor(
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
         return mInterruptHelper.onInterceptTouchEvent(event) || super.onInterceptTouchEvent(event)
     }
+
+    override fun isInterruptingTouchEventNow() = mInterruptHelper.isInterruptingTouchEventNow()
 }
 
 /** [ConstraintLayout] implementing [TouchInterruptParent]. */
@@ -108,6 +118,8 @@ class ConstraintLayoutTouchInterrupt @JvmOverloads constructor(
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
         return mInterruptHelper.onInterceptTouchEvent(event) || super.onInterceptTouchEvent(event)
     }
+
+    override fun isInterruptingTouchEventNow() = mInterruptHelper.isInterruptingTouchEventNow()
 }
 
 
