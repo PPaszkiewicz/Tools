@@ -176,7 +176,7 @@ class OnSlopeDragInterrupt(
     override fun onTouch(view: View, event: MotionEvent): Boolean {
         return when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                if (isActive?.invoke() == false) return false
+                if (isInTouch() || isActive?.invoke() == false) return false
                 startX = event.x
                 startY = event.y
                 true
@@ -215,6 +215,9 @@ class OnSlopeDragInterrupt(
         if (slope == -1) slope = ViewConfiguration.get(view.context).scaledTouchSlop
         return slope
     }
+
+    /** See if there's an active touch event being monitored. */
+    fun isInTouch() = startX != null
 
     /** Builder to create multiple identical instances. */
     class Builder(
