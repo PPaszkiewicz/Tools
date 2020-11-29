@@ -9,6 +9,10 @@ import android.view.ViewParent
 import android.view.ViewGroup
 import androidx.constraintlayout.motion.widget.MotionLayout
 import androidx.constraintlayout.widget.ConstraintLayout
+import com.github.ppaszkiewicz.tools.toolbox.view.TouchInterruptParent.Action.BEGIN_DRAG
+import com.github.ppaszkiewicz.tools.toolbox.view.TouchInterruptParent.Action.CANCEL_ONLY
+import com.github.ppaszkiewicz.tools.toolbox.view.TouchInterruptParent.Action.DISPATCH_UP
+import com.github.ppaszkiewicz.tools.toolbox.view.TouchInterruptParent.Action.DISPATCH_UP_AND_BEGIN_DRAG
 import kotlin.math.absoluteValue
 
 /** ViewGroup that can take ongoing touch event from its children on command. */
@@ -35,17 +39,33 @@ interface TouchInterruptParent {
         fun findFrom(view: View) = findFrom(view.parent)
     }
 
+    /** Action constants for [interruptOngoingTouchEvent]. */
+    object Action {
+        /** Don't perform extra actions, only use default behavior of [ViewGroup.onInterceptTouchEvent]. */
+        const val CANCEL_ONLY = 0
+
+        /** Dispatch UP event to children. */
+        const val DISPATCH_UP = 1
+
+        /** Mock this event as DOWN and send it to own [View.onTouchEvent] to begin dragging. */
+        const val BEGIN_DRAG = 2
+
+        /** Perform both [BEGIN_DRAG] and [DISPATCH_UP]. */
+        const val DISPATCH_UP_AND_BEGIN_DRAG = BEGIN_DRAG + DISPATCH_UP
+    }
+
     /**
-     * Force ongoing touch [event] to be cancelled and forcefully taken by this ViewGroup. If [beginDrag]
-     * then DOWN event is mocked to begin drag motion in itself.
+     * Force ongoing touch [event] to be cancelled and forcefully taken by this ViewGroup.
      *
      * If [event] is `null` then last touch on this view hierarchy is interrupted. It's recommended to
      * disable [ViewGroup.isMotionEventSplittingEnabled] on this ViewGroup before doing so.
+     *
+     * @param actions one of [Action] constants.
      * */
-    fun interruptOngoingTouchEvent(event: MotionEvent?, beginDrag: Boolean)
+    fun interruptOngoingTouchEvent(event: MotionEvent?, actions: Int)
 
     /** [interruptOngoingTouchEvent] is performing interrupt and sending mocked touch events now. */
-    fun isInterruptingTouchEventNow() : Boolean
+    fun isInterruptingTouchEventNow(): Boolean
 
     /** Helper with default implementation. */
     class Helper(val view: View) : TouchInterruptParent {
@@ -55,15 +75,17 @@ interface TouchInterruptParent {
 
         override fun isInterruptingTouchEventNow() = isInterrupting
 
-        override fun interruptOngoingTouchEvent(event: MotionEvent?, beginDrag: Boolean) {
+        override fun interruptOngoingTouchEvent(event: MotionEvent?, actions: Int) {
             interruptTouch = true
             (event ?: lastTouchEvent)?.let {
                 isInterrupting = true
                 // dispatch mocked up event to send cancel to currently touched views
-                it.action = MotionEvent.ACTION_UP
-                view.dispatchTouchEvent(it)
-                if (beginDrag) {
-                    // now self consume mocked DOWN event to begin self drag
+                if (actions and DISPATCH_UP == DISPATCH_UP) {
+                    it.action = MotionEvent.ACTION_UP
+                    view.dispatchTouchEvent(it)
+                }
+                // now self consume mocked DOWN event to begin self drag
+                if (actions and BEGIN_DRAG == BEGIN_DRAG) {
                     it.action = MotionEvent.ACTION_DOWN
                     view.onTouchEvent(it)
                 }
@@ -84,6 +106,14 @@ interface TouchInterruptParent {
     }
 }
 
+/** Extension that constructs action. */
+fun TouchInterruptParent.interruptOngoingTouchEvent(
+    event: MotionEvent? = null, beginDrag: Boolean = true, dispatchUp: Boolean = true
+) = interruptOngoingTouchEvent(
+    event,
+    CANCEL_ONLY + (if (beginDrag) BEGIN_DRAG else 0) + (if (dispatchUp) DISPATCH_UP else 0)
+)
+
 /** [MotionLayout] implementing [TouchInterruptParent]. */
 class MotionLayoutTouchInterrupt @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
@@ -94,8 +124,8 @@ class MotionLayoutTouchInterrupt @JvmOverloads constructor(
         // isMotionEventSplittingEnabled = false
     }
 
-    override fun interruptOngoingTouchEvent(event: MotionEvent?, beginDrag: Boolean) {
-        mInterruptHelper.interruptOngoingTouchEvent(event, beginDrag)
+    override fun interruptOngoingTouchEvent(event: MotionEvent?, actions: Int) {
+        mInterruptHelper.interruptOngoingTouchEvent(event, actions)
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
@@ -111,8 +141,8 @@ class ConstraintLayoutTouchInterrupt @JvmOverloads constructor(
 ) : ConstraintLayout(context, attrs, defStyleAttr), TouchInterruptParent {
     private val mInterruptHelper = TouchInterruptParent.Helper(this)
 
-    override fun interruptOngoingTouchEvent(event: MotionEvent?, beginDrag: Boolean) {
-        mInterruptHelper.interruptOngoingTouchEvent(event, beginDrag)
+    override fun interruptOngoingTouchEvent(event: MotionEvent?, actions: Int) {
+        mInterruptHelper.interruptOngoingTouchEvent(event, actions)
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
@@ -131,6 +161,8 @@ class OnSlopeDragInterrupt(
     val orientation: Orientation = Orientation.BOTH,
     /** Touch slope after which interrupt triggers. */
     var slope: Int = -1,
+    /** [TouchInterruptParent.Action] to perform. */
+    var interruptAction: Int = DISPATCH_UP_AND_BEGIN_DRAG,
     /** Called during DOWN event to see if it should be taken. If null it always is. */
     var isActive: (() -> Boolean)? = null
 ) : View.OnTouchListener {
@@ -151,7 +183,7 @@ class OnSlopeDragInterrupt(
             }
             MotionEvent.ACTION_MOVE -> {
                 if (checkSlope(view, event)) {
-                    interruptParent.interruptOngoingTouchEvent(event, true)
+                    interruptParent.interruptOngoingTouchEvent(event, interruptAction)
                     true
                 } else true
             }
