@@ -182,6 +182,7 @@ class OnSlopeDragInterrupt(
                 true
             }
             MotionEvent.ACTION_MOVE -> {
+                if (startX == null) return false
                 if (checkSlope(view, event)) {
                     interruptParent.interruptOngoingTouchEvent(event, interruptAction)
                     true
@@ -213,5 +214,22 @@ class OnSlopeDragInterrupt(
     private fun getSlope(view: View): Int {
         if (slope == -1) slope = ViewConfiguration.get(view.context).scaledTouchSlop
         return slope
+    }
+
+    /** Builder to create multiple identical instances. */
+    class Builder(
+        /** View to force interrupt in. */
+        var interruptParent: TouchInterruptParent,
+        /** In which direction drag is detected. */
+        var orientation: Orientation = Orientation.BOTH,
+        /** Touch slope after which interrupt triggers. */
+        var slope: Int = -1,
+        /** [TouchInterruptParent.Action] to perform. */
+        var interruptAction: Int = DISPATCH_UP_AND_BEGIN_DRAG,
+        /** Called during DOWN event to see if it should be taken. If null it always is. */
+        var isActive: (() -> Boolean)? = null
+    ) {
+        fun build() =
+            OnSlopeDragInterrupt(interruptParent, orientation, slope, interruptAction, isActive)
     }
 }
