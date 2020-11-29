@@ -9,10 +9,6 @@ import android.view.ViewParent
 import android.view.ViewGroup
 import androidx.constraintlayout.motion.widget.MotionLayout
 import androidx.constraintlayout.widget.ConstraintLayout
-import com.github.ppaszkiewicz.tools.toolbox.view.TouchInterruptParent.Action.BEGIN_DRAG
-import com.github.ppaszkiewicz.tools.toolbox.view.TouchInterruptParent.Action.CANCEL_ONLY
-import com.github.ppaszkiewicz.tools.toolbox.view.TouchInterruptParent.Action.DISPATCH_UP
-import com.github.ppaszkiewicz.tools.toolbox.view.TouchInterruptParent.Action.DISPATCH_UP_AND_BEGIN_DRAG
 import kotlin.math.absoluteValue
 
 /** ViewGroup that can take ongoing touch event from its children on command. */
@@ -80,12 +76,12 @@ interface TouchInterruptParent {
             (event ?: lastTouchEvent)?.let {
                 isInterrupting = true
                 // dispatch mocked up event to send cancel to currently touched views
-                if (actions and DISPATCH_UP == DISPATCH_UP) {
+                if (actions and Action.DISPATCH_UP == Action.DISPATCH_UP) {
                     it.action = MotionEvent.ACTION_UP
                     view.dispatchTouchEvent(it)
                 }
                 // now self consume mocked DOWN event to begin self drag
-                if (actions and BEGIN_DRAG == BEGIN_DRAG) {
+                if (actions and Action.BEGIN_DRAG == Action.BEGIN_DRAG) {
                     it.action = MotionEvent.ACTION_DOWN
                     view.onTouchEvent(it)
                 }
@@ -111,7 +107,9 @@ fun TouchInterruptParent.interruptOngoingTouchEvent(
     event: MotionEvent? = null, beginDrag: Boolean = true, dispatchUp: Boolean = true
 ) = interruptOngoingTouchEvent(
     event,
-    CANCEL_ONLY + (if (beginDrag) BEGIN_DRAG else 0) + (if (dispatchUp) DISPATCH_UP else 0)
+    TouchInterruptParent.Action.CANCEL_ONLY
+            + (if (beginDrag) TouchInterruptParent.Action.BEGIN_DRAG else 0)
+            + (if (dispatchUp) TouchInterruptParent.Action.DISPATCH_UP else 0)
 )
 
 /** [MotionLayout] implementing [TouchInterruptParent]. */
@@ -162,7 +160,7 @@ class OnSlopeDragInterrupt(
     /** Touch slope after which interrupt triggers. */
     var slope: Int = -1,
     /** [TouchInterruptParent.Action] to perform. */
-    var interruptAction: Int = DISPATCH_UP_AND_BEGIN_DRAG,
+    var interruptAction: Int = TouchInterruptParent.Action.DISPATCH_UP_AND_BEGIN_DRAG,
     /** Called during DOWN event to see if it should be taken. If null it always is. */
     var isActive: (() -> Boolean)? = null
 ) : View.OnTouchListener {
@@ -228,7 +226,7 @@ class OnSlopeDragInterrupt(
         /** Touch slope after which interrupt triggers. */
         var slope: Int = -1,
         /** [TouchInterruptParent.Action] to perform. */
-        var interruptAction: Int = DISPATCH_UP_AND_BEGIN_DRAG,
+        var interruptAction: Int = TouchInterruptParent.Action.DISPATCH_UP_AND_BEGIN_DRAG,
         /** Called during DOWN event to see if it should be taken. If null it always is. */
         var isActive: (() -> Boolean)? = null
     ) {
