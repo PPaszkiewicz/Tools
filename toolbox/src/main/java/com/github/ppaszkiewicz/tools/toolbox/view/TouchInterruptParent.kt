@@ -1,6 +1,7 @@
 package com.github.ppaszkiewicz.tools.toolbox.view
 
 import android.content.Context
+import android.graphics.PointF
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
@@ -38,7 +39,7 @@ interface TouchInterruptParent {
     /** Action constants for [interruptOngoingTouchEvent]. */
     object Action {
         /** Don't perform extra actions, only use default behavior of [ViewGroup.onInterceptTouchEvent]. */
-        const val CANCEL_ONLY = 0
+        const val NONE = 0
 
         /** Dispatch UP event to children. */
         const val DISPATCH_UP = 1
@@ -46,8 +47,17 @@ interface TouchInterruptParent {
         /** Mock this event as DOWN and send it to own [View.onTouchEvent] to begin dragging. */
         const val BEGIN_DRAG = 2
 
+        /** Option for [BEGIN_DRAG]: mocked DOWN event will happen where last DOWN event was recorded. */
+        const val DRAG_AT_DOWN = 4
+
+        /** [BEGIN_DRAG] with [DRAG_AT_DOWN]. */
+        const val BEGIN_DRAG_AT_DOWN = BEGIN_DRAG + DRAG_AT_DOWN
+
         /** Perform both [BEGIN_DRAG] and [DISPATCH_UP]. */
         const val DISPATCH_UP_AND_BEGIN_DRAG = BEGIN_DRAG + DISPATCH_UP
+
+        /** Use all available actions: [BEGIN_DRAG_AT_DOWN] and [DISPATCH_UP]. */
+        const val ALL = BEGIN_DRAG_AT_DOWN + DISPATCH_UP
     }
 
     /**
@@ -69,12 +79,15 @@ interface TouchInterruptParent {
         private var interruptTouch: Boolean = false
         private var isInterrupting = false
 
+        private val lastDownEventLocation = PointF(-1f, -1f)
+
         override fun isInterruptingTouchEventNow() = isInterrupting
 
         override fun interruptOngoingTouchEvent(event: MotionEvent?, actions: Int) {
             interruptTouch = true
             (event ?: lastTouchEvent)?.let {
                 isInterrupting = true
+                val a = it.action
                 // dispatch mocked up event to send cancel to currently touched views
                 if (actions and Action.DISPATCH_UP == Action.DISPATCH_UP) {
                     it.action = MotionEvent.ACTION_UP
@@ -82,15 +95,35 @@ interface TouchInterruptParent {
                 }
                 // now self consume mocked DOWN event to begin self drag
                 if (actions and Action.BEGIN_DRAG == Action.BEGIN_DRAG) {
-                    it.action = MotionEvent.ACTION_DOWN
-                    view.onTouchEvent(it)
+                    mockDownEvent(it, actions and Action.DRAG_AT_DOWN == Action.DRAG_AT_DOWN)
                 }
+                it.action = a
                 isInterrupting = false
+            }
+        }
+
+        private fun mockDownEvent(event: MotionEvent, dragAtDown: Boolean) {
+            event.action = MotionEvent.ACTION_DOWN
+            if (!dragAtDown || lastDownEventLocation.x < 0f) { // no known target to relocate down event
+                view.onTouchEvent(event)
+            } else {
+                val srcX = event.x
+                val srcY = event.y
+                event.setLocation(lastDownEventLocation.x, lastDownEventLocation.y)
+                view.onTouchEvent(event)
+                event.setLocation(srcX, srcY)
+                // consumed
+                lastDownEventLocation.x = -1f
+                lastDownEventLocation.y = -1f
             }
         }
 
         /** If this returns false proceed to call super.onInterceptTouchEvent. */
         fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+            if (ev.action == MotionEvent.ACTION_DOWN) {
+                lastDownEventLocation.x = ev.x
+                lastDownEventLocation.y = ev.y
+            }
             if (interruptTouch) {
                 interruptTouch = false
                 lastTouchEvent = null
@@ -104,19 +137,25 @@ interface TouchInterruptParent {
 
 /** Extension that constructs action. */
 fun TouchInterruptParent.interruptOngoingTouchEvent(
-    event: MotionEvent? = null, beginDrag: Boolean = true, dispatchUp: Boolean = true
-) = interruptOngoingTouchEvent(
-    event,
-    TouchInterruptParent.Action.CANCEL_ONLY
-            + (if (beginDrag) TouchInterruptParent.Action.BEGIN_DRAG else 0)
-            + (if (dispatchUp) TouchInterruptParent.Action.DISPATCH_UP else 0)
-)
+    event: MotionEvent? = null, beginDrag: Boolean = true, dispatchUp: Boolean = true, dragAtDown: Boolean = true
+) {
+    with(TouchInterruptParent.Action) {
+        interruptOngoingTouchEvent(
+            event,
+            NONE + beginDrag.toInt(BEGIN_DRAG) + dispatchUp.toInt(DISPATCH_UP) + dragAtDown.toInt(DRAG_AT_DOWN))
+    }
+}
+
+private fun Boolean.toInt(trueValue: Int): Int = if (this) trueValue else 0
 
 /** [MotionLayout] implementing [TouchInterruptParent]. */
 class MotionLayoutTouchInterrupt @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : MotionLayout(context, attrs, defStyleAttr), TouchInterruptParent {
     private val mInterruptHelper = TouchInterruptParent.Helper(this)
+
+    /** Intercept for [onTouchEvent] - if this returns false touch event is not accepted and super is not called. */
+    var acceptTouchEventListener: ((MotionEvent) -> Boolean)? = null
 
     init {
         // isMotionEventSplittingEnabled = false
@@ -127,10 +166,19 @@ class MotionLayoutTouchInterrupt @JvmOverloads constructor(
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
-        return mInterruptHelper.onInterceptTouchEvent(event) || super.onInterceptTouchEvent(event)
+        // always run both intercepts
+        val interrupt = mInterruptHelper.onInterceptTouchEvent(event)
+        val superIntercept = super.onInterceptTouchEvent(event)
+        return interrupt || superIntercept
     }
 
     override fun isInterruptingTouchEventNow() = mInterruptHelper.isInterruptingTouchEventNow()
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        return if (acceptTouchEventListener?.invoke(event) != false)
+            super.onTouchEvent(event)
+        else false
+    }
 }
 
 /** [ConstraintLayout] implementing [TouchInterruptParent]. */
@@ -138,6 +186,9 @@ class ConstraintLayoutTouchInterrupt @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : ConstraintLayout(context, attrs, defStyleAttr), TouchInterruptParent {
     private val mInterruptHelper = TouchInterruptParent.Helper(this)
+
+    /** Intercept for [onTouchEvent] - if this returns false touch event is not accepted and super is not called. */
+    var acceptTouchEventListener: ((MotionEvent) -> Boolean)? = null
 
     override fun interruptOngoingTouchEvent(event: MotionEvent?, actions: Int) {
         mInterruptHelper.interruptOngoingTouchEvent(event, actions)
@@ -148,6 +199,12 @@ class ConstraintLayoutTouchInterrupt @JvmOverloads constructor(
     }
 
     override fun isInterruptingTouchEventNow() = mInterruptHelper.isInterruptingTouchEventNow()
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        return if (acceptTouchEventListener?.invoke(event) != false)
+            super.onTouchEvent(event)
+        else false
+    }
 }
 
 
@@ -160,7 +217,7 @@ class OnSlopeDragInterrupt(
     /** Touch slope after which interrupt triggers. */
     var slope: Int = -1,
     /** [TouchInterruptParent.Action] to perform. */
-    var interruptAction: Int = TouchInterruptParent.Action.DISPATCH_UP_AND_BEGIN_DRAG,
+    var interruptAction: Int = TouchInterruptParent.Action.ALL,
     /** Called during DOWN event to see if it should be taken. If null it always is. */
     var isActive: (() -> Boolean)? = null
 ) : View.OnTouchListener {
@@ -180,7 +237,7 @@ class OnSlopeDragInterrupt(
                 true
             }
             MotionEvent.ACTION_MOVE -> {
-                if (startX == null) return false
+                if (!isInTouch()) return false
                 if (checkSlope(view, event)) {
                     interruptParent.interruptOngoingTouchEvent(event, interruptAction)
                     true
@@ -226,7 +283,7 @@ class OnSlopeDragInterrupt(
         /** Touch slope after which interrupt triggers. */
         var slope: Int = -1,
         /** [TouchInterruptParent.Action] to perform. */
-        var interruptAction: Int = TouchInterruptParent.Action.DISPATCH_UP_AND_BEGIN_DRAG,
+        var interruptAction: Int = TouchInterruptParent.Action.ALL,
         /** Called during DOWN event to see if it should be taken. If null it always is. */
         var isActive: (() -> Boolean)? = null
     ) {
