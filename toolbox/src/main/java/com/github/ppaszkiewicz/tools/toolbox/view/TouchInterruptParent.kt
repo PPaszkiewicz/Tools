@@ -88,7 +88,7 @@ interface TouchInterruptParent {
             (event ?: lastTouchEvent)?.let {
                 isInterrupting = true
                 val a = it.action
-                // dispatch mocked up event to send cancel to currently touched views
+                // dispatch mocked up event to currently touched views
                 if (actions and Action.DISPATCH_UP == Action.DISPATCH_UP) {
                     it.action = MotionEvent.ACTION_UP
                     view.dispatchTouchEvent(it)
@@ -104,7 +104,7 @@ interface TouchInterruptParent {
 
         private fun mockDownEvent(event: MotionEvent, dragAtDown: Boolean) {
             event.action = MotionEvent.ACTION_DOWN
-            if (!dragAtDown || lastDownEventLocation.x < 0f) { // no known target to relocate down event
+            if (!dragAtDown || lastDownEventLocation.x < 0f) {
                 view.onTouchEvent(event)
             } else {
                 val srcX = event.x
@@ -240,8 +240,8 @@ class OnSlopeDragInterrupt(
                 if (!isInTouch()) return false
                 if (checkSlope(view, event)) {
                     interruptParent.interruptOngoingTouchEvent(event, interruptAction)
-                    true
-                } else true
+                }
+                true
             }
             MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_UP -> {
                 clearEvent()
@@ -287,7 +287,13 @@ class OnSlopeDragInterrupt(
         /** Called during DOWN event to see if it should be taken. If null it always is. */
         var isActive: (() -> Boolean)? = null
     ) {
+        /** Create new interrupt touch listener instance. */
         fun build() =
             OnSlopeDragInterrupt(interruptParent, orientation, slope, interruptAction, isActive)
+
+        /** Create and set new instance of touch listener for each view. */
+        fun addTouchListenerTo(vararg views : View){
+            views.forEach { it.setOnTouchListener(build()) }
+        }
     }
 }
