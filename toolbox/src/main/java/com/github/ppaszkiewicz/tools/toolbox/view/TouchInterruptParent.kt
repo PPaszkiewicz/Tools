@@ -137,25 +137,28 @@ interface TouchInterruptParent {
 
 /** Extension that constructs action. */
 fun TouchInterruptParent.interruptOngoingTouchEvent(
-    event: MotionEvent? = null, beginDrag: Boolean = true, dispatchUp: Boolean = true, dragAtDown: Boolean = true
+    event: MotionEvent? = null,
+    beginDrag: Boolean = true,
+    dispatchUp: Boolean = true,
+    dragAtDown: Boolean = true
 ) {
     with(TouchInterruptParent.Action) {
         interruptOngoingTouchEvent(
             event,
-            NONE + beginDrag.toInt(BEGIN_DRAG) + dispatchUp.toInt(DISPATCH_UP) + dragAtDown.toInt(DRAG_AT_DOWN))
+            NONE + beginDrag.toInt(BEGIN_DRAG) + dispatchUp.toInt(DISPATCH_UP) + dragAtDown.toInt(
+                DRAG_AT_DOWN
+            )
+        )
     }
 }
 
 private fun Boolean.toInt(trueValue: Int): Int = if (this) trueValue else 0
 
 /** [MotionLayout] implementing [TouchInterruptParent]. */
-class MotionLayoutTouchInterrupt @JvmOverloads constructor(
+open class MotionLayoutTouchInterrupt @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : MotionLayout(context, attrs, defStyleAttr), TouchInterruptParent {
     private val mInterruptHelper = TouchInterruptParent.Helper(this)
-
-    /** Intercept for [onTouchEvent] - if this returns false touch event is not accepted and super is not called. */
-    var acceptTouchEventListener: ((MotionEvent) -> Boolean)? = null
 
     init {
         // isMotionEventSplittingEnabled = false
@@ -173,22 +176,13 @@ class MotionLayoutTouchInterrupt @JvmOverloads constructor(
     }
 
     override fun isInterruptingTouchEventNow() = mInterruptHelper.isInterruptingTouchEventNow()
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        return if (acceptTouchEventListener?.invoke(event) != false)
-            super.onTouchEvent(event)
-        else false
-    }
 }
 
 /** [ConstraintLayout] implementing [TouchInterruptParent]. */
-class ConstraintLayoutTouchInterrupt @JvmOverloads constructor(
+open class ConstraintLayoutTouchInterrupt @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : ConstraintLayout(context, attrs, defStyleAttr), TouchInterruptParent {
     private val mInterruptHelper = TouchInterruptParent.Helper(this)
-
-    /** Intercept for [onTouchEvent] - if this returns false touch event is not accepted and super is not called. */
-    var acceptTouchEventListener: ((MotionEvent) -> Boolean)? = null
 
     override fun interruptOngoingTouchEvent(event: MotionEvent?, actions: Int) {
         mInterruptHelper.interruptOngoingTouchEvent(event, actions)
@@ -199,81 +193,24 @@ class ConstraintLayoutTouchInterrupt @JvmOverloads constructor(
     }
 
     override fun isInterruptingTouchEventNow() = mInterruptHelper.isInterruptingTouchEventNow()
-
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        return if (acceptTouchEventListener?.invoke(event) != false)
-            super.onTouchEvent(event)
-        else false
-    }
 }
 
-
+// requires OnTouchSlopeDetector.kt
 /** Listener for children of [TouchInterruptParent] that want to discard their touch event after being dragged. */
 class OnSlopeDragInterrupt(
     /** View to force interrupt in. */
-    val interruptParent: TouchInterruptParent,
+    interruptParent: TouchInterruptParent,
     /** In which direction drag is detected. */
-    val orientation: Orientation = Orientation.BOTH,
+    orientation: Orientation = Orientation.BOTH,
     /** Touch slope after which interrupt triggers. */
-    var slope: Int = -1,
+    slope: Int = -1,
     /** [TouchInterruptParent.Action] to perform. */
-    var interruptAction: Int = TouchInterruptParent.Action.ALL,
-    /** Called during DOWN event to see if it should be taken. If null it always is. */
-    var isActive: (() -> Boolean)? = null
-) : View.OnTouchListener {
-    enum class Orientation {
-        VERTICAL, HORIZONTAL, BOTH
-    }
-
-    private var startX: Float? = null
-    private var startY: Float? = null
-
-    override fun onTouch(view: View, event: MotionEvent): Boolean {
-        return when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> {
-                if (isInTouch() || isActive?.invoke() == false) return false
-                startX = event.x
-                startY = event.y
-                true
-            }
-            MotionEvent.ACTION_MOVE -> {
-                if (!isInTouch()) return false
-                if (checkSlope(view, event)) {
-                    interruptParent.interruptOngoingTouchEvent(event, interruptAction)
-                }
-                true
-            }
-            MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_UP -> {
-                clearEvent()
-                false
-            }
-            else -> false
-        }
-    }
-
-    private fun checkSlope(view: View, event: MotionEvent): Boolean {
-        if (orientation == Orientation.VERTICAL || orientation == Orientation.BOTH) {
-            if ((event.y - startY!!).absoluteValue > getSlope(view)) return true
-        }
-        if ((orientation == Orientation.HORIZONTAL || orientation == Orientation.BOTH)) {
-            if ((event.x - startX!!).absoluteValue > getSlope(view)) return true
-        }
-        return false
-    }
-
-    private fun clearEvent() {
-        startX = null
-        startY = null
-    }
-
-    private fun getSlope(view: View): Int {
-        if (slope == -1) slope = ViewConfiguration.get(view.context).scaledTouchSlop
-        return slope
-    }
-
-    /** See if there's an active touch event being monitored. */
-    fun isInTouch() = startX != null
-
+    interruptAction: Int = TouchInterruptParent.Action.ALL,
+    /** Optional filter for touch down event. */
+    acceptTouchDown: ((view: View, event: MotionEvent) -> Boolean)? = null
+) : OnTouchSlopeDetector(orientation, slope, acceptTouchDown, { _, _, _, event ->
+    interruptParent.interruptOngoingTouchEvent(event, interruptAction)
+}) {
     /** Builder to create multiple identical instances. */
     class Builder(
         /** View to force interrupt in. */
@@ -285,14 +222,14 @@ class OnSlopeDragInterrupt(
         /** [TouchInterruptParent.Action] to perform. */
         var interruptAction: Int = TouchInterruptParent.Action.ALL,
         /** Called during DOWN event to see if it should be taken. If null it always is. */
-        var isActive: (() -> Boolean)? = null
+        var acceptTouchDown: ((view: View, event: MotionEvent) -> Boolean)? = null
     ) {
         /** Create new interrupt touch listener instance. */
         fun build() =
-            OnSlopeDragInterrupt(interruptParent, orientation, slope, interruptAction, isActive)
+            OnSlopeDragInterrupt(interruptParent, orientation, slope, interruptAction, acceptTouchDown)
 
         /** Create and set new instance of touch listener for each view. */
-        fun addTouchListenerTo(vararg views : View){
+        fun addTouchListenerTo(vararg views: View) {
             views.forEach { it.setOnTouchListener(build()) }
         }
     }
