@@ -34,8 +34,14 @@ fun FragmentTransaction.addWithClassTag(@IdRes containerViewId: Int, fragment: F
  * Uses [fragment] class name as tag, so it must be unique in this fragment manager scope, otherwise
  * [IllegalStateException] will be thrown.
  * */
-fun FragmentManager.swap(@IdRes containerId: Int, fragment: Fragment?) =
-    if (fragment != null) swapImpl(fragment, containerId, fragment::class.java.name, true) else false
+fun FragmentManager.swap(@IdRes containerId: Int, fragment: Fragment?, commitNow: Boolean = false) =
+    if (fragment != null) swapImpl(
+        fragment,
+        containerId,
+        fragment::class.java.name,
+        true,
+        commitNow
+    ) else false
 
 /**
  * Load [fragment] into view with [containerId]. This will detach current fragment and reattach or add new one.
@@ -47,8 +53,12 @@ fun FragmentManager.swap(@IdRes containerId: Int, fragment: Fragment?) =
  *
  * If fragment is added for the first time then [tag] is used in transaction.
  * */
-fun FragmentManager.swap(@IdRes containerId: Int, fragment: Fragment?, tag: String) =
-    swapImpl(fragment, containerId, tag, false)
+fun FragmentManager.swap(
+    @IdRes containerId: Int,
+    fragment: Fragment?,
+    tag: String,
+    commitNow: Boolean = false
+) = swapImpl(fragment, containerId, tag, false, commitNow)
 
 /**
  * Load [newFragment] into view with [containerId].
@@ -81,7 +91,8 @@ private fun FragmentManager.swapImpl(
     fragment: Fragment?,
     containerId: Int,
     tag: String,
-    checkClassCollision: Boolean
+    checkClassCollision: Boolean,
+    commitNow: Boolean
 ): Boolean {
     return if (fragment != null) {
         val currentFragment = findFragmentById(containerId)
@@ -92,7 +103,7 @@ private fun FragmentManager.swapImpl(
 
         beginTransaction().apply {
             swap(currentFragment, fragment, containerId, tag)
-            commit()
+            if(commitNow) commitNow() else commit()
         }
         true
     } else {

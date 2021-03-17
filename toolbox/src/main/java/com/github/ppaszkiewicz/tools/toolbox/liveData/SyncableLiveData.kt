@@ -59,7 +59,7 @@ private class SyncableLiveData<T>(
     }
 
     override fun getValue(): T? {
-        return tempValue ?: super.getValue()
+        return if(changedDuringPause) tempValue else super.getValue()
     }
 
     override fun setValue(value: T?) {

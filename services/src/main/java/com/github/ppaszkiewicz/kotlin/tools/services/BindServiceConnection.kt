@@ -2,7 +2,6 @@ package com.github.ppaszkiewicz.kotlin.tools.services
 
 import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
@@ -35,13 +34,19 @@ import java.lang.ref.WeakReference
  *
  * For other cases it should be called manually when object hosting this connection is destroyed.
  * */
-abstract class BindServiceConnection<T>(
+abstract class BindServiceConnection<T> private constructor(
     contextDelegate: ContextDelegate,
-    /** Default bind flags to use. */
     bindFlags: Int = Context.BIND_AUTO_CREATE,
-    private val callbacksProxy: BindServiceConnectionLambdas.Proxy<T> = BindServiceConnectionLambdas.Proxy()
+    private val callbacksProxy: BindServiceConnectionLambdas.Proxy<T>
 ) : LiveData<T?>(), LifecycleOwner, BindServiceConnectionProxy<T>,
     BindServiceConnectionLambdas<T> by callbacksProxy {
+
+    constructor(
+        contextDelegate: ContextDelegate,
+        /** Default bind flags to use. */
+        bindFlags: Int = Context.BIND_AUTO_CREATE
+    ) : this(contextDelegate, bindFlags, BindServiceConnectionLambdas.Proxy())
+
     /**
      * Used to determine if [onFirstConnect] should trigger - this is based on the fact that
      * as long as service is alive we will keep receiving exact same binder object regardless
@@ -83,7 +88,7 @@ abstract class BindServiceConnection<T>(
         /**
          * Force rebind when connection dies on devices below API 28.
          */
-        var autoRebindDeadBindingCompat : Boolean = true,
+        var autoRebindDeadBindingCompat: Boolean = true,
         /**
          * Call [BindServiceConnection.dispatchDestroyLifecycle] before [BindServiceConnection.onConnectionLost].
          *
@@ -194,9 +199,10 @@ abstract class BindServiceConnection<T>(
                         "Connection: ${this::javaClass.name}, Service name: $name"
             )
             // compat behavior - assume this event killed the binding
-            if(Build.VERSION.SDK_INT < Build.VERSION_CODES.P
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P
                 && config.autoRebindDeadBindingCompat
-                && config.autoRebindDeadBinding){
+                && config.autoRebindDeadBinding
+            ) {
                 onBindingDied(name)
             }
         }
@@ -249,14 +255,20 @@ abstract class BindServiceConnection<T>(
             activity: AppCompatActivity,
             bindFlags: Int = Context.BIND_AUTO_CREATE,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = attach(activity, lifecycle(activity.contextDelegate, bindFlags, bindState))
+        ) = attach(
+            activity,
+            createLifecycleConnection(activity.contextDelegate, bindFlags, bindState)
+        )
 
         /** Create [LifecycleBindServiceConnection] - this uses fragment lifecycle to connect to service automatically. */
         fun lifecycle(
             fragment: Fragment,
             bindFlags: Int = Context.BIND_AUTO_CREATE,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = attach(fragment, lifecycle(fragment.contextDelegate, bindFlags, bindState))
+        ) = attach(
+            fragment,
+            createLifecycleConnection(fragment.contextDelegate, bindFlags, bindState)
+        )
 
         /**
          * Create [LifecycleBindServiceConnection] that observes view lifecycle of [fragment] when it's ready.
@@ -266,40 +278,40 @@ abstract class BindServiceConnection<T>(
             bindFlags: Int = Context.BIND_AUTO_CREATE
         ) = attach(
             fragment, fragment.viewLifecycleOwnerLiveData,
-            lifecycle(fragment.contextDelegate, bindFlags, Lifecycle.State.RESUMED)
+            createLifecycleConnection(fragment.contextDelegate, bindFlags, Lifecycle.State.RESUMED)
         )
 
         /** Create [ObservableBindServiceConnection], it will be bound when there are active observers. */
         fun observable(context: Context, bindFlags: Int = Context.BIND_AUTO_CREATE) =
-            observable(context.contextDelegate, bindFlags)
+            createObservableConnection(context.contextDelegate, bindFlags)
 
         /** Create [ObservableBindServiceConnection], it will be bound when there are active observers. */
         fun observable(fragment: Fragment, bindFlags: Int = Context.BIND_AUTO_CREATE) =
-            observable(fragment.contextDelegate, bindFlags)
+            createObservableConnection(fragment.contextDelegate, bindFlags)
 
         /** Create [ManualBindServiceConnection]. Need to manually call [bind] and [unbind] to connect.*/
         fun manual(context: Context, bindFlags: Int = Context.BIND_AUTO_CREATE) =
-            manual(context.contextDelegate, bindFlags)
+            createManualConnection(context.contextDelegate, bindFlags)
 
         /** Create [ManualBindServiceConnection]. Need to manually call [bind] and [unbind] to connect.*/
         fun manual(fragment: Fragment, bindFlags: Int = Context.BIND_AUTO_CREATE) =
-            manual(fragment.contextDelegate, bindFlags)
+            createManualConnection(fragment.contextDelegate, bindFlags)
 
         // implementations
-        /** Create [LifecycleBindServiceConnection] - this can observe lifecycle to connect to service automatically. */
-        abstract fun lifecycle(
+        /** Create [LifecycleBindServiceConnection] to return from [lifecycle] and [viewLifecycle]. */
+        abstract fun createLifecycleConnection(
             contextDelegate: ContextDelegate,
             bindFlags: Int = Context.BIND_AUTO_CREATE,
             bindState: Lifecycle.State = Lifecycle.State.STARTED
         ): LifecycleBindServiceConnection<T>
 
-        /** Create [ObservableBindServiceConnection], it will be bound when there are active observers. */
-        abstract fun observable(
+        /** Create [ObservableBindServiceConnection] to return from [observable]. */
+        abstract fun createObservableConnection(
             contextDelegate: ContextDelegate, bindFlags: Int = Context.BIND_AUTO_CREATE
         ): ObservableBindServiceConnection<T>
 
-        /** Create [ManualBindServiceConnection]. Need to manually call [bind] and [unbind] to connect.*/
-        abstract fun manual(
+        /** Create [ManualBindServiceConnection] to return from [manual]. */
+        abstract fun createManualConnection(
             contextDelegate: ContextDelegate, bindFlags: Int = Context.BIND_AUTO_CREATE
         ): ManualBindServiceConnection<T>
 

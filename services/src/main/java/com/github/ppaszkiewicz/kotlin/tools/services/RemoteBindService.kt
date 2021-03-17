@@ -17,16 +17,16 @@ object RemoteBindService {
      */
     open class ConnectionFactory<T>(protected val connectionProxy: BindServiceConnectionProxy<T>) :
         BindServiceConnection.ConnectionFactory<T>() {
-        override fun lifecycle(
+        override fun createLifecycleConnection(
             contextDelegate: ContextDelegate,
             bindFlags: Int,
             bindState: Lifecycle.State
         ) = RemoteLifecycleServiceConnection(contextDelegate, connectionProxy, bindState, bindFlags)
 
-        override fun observable(contextDelegate: ContextDelegate, bindFlags: Int) =
+        override fun createObservableConnection(contextDelegate: ContextDelegate, bindFlags: Int) =
             RemoteObservableServiceConnection(contextDelegate, connectionProxy, bindFlags)
 
-        override fun manual(contextDelegate: ContextDelegate, bindFlags: Int) =
+        override fun createManualConnection(contextDelegate: ContextDelegate, bindFlags: Int) =
             RemoteManualServiceConnection(contextDelegate, connectionProxy, bindFlags)
     }
 }

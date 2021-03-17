@@ -97,16 +97,16 @@ interface DirectBindService {
      */
     open class ConnectionFactory<T : DirectBindService>(protected val serviceClass: Class<T>) :
         BindServiceConnection.ConnectionFactory<T>() {
-        override fun lifecycle(
+        override fun createLifecycleConnection(
             contextDelegate: ContextDelegate,
             bindFlags: Int,
             bindState: Lifecycle.State
         ) = DirectLifecycleServiceConnection(contextDelegate, serviceClass, bindState, bindFlags)
 
-        override fun observable(contextDelegate: ContextDelegate, bindFlags: Int) =
+        override fun createObservableConnection(contextDelegate: ContextDelegate, bindFlags: Int) =
             DirectObservableServiceConnection(contextDelegate, serviceClass, bindFlags)
 
-        override fun manual(contextDelegate: ContextDelegate, bindFlags: Int) =
+        override fun createManualConnection(contextDelegate: ContextDelegate, bindFlags: Int) =
             DirectManualServiceConnection(contextDelegate, serviceClass, bindFlags)
     }
 }
