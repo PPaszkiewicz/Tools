@@ -31,7 +31,8 @@
                     android:layout_height="wrap_content"
                     android:text="All those layouts inflate the same checkboxes with same two IDs.
 Issue with normal layouts is they store state in shared SparseArray, so only state of last two
-checkboxes is saved and it's restored into all checkboxes with same ID." />
+checkboxes is saved and it's restored into all checkboxes with same ID.\nSaveState layouts circumvent this issue
+by holding save state of all their children within their own save state." />
 
             <Button
                     android:id="@+id/btnRecreate"

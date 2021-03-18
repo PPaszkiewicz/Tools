@@ -1,6 +1,7 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 apply plugin: 'com.github.dcendents.android-maven'
+apply plugin: 'kotlin-kapt'
 
 group='com.github.PPaszkiewicz'
 
@@ -31,17 +32,17 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
-    viewBinding {
-        enabled = true
+    buildFeatures{
+        viewBinding = true
     }
 }
 
 dependencies {
-    api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.3.9'
+    api 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.4.1'
     implementation("androidx.appcompat:appcompat:1.2.0")
     implementation("androidx.constraintlayout:constraintlayout:2.0.4")
     implementation 'androidx.palette:palette-ktx:1.0.0'
-    implementation "androidx.fragment:fragment-ktx:1.2.5"
-    implementation 'androidx.recyclerview:recyclerview:1.2.0-alpha06'
+    implementation "androidx.fragment:fragment-ktx:1.3.1"
+    implementation 'androidx.recyclerview:recyclerview:1.2.0-beta02'
     implementation 'androidx.lifecycle:lifecycle-extensions:2.2.0'
 }
