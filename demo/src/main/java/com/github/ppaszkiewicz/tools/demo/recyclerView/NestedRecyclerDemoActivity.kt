@@ -25,6 +25,7 @@ import com.github.ppaszkiewicz.tools.toolbox.recyclerView.NestedWrapLayoutManage
  * */
 class NestedRecyclerDemoActivity : AppCompatActivity() {
     val binding by viewBinding<ActivityRecyclerBinding>()
+    private var adapter : NumberAdapter? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,7 +54,8 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
             txtNestedText2.isVisible = true // show a view below recycler
 
             // assign new adapter and layout manager
-            recyclerView.adapter = NumberAdapter(1000)
+            adapter = NumberAdapter(1000)
+            recyclerView.adapter = adapter
             recyclerView.layoutManager = layoutManager
 
             // now measure the time
@@ -66,10 +68,47 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
             }
         }
     }
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        return when(keyCode){
+            KeyEvent.KEYCODE_Q -> { // test: small move ( in screen)
+                adapter?.let{
+                    val i = it.items.removeAt(0)
+                    it.items.add(2, i)
+                    it.notifyItemMoved(0, 2)
+                }
+                true
+            }
+            KeyEvent.KEYCODE_W -> { // test: large move (out of screen)
+                adapter?.let{
+                    val i = it.items.removeAt(0)
+                    it.items.add(20, i)
+                    it.notifyItemMoved(0, 20)
+                }
+                true
+            }
+            KeyEvent.KEYCODE_R -> { // test: deletion
+                adapter?.let{
+                    val i = it.items.removeAt(1)
+                    it.notifyItemRemoved(1)
+                }
+                true
+            }
+            KeyEvent.KEYCODE_T -> { // test: insertion
+                adapter?.let{
+                    it.items.add(2, it.items.count())
+                    it.notifyItemInserted(2)
+                }
+                true
+            }
+            else -> super.onKeyDown(keyCode, event)
+        }
+    }
 }
 
 class NumberAdapter(val numberCount: Int) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     var createdViewHolders = 0
+    var items = mutableListOf(numberCount).apply { repeat(numberCount){ add(it, it) } }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val v =
@@ -79,7 +118,7 @@ class NumberAdapter(val numberCount: Int) : RecyclerView.Adapter<RecyclerView.Vi
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
-        (holder.itemView as TextView).text = "$position in holder ${holder.itemView.tag}"
+        (holder.itemView as TextView).text = "Pos: $position, item: ${items[position]} holder: ${holder.itemView.tag}"
     }
 
     override fun getItemCount() = numberCount

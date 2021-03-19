@@ -23,6 +23,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sign
 
+// alpha version - this does not support insertion/move/remove yet, only replacement of entire list
 /**
  * Layout manager that handles wrap height (or width in horizontal mode) within a scroll view and
  * recycles views based on [scrollParent] scroll position.
@@ -207,10 +208,10 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                 val changes = changedItems
                 // common case when there's no changes, quick out
                 if (changes.isNullOrEmpty() && range == currentlyVisibleItemRange) return
-                // scrap modified items but just detach others
+                // scrap modified items (they will get rebound by adapter) but just detach others
                 while (childCount > 0) {
                     val view = getChildAt(0)!!
-                    val viewAdapterPosition = view.params().viewAdapterPosition
+                    val viewAdapterPosition = view.params().absoluteAdapterPosition
                     if (changes?.contains(viewAdapterPosition) == true)
                         detachAndScrapView(view, recycler)
                     else {
@@ -266,7 +267,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     ): View? {
         var view = viewCache[position]
         if (view == null) { // get new view for position
-            // this try catch is copied because this internally crashes?
+            // this try catch is copied because this might internally crash (test with new recycled)?
             try {
                 view = recycler.getViewForPosition(position)
                 addView(view)

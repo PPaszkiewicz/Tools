@@ -11,7 +11,7 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            android:text="Demo of recyclerview nested within a nested scroll view.\nUse buttons to select layout manager or test scrolling to position.\nGrayed out area is nested scrollview itself."
+            android:text="Demo of recyclerview nested within a nested scroll view.\nUse buttons to select layout manager or test scrolling to position.\nGrayed out area is nested scrollview itself.\nNote that NestedWrapLayoutManager might create a couple of viewholders during scroll due to collectAdjacentPrefetchPositions."
             android:gravity="center"
             android:layout_width="0dp"
             android:layout_height="wrap_content" />
