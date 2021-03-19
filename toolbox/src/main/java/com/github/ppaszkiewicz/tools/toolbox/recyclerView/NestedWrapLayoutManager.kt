@@ -23,7 +23,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sign
 
-// alpha version - this does not support insertion/move/remove yet, only replacement of entire list
+// alpha version - this does not support predictive animations
 /**
  * Layout manager that handles wrap height (or width in horizontal mode) within a scroll view and
  * recycles views based on [scrollParent] scroll position.
@@ -267,7 +267,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     ): View? {
         var view = viewCache[position]
         if (view == null) { // get new view for position
-            // this try catch is copied because this might internally crash (test with new recycled)?
+            // this try catch is copied because this might internally crash (test with new recycler)?
             try {
                 view = recycler.getViewForPosition(position)
                 addView(view)
@@ -287,6 +287,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             //measureChildWithMargins(view, 0, 0)
             orientationHelper.layoutViewForPosition(view, position)
         } else {    // quickly reattach existing view
+            orientationHelper.revalidateViewPosition(view) // in case something was removed/moved
             attachView(view)
             viewCache.remove(position)
         }
@@ -574,6 +575,9 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         /** Measure the size of recyclerView. */
         abstract fun measure(v0: View, itemCount: Int, widthSpec: Int, heightSpec: Int)
 
+        /** Quickly align views location with its current position. */
+        abstract fun revalidateViewPosition(v: View)
+
         /** Layout a view at given position. */
         abstract fun layoutViewForPosition(v: View, position: Int)
 
@@ -626,7 +630,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
 
         override fun layoutViewForPosition(v: View, position: Int) {
             withMockedScroll { measureChildWithMargins(v, 0, 0) }
-            val viewTop = paddingTop + (position * itemHeight)
+            val viewTop = topForPosition(position)
             val viewLeft = paddingLeft
             val itemWidth = this@NestedWrapLayoutManager.itemWidth.takeIf { it > 0 }
                 ?: widthNoPadding()
@@ -636,6 +640,17 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                 viewLeft + itemWidth,
                 viewTop + itemHeight
             )
+        }
+
+        override fun revalidateViewPosition(v: View) {
+            val targetTop = topForPosition(v.params().absoluteAdapterPosition)
+            if (v.top != targetTop) {
+                layoutDecoratedWithMargins(
+                    v, v.left, targetTop,
+                    v.left + v.width,
+                    targetTop + v.height
+                )
+            }
         }
 
         override fun generateDefaultLayoutParams() = RecyclerView.LayoutParams(
@@ -667,6 +682,8 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                     scrollParent.takeIfPaddingClips { paddingTop }
             return PointF(0f, (recyclerScrollPosition - itemLocation).sign.toFloat())
         }
+
+        private fun topForPosition(position: Int) = paddingTop + (position * itemHeight)
 
         /** TOP position relative to nested scroll view parent */
         private tailrec fun View.nestedScrollTop(current: Int = 0): Int = when (val p = parent) {
@@ -719,7 +736,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         override fun layoutViewForPosition(v: View, position: Int) {
             withMockedScroll { measureChildWithMargins(v, 0, 0) }
             val viewTop = paddingTop
-            val viewLeft = paddingLeft + position * itemWidth
+            val viewLeft = leftForPosition(position)
             val itemHeight = this@NestedWrapLayoutManager.itemHeight.takeIf { it > 0 }
                 ?: heightNoPadding()
             // layout the view
@@ -728,6 +745,17 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                 viewLeft + itemWidth,
                 viewTop + itemHeight
             )
+        }
+
+        override fun revalidateViewPosition(v: View) {
+            val targetLeft = leftForPosition(v.params().absoluteAdapterPosition)
+            if (v.left != targetLeft) {
+                layoutDecoratedWithMargins(
+                    v, targetLeft, v.top,
+                    targetLeft + v.width,
+                    v.top + v.height
+                )
+            }
         }
 
         override fun generateDefaultLayoutParams() = RecyclerView.LayoutParams(
@@ -759,6 +787,8 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                     scrollParent.takeIfPaddingClips { paddingLeft }
             return PointF((recyclerScrollPosition - itemLocation).sign.toFloat(), 0f)
         }
+
+        private fun leftForPosition(position: Int) = paddingLeft + position * itemWidth
 
         /** LEFT position relative to nested scroll view parent */
         private tailrec fun View.nestedScrollLeft(current: Int = 0): Int = when (val p = parent) {

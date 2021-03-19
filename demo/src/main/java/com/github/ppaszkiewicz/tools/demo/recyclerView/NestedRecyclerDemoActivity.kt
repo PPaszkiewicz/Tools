@@ -121,5 +121,5 @@ class NumberAdapter(val numberCount: Int) : RecyclerView.Adapter<RecyclerView.Vi
         (holder.itemView as TextView).text = "Pos: $position, item: ${items[position]} holder: ${holder.itemView.tag}"
     }
 
-    override fun getItemCount() = numberCount
+    override fun getItemCount() = items.size
 }
