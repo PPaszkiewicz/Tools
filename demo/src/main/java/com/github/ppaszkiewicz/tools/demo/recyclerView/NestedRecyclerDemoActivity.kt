@@ -1,5 +1,6 @@
 package com.github.ppaszkiewicz.tools.demo.recyclerView
 
+import android.graphics.Color
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.LayoutInflater
@@ -101,6 +102,10 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
                 }
                 true
             }
+            KeyEvent.KEYCODE_A -> {
+                adapter?.notifyItemChanged(2, Color.RED)
+                true
+            }
             else -> super.onKeyDown(keyCode, event)
         }
     }
@@ -118,7 +123,18 @@ class NumberAdapter(val numberCount: Int) : RecyclerView.Adapter<RecyclerView.Vi
     }
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+        holder.itemView.background = null
         (holder.itemView as TextView).text = "Pos: $position, item: ${items[position]} holder: ${holder.itemView.tag}"
+    }
+
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+        payloads: MutableList<Any>
+    ) {
+        if(payloads.isNotEmpty()){
+            holder.itemView.setBackgroundColor(Color.RED)
+        }else super.onBindViewHolder(holder, position, payloads)
     }
 
     override fun getItemCount() = items.size

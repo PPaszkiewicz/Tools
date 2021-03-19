@@ -132,9 +132,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     private val recyclerView: RecyclerView
         get() = mRecyclerView ?: getChildAt(0)!!.parent as RecyclerView
 
-    /** Contains modified items that needs hard relayout. */
-    private var changedItems: Set<Int>? = null
-
     /** Measured item view type sizes (right now only 1 type is supported) */
     private val itemSizes = SparseArray<Point>(1)
     private val itemHeight: Int
@@ -191,7 +188,19 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         if (childCount == 0 && state.isPreLayout) {
             return
         }
-        layoutChildrenInLayout(recycler, state, null, 0)
+
+        val removedViews = if (state.isPreLayout) {
+            // populate views that are being removed
+            val removed = SparseIntArray()
+            repeat(childCount) { pos ->
+                getChildAt(pos)?.let {
+                    if (it.params().isItemRemoved)
+                        removed.append(pos, it.params().absoluteAdapterPosition)
+                }
+            }
+            removed
+        } else null
+        layoutChildrenInLayout(recycler, state, removedViews, 0)
     }
 
     private fun layoutChildrenInLayout(
@@ -205,16 +214,15 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         val visibleItemRange = when {
             childCount != 0 -> {    // redoing existing layout
                 val range = getVisibleItemRange(dScroll, state)
-                val changes = changedItems
                 // common case when there's no changes, quick out
-                if (changes.isNullOrEmpty() && range == currentlyVisibleItemRange) return
+                if (!anyChildIsChanged() && range == currentlyVisibleItemRange) return
                 // scrap modified items (they will get rebound by adapter) but just detach others
                 while (childCount > 0) {
                     val view = getChildAt(0)!!
                     val viewAdapterPosition = view.params().absoluteAdapterPosition
-                    if (changes?.contains(viewAdapterPosition) == true)
+                    if(view.params().isItemChanged){
                         detachAndScrapView(view, recycler)
-                    else {
+                    }else{
                         viewCache.put(viewAdapterPosition, view)
                         detachView(view)
                     }
@@ -241,6 +249,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         }
         // layout visible items
         visibleItemRange.forEach { addView(recycler, state, viewCache, it) }
+        removedViews?.forEach{vpos, apos -> addView(recycler, state, viewCache, apos)}
         //scrap all unused views
         for (i in 0 until viewCache.size()) {
             val removingView = viewCache.valueAt(i)
@@ -252,9 +261,15 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             layoutStrategy == LAYOUT_FIXED && visibleItemRange.first == 0 && visibleItemRange.last == (itemCount) - 1
     }
 
+    private fun anyChildIsChanged() : Boolean {
+        repeat(childCount){
+            if(getChildAt(it)?.params()?.isItemChanged == true) return true
+        }
+        return false
+    }
+
     override fun onLayoutCompleted(state: RecyclerView.State?) {
         super.onLayoutCompleted(state)
-        changedItems = null
         mRangeWasRestored = false
     }
 
@@ -266,7 +281,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         position: Int
     ): View? {
         var view = viewCache[position]
-        if (view == null) { // get new view for position
+        if (view == null || view.params().isItemChanged) { // get new view for position
             // this try catch is copied because this might internally crash (test with new recycler)?
             try {
                 view = recycler.getViewForPosition(position)
@@ -284,7 +299,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             if (state?.isPreLayout == true) {
                 // not supported
             }
-            //measureChildWithMargins(view, 0, 0)
             orientationHelper.layoutViewForPosition(view, position)
         } else {    // quickly reattach existing view
             orientationHelper.revalidateViewPosition(view) // in case something was removed/moved
@@ -501,9 +515,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     }
 
     override fun onItemsUpdated(recyclerView: RecyclerView, positionStart: Int, itemCount: Int) {
-        val changeRange = positionStart until positionStart + itemCount
-        // will need to scrap the views so they get rebound with changes
-        changedItems = currentlyVisibleItemRange.intersect(changeRange)
+
     }
 
     // use default layout params
