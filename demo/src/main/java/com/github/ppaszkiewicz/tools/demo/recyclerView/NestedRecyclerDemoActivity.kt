@@ -52,6 +52,8 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
             recyclerView.layoutManager = null
             recyclerView.adapter = null
             recyclerView.recycledViewPool.clear()
+            // big pool so mass-removal doesn't cause too many creations
+            recyclerView.recycledViewPool.setMaxRecycledViews(0, 50)
             txtNestedText2.isVisible = true // show a view below recycler
 
             // assign new adapter and layout manager
@@ -84,7 +86,7 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
                 adapter?.let{
                     val i = it.items.removeAt(0)
                     it.items.add(20, i)
-                    it.notifyItemMoved(0, 20)
+                    it.notifyItemMoved(0, 19)
                 }
                 true
             }
@@ -92,6 +94,13 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
                 adapter?.let{
                     val i = it.items.removeAt(1)
                     it.notifyItemRemoved(1)
+                }
+                true
+            }
+            KeyEvent.KEYCODE_F -> { // test: deletion
+                adapter?.let{
+                    it.items.subList(1,10).clear()
+                    it.notifyItemRangeRemoved(1, 9)
                 }
                 true
             }
