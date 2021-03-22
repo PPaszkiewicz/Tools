@@ -23,6 +23,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sign
 
+// requires AdapterMutationTracker.kt
 // alpha version - predictive animations not ready
 //todo: add behavior that will scroll parent scroll to maintain current anchor position upon item
 // removal or addition
@@ -157,12 +158,12 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
      */
     private val exitingViews = mutableSetOf<Int>()
 
-    /**
-     * Moved items that will potentially enter the layout.
-     *
-     * Key - target position, value - source position.
-     * */
-    private val pendingMoves = SparseIntArray()
+//    /**
+//     * Moved items that will potentially enter the layout.
+//     *
+//     * Key - target position, value - source position.
+//     * */
+//    private val pendingMoves = SparseIntArray()
 
     /** Orientation helper that switches methods called in different configuration. */
     private val orientationHelper =
@@ -170,15 +171,16 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
 
     /** Observer for adapter - this is really odd that's even needed but [onItemsMoved] is called
      * post-layout which makes it useless. */
-    private val adapterObserver = object : RecyclerView.AdapterDataObserver() {
-        override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) {
-            Log.d(TAG, "obs - item moved: $fromPosition $toPosition $itemCount")
-            repeat(itemCount) {
-                pendingMoves.put(toPosition + it, fromPosition + it)
-                Log.d(TAG, "items moved: $pendingMoves")
-            }
-        }
-    }
+    private val adapterMutationTracker = AdapterMutationTracker()
+//    object : RecyclerView.AdapterDataObserver() {
+//        override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) {
+//            Log.d(TAG, "obs - item moved: $fromPosition $toPosition $itemCount")
+//            repeat(itemCount) {
+//                pendingMoves.put(toPosition + it, fromPosition + it)
+//                Log.d(TAG, "items moved: $pendingMoves")
+//            }
+//        }
+//    }
 
     override fun isAutoMeasureEnabled() = false
     override fun canScrollVertically() = scrollsVertically
@@ -266,7 +268,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             val removingView = viewCache.valueAt(i)
             recycler.recycleView(removingView)
         }
-        pendingMoves.clear() // pending moves get consumed in pre-layout or they're irrelevant
+        adapterMutationTracker.clear()
         if (state?.isPreLayout != true) {
             exitingViews.clear()
         }
@@ -342,100 +344,29 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                     Log.d(TAG, "view l:${p.viewLayoutPosition}, a:$postPosition top ${view.top}")
                     Log.d(TAG, "     -> exited to $postPosition")
                     exitingViews.add(postPosition)
-                } else
-                    laidOutViews.add(postPosition)
+                } else laidOutViews.add(postPosition)
             }
         }
         Log.d(TAG, "range: $newRange")
-        val incoming =
-            mapIncomingPrelayoutPositions(recycler, laidOutViews, newRange, state.itemCount)
-        incoming?.forEach { targetPosition, sourcePosition ->
-            val view = recycler.getViewForPosition(sourcePosition)
-            addView(view)
-            orientationHelper.layoutViewForPosition(view, sourcePosition)
-            Log.d(
-                TAG,
-                "view $sourcePosition -> from $targetPosition l: ${view.params().viewLayoutPosition} a:${view.params().absoluteAdapterPosition}"
-            )
-        }
-    }
-
-    //
-    private fun mapIncomingPrelayoutPositions(
-        recycler: RecyclerView.Recycler,
-        laidOutViews: MutableSet<Int>,
-        range: IntRange,
-        itemCount: Int
-    ): SparseIntArray? {
-        val rangeSize = range.count()
-        Log.d(TAG, "mapIncomingPrelayoutPositions ${laidOutViews.size} / $rangeSize ")
-        if (laidOutViews.size >= rangeSize)
-            return null // everything seems to be laid out already
-        val positionMap = SparseIntArray(rangeSize - laidOutViews.size)
-        pendingMoves.forEach { key, value ->
-            // validate that value is indeed visible and valid
-            if (key in range && recycler.convertPreLayoutPositionToPostLayout(value) == key) {
-                positionMap.put(key, value)
-                laidOutViews.add(key)
-            }
-        }
-        if (laidOutViews.size >= rangeSize)
-            return positionMap  // pending moves satisfied all missing positions
-
-        //todo: broken logic, convertPreLayoutPositionToPostLayout doesn't work if removed items
-        // are not visible
-        Log.d(TAG, "looking for $positionMap")
-        var offset = 1
-        // don't bother looking further than 2 screens bc anim will be too fast to notice anyway
-        val maxSteps = rangeSize * 3
-        while (laidOutViews.size < rangeSize && offset < maxSteps) {
-            // find views incoming from bottom
-            val bottom = range.first + offset
-            if (bottom < itemCount) {
-                val postPosition = recycler.convertPreLayoutPositionToPostLayout(bottom)
-                Log.d(TAG, " bottom: $bottom -> $postPosition")
-                if (postPosition in range && postPosition !in laidOutViews) {
-                    Log.d(TAG, "accepted")
-                    positionMap[postPosition] = bottom
-                    laidOutViews.add(postPosition)
-                    if (laidOutViews.size >= rangeSize) return positionMap
+        newRange.forEach {
+            if (!laidOutViews.remove(it)) {
+                val sourcePosition =
+                    adapterMutationTracker.getPrelayoutPositionForTargetPosition(it)
+                if (sourcePosition < state.itemCount) {
+                    //todo: "it" works if no items were removed from current layout and
+                    // source position works if they were?
+                    // is this some issue with recycling?
+                    val view = recycler.getViewForPosition(sourcePosition)
+                    Log.d(
+                        TAG,
+                        "view $it -> from $sourcePosition l: ${view.params().viewLayoutPosition} a:${view.params().absoluteAdapterPosition}"
+                    )
+                    addView(view)
+                    orientationHelper.layoutViewForPosition(view, sourcePosition)
                 }
             }
-            // find views incoming from top
-            val top = range.last - offset
-            if (top >= 0) {
-                val postPosition = recycler.convertPreLayoutPositionToPostLayout(top)
-                Log.d(TAG, " top___: $top -> $postPosition")
-                if (postPosition in range && postPosition !in laidOutViews) {
-                    Log.d(TAG, "accepted")
-                    positionMap[postPosition] = top
-                    laidOutViews.add(postPosition)
-                    if (laidOutViews.size >= rangeSize) return positionMap
-                }
-            }
-            offset++
         }
-        Log.d(TAG, "got $positionMap")
-        return positionMap
     }
-//
-//    /** Determine what position items want to animate from. */
-//    private fun findPrelayoutPositionForPosition(
-//        position: Int,
-//        recycler: RecyclerView.Recycler,
-//        itemCount: Int
-//    ): Int {
-//        // see if there's view that will move into the layout
-//        var sourcePosition = pendingMoves.get(position, -1)
-//        if (sourcePosition == -1) {
-//            //todo: find views that want to come from top or from bottom
-//            val removalShiftPosition = position + 1
-//            if (removalShiftPosition < itemCount
-//                && recycler.convertPreLayoutPositionToPostLayout(removalShiftPosition) == position
-//            ) sourcePosition = removalShiftPosition
-//        }
-//        return sourcePosition
-//    }
 
     /** add disappearing views that move out of bounds */
     private fun layoutForPredictiveAnimations(
@@ -672,14 +603,14 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     override fun onAttachedToWindow(view: RecyclerView?) {
         super.onAttachedToWindow(view)
         mRecyclerView = view
-        view?.adapter?.registerAdapterDataObserver(adapterObserver)
+        view?.adapter?.registerAdapterDataObserver(adapterMutationTracker)
         if (forceListener) scrollParentHandler.attachScrollListener(this, scrollParent)
     }
 
     override fun onDetachedFromWindow(view: RecyclerView?, recycler: RecyclerView.Recycler?) {
         super.onDetachedFromWindow(view, recycler)
         mRecyclerView = null
-        view?.adapter?.unregisterAdapterDataObserver(adapterObserver)
+        view?.adapter?.unregisterAdapterDataObserver(adapterMutationTracker)
         if (forceListener) scrollParentHandler.detachScrollListener(this, scrollParent)
     }
 
@@ -717,8 +648,8 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         Log.d(TAG, "adapter changed")
         itemSizes.clear()
         currentlyVisibleItemRange = IntRange.EMPTY
-        oldAdapter?.unregisterAdapterDataObserver(adapterObserver)
-        newAdapter?.registerAdapterDataObserver(adapterObserver)
+        oldAdapter?.unregisterAdapterDataObserver(adapterMutationTracker)
+        newAdapter?.registerAdapterDataObserver(adapterMutationTracker)
         removeAllViews()
     }
 
