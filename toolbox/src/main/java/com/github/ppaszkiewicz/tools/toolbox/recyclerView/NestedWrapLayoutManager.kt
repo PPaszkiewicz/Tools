@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.os.Parcelable
 import android.util.Log
 import android.util.SparseArray
+import android.util.SparseIntArray
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
@@ -144,18 +145,40 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         require(orientation == HORIZONTAL || orientation == VERTICAL)
     }
 
-    // this is mock-modified during measurement to trick super implementations
+    // scrollability is mock-modified during measurement to trick super implementations
     private var scrollsVertically = scrollParent is NestedScrollView && orientation == VERTICAL
 
-    // always false because there's no nested horizontal layout
+    // scrollability is mock-modified during measurement to trick super implementations
     private var scrollsHorizontally = false
 
-    // stored position of views that should be laid out outside visible bounds because they are exiting
-    private val exitingViews = mutableListOf<Int>()
+    /**
+     * Position of views that will exit viewport during predictive animation.
+     * Calculated during pre-layout and carried over to post-layout.
+     */
+    private val exitingViews = mutableSetOf<Int>()
+
+    /**
+     * Moved items that will potentially enter the layout.
+     *
+     * Key - target position, value - source position.
+     * */
+    private val pendingMoves = SparseIntArray()
 
     /** Orientation helper that switches methods called in different configuration. */
     private val orientationHelper =
         if (orientation == HORIZONTAL) HorizontalOrientationHelper() else VerticalOrientationHelper()
+
+    /** Observer for adapter - this is really odd that's even needed but [onItemsMoved] is called
+     * post-layout which makes it useless. */
+    private val adapterObserver = object : RecyclerView.AdapterDataObserver(){
+        override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) {
+            Log.d(TAG, "obs - item moved: $fromPosition $toPosition $itemCount")
+            repeat(itemCount) {
+                pendingMoves.put(toPosition + it, fromPosition + it)
+                Log.d(TAG, "items moved: $pendingMoves")
+            }
+        }
+    }
 
     override fun isAutoMeasureEnabled() = false
     override fun canScrollVertically() = scrollsVertically
@@ -170,15 +193,15 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     ) = when {
         state.itemCount == 0 -> super.onMeasure(recycler, state, widthSpec, heightSpec)
         childCount == 0 -> {
-            val v0 = recycler.getViewForPosition(0)
-            orientationHelper.measure(v0, state.itemCount, widthSpec, heightSpec)
-            recycler.recycleView(v0)
-            //Log.d(TAG, "onMeasure done (recycled), $itemWidth:$itemHeight!")
+            recycler.getViewForPosition(0).let { view ->
+                orientationHelper.measure(view, state.itemCount, widthSpec, heightSpec)
+                recycler.recycleView(view)
+            }
         }
         else -> {
-            val v0 = getChildAt(0)!!
-            orientationHelper.measure(v0, state.itemCount, widthSpec, heightSpec)
-            //Log.d(TAG, "onMeasure done (existed) $itemWidth:$itemHeight!")
+            getChildAt(0)!!.let { view ->
+                orientationHelper.measure(view, state.itemCount, widthSpec, heightSpec)
+            }
         }
     }
 
@@ -192,10 +215,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         if (childCount == 0 && state.isPreLayout) {
             return
         }
-//        Log.d(
-//            TAG,
-//            "layout ${state.isPreLayout}, ${state.didStructureChange()} ${state.willRunPredictiveAnimations()}"
-//        )
         layoutChildrenInLayout(recycler, state, 0)
     }
 
@@ -206,18 +225,13 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     ) {
         val itemCount = state?.itemCount ?: itemCount
         val viewCache = SparseArray<View>(childCount)
-        if (state?.isPreLayout == true) exitingViews.clear()
+        if (state?.isPreLayout == true) {
+            exitingViews.clear()
+        }
         val visibleItemRange = when {
             childCount != 0 -> {    // redoing existing layout
                 val range = getVisibleItemRange(dScroll, state)
-                // common case when there's no changes and no predictive animations (scroll), quick out
-                if (state?.willRunPredictiveAnimations() != true &&
-                    !anyChildIsChanged() &&
-                    range == currentlyVisibleItemRange
-                ) {
-                    return
-                }
-                collectViewsInLayout(recycler, state, viewCache, range)
+                if (!prepareViews(recycler, state, viewCache, range)) return
                 range
             }
             mRangeWasRestored -> {  // restoring the item range
@@ -240,46 +254,58 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         }
         // layout visible items and store updated value in post-layout phase
         if (state?.isPreLayout != true) {
-            visibleItemRange.forEach { addView(recycler, state, viewCache, it) }
+            visibleItemRange.forEach { addView(recycler, viewCache, it) }
             currentlyVisibleItemRange = visibleItemRange
             // optimization flag that will prevent view recycling during scroll
             isEntireContentInViewPort =
                 layoutStrategy == LAYOUT_FIXED && visibleItemRange.first == 0 && visibleItemRange.last == (itemCount) - 1
-          //  Log.d(TAG, "RANGE IS $currentlyVisibleItemRange")
         }
-        layoutForIncomingViews(recycler, state, viewCache) // called during PRE layout only
         layoutForPredictiveAnimations(recycler, state, viewCache) // called during POST layout only
         //scrap all unused views
         for (i in 0 until viewCache.size()) {
             val removingView = viewCache.valueAt(i)
             recycler.recycleView(removingView)
         }
-        if (state?.isPreLayout != true) exitingViews.clear()
+        pendingMoves.clear() // pending moves get consumed in pre-layout or they're irrelevant
+        if (state?.isPreLayout != true) {
+            exitingViews.clear()
+        }
     }
 
-    private fun collectViewsInLayout(
+    /**
+     * Call [prepareViewsInPreLayout] or [prepareViewsForLayout] depending on current state.
+     * @return `false` if no preparation was performed and layout should be entirely skipped
+     * */
+    private fun prepareViews(
         recycler: RecyclerView.Recycler,
         state: RecyclerView.State?,
         viewCache: SparseArray<View>,
-        newRange: IntRange
-    ) {
-        if (state?.willRunPredictiveAnimations() == true && state.isPreLayout) {
-            // see what children are about to leave the layout
-            // this happens when they are moved or views above them got removed and caused shift
-            repeat(childCount) {
-                val view = getChildAt(it)!!
-                val p = view.params()
-                val postPosition = p.absoluteAdapterPosition
-               // Log.d(TAG, "view a:$postPosition, l:${p.viewLayoutPosition} top ${view.top}")
-                if (!p.isItemRemoved) {
-                    if (postPosition !in newRange) {
-                     //   Log.d(TAG, "     -> exited to $postPosition")
-                        exitingViews.add(postPosition)
-                    }
-                }
+        range: IntRange
+    ): Boolean {
+        return when {
+            state?.willRunPredictiveAnimations() == true -> {
+                if (state.isPreLayout) prepareViewsInPreLayout(recycler, state, range)
+                else prepareViewsForLayout(recycler, state, viewCache)
+                true
             }
-            return
+            anyChildIsChanged() || range != currentlyVisibleItemRange -> {
+                prepareViewsForLayout(recycler, state, viewCache)
+                true
+            }
+            else -> {
+                // no predictive animations ran and no changes are being made, do nothing
+                false
+            }
         }
+    }
+
+    /** Cache or scrap all views currently in layout. */
+    private fun prepareViewsForLayout(
+        recycler: RecyclerView.Recycler,
+        state: RecyclerView.State?,
+        viewCache: SparseArray<View>
+    ) {
+        check(state?.isPreLayout != true)
         // scrap modified items (they will get rebound by adapter) but just detach others
         while (childCount > 0) {
             val view = getChildAt(0)!!
@@ -296,21 +322,64 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         }
     }
 
-    // pre-add views that are about to move into layout
-    private fun layoutForIncomingViews(
+    /**
+     * See what children are about to leave the [newRange] and populate [exitingViews] then lay out
+     * views that will enter the visible range.
+     */
+    private fun prepareViewsInPreLayout(
         recycler: RecyclerView.Recycler,
-        state: RecyclerView.State?,
-        viewCache: SparseArray<View>
+        state: RecyclerView.State,
+        newRange: IntRange
     ) {
-        if (!state!!.willRunPredictiveAnimations() || childCount == 0 || !state.isPreLayout
-            || !supportsPredictiveItemAnimations()
-        ) {
-            return
+        check(state.isPreLayout)
+        val laidOutViews = mutableListOf<Int>()
+        var removedViews = 0 // todo: this doesn't do anything if views get removed outside of visible area
+        repeat(childCount) {
+            val view = getChildAt(it)!!
+            val p = view.params()
+            val postPosition = p.absoluteAdapterPosition
+            laidOutViews.add(postPosition)
+            if (!p.isItemRemoved) {
+                if (postPosition !in newRange) {
+                    Log.d(TAG, "view l:${p.viewLayoutPosition}, a:$postPosition top ${view.top}")
+                    Log.d(TAG, "     -> exited to $postPosition")
+                    exitingViews.add(postPosition)
+                }
+            } else {
+                removedViews++ // view was removed
+            }
         }
-        //TODO: add views outside layout to move into visible area
+        var lastVisibleItem = -1
+        Log.d(TAG, "range: $newRange")
+        Log.d(TAG, "got moves: $pendingMoves")
+        newRange.forEach {
+            if (!laidOutViews.remove(it)) {
+                var sourcePosition = -1
+                val pendingPos = pendingMoves.get(it, -1)
+                if(pendingPos != -1){ // see if there's view that will move into the layout
+                    sourcePosition = pendingPos
+                }
+                else if (removedViews > 0) { // calculate incoming items source position based on amount of removed items
+                    val removalShiftPosition = it + removedViews
+                    if (removalShiftPosition < state.itemCount
+                        && recycler.convertPreLayoutPositionToPostLayout(removalShiftPosition) == it
+                    ) sourcePosition = removalShiftPosition
+                }
+                if (sourcePosition != -1) {
+                    val view = recycler.getViewForPosition(sourcePosition)
+                    addView(view)
+                    orientationHelper.layoutViewForPosition(view, sourcePosition)
+                    Log.d(TAG, "view $it is not laid out")
+                    Log.d(
+                        TAG,
+                        "    -> from $sourcePosition l: ${view.params().viewLayoutPosition} a:${view.params().absoluteAdapterPosition}"
+                    )
+                }
+            }
+        }
     }
 
-    // add disappearing views that move out of bounds
+    /** add disappearing views that move out of bounds */
     private fun layoutForPredictiveAnimations(
         recycler: RecyclerView.Recycler,
         state: RecyclerView.State?,
@@ -324,17 +393,14 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         // prevent views that are being removed from being recycled so remove anim can run
         for (i in viewCache.size - 1 downTo 0) {
             val view = viewCache.valueAt(i)
-            // layout everything that was visible
-            val p = view.params()
-            if (p.isItemRemoved) {
+            if (view.params().isItemRemoved) {
                 addDisappearingView(view)
                 viewCache.removeAt(i)
             }
         }
         // add views that are "moving out" of visible bounds
-        Log.d(TAG, "exiting views are: ${exitingViews.joinToString()}")
         exitingViews.forEach {
-            Log.d(TAG, "animating exiting at $it")
+            //Log.d(TAG, "animating exiting at $it")
             val exitingView = recycler.getViewForPosition(it)
             orientationHelper.revalidateViewPosition(exitingView)
             addDisappearingView(exitingView)
@@ -356,17 +422,25 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     // add new view from recycler or reattach view from viewCache
     private fun addView(
         recycler: RecyclerView.Recycler,
-        state: RecyclerView.State?,
         viewCache: SparseArray<View>,
         position: Int
     ): View? {
         var view = viewCache[position]
-        if (view == null) { // get new view for position
+        if (view == null) { // get new view or rebind scrap for position
             view = tryAdd(position, recycler)
-            if (view != null)
+            if (view != null) {
                 orientationHelper.layoutViewForPosition(view, position)
+//                Log.d(
+//                    TAG,
+//                    "adding view for $position, ${view.params().viewLayoutPosition} ${view.top}"
+//                )
+            }
         } else {    // quickly reattach existing view
             orientationHelper.revalidateViewPosition(view) // in case something was removed/moved
+//            Log.d(
+//                TAG,
+//                "reattaching view for $position, ${view.params().viewLayoutPosition} ${view.top}"
+//            )
             attachView(view)
             viewCache.remove(position)
         }
@@ -540,12 +614,14 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     override fun onAttachedToWindow(view: RecyclerView?) {
         super.onAttachedToWindow(view)
         mRecyclerView = view
+        view?.adapter?.registerAdapterDataObserver(adapterObserver)
         if (forceListener) scrollParentHandler.attachScrollListener(this, scrollParent)
     }
 
     override fun onDetachedFromWindow(view: RecyclerView?, recycler: RecyclerView.Recycler?) {
         super.onDetachedFromWindow(view, recycler)
         mRecyclerView = null
+        view?.adapter?.unregisterAdapterDataObserver(adapterObserver)
         if (forceListener) scrollParentHandler.detachScrollListener(this, scrollParent)
     }
 
@@ -580,8 +656,11 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         oldAdapter: RecyclerView.Adapter<*>?,
         newAdapter: RecyclerView.Adapter<*>?
     ) {
+        Log.d(TAG, "adapter changed")
         itemSizes.clear()
         currentlyVisibleItemRange = IntRange.EMPTY
+        oldAdapter?.unregisterAdapterDataObserver(adapterObserver)
+        newAdapter?.registerAdapterDataObserver(adapterObserver)
         removeAllViews()
     }
 
@@ -594,11 +673,11 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     }
 
     override fun onItemsMoved(recyclerView: RecyclerView, from: Int, to: Int, itemCount: Int) {
-        requestLayout()  // relayout everything
+        // useless - called post layout
     }
 
     override fun onItemsUpdated(recyclerView: RecyclerView, positionStart: Int, itemCount: Int) {
-
+        // not needed
     }
 
     // use default layout params

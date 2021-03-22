@@ -99,8 +99,8 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
             }
             KeyEvent.KEYCODE_F -> { // test: deletion
                 adapter?.let{
-                    it.items.subList(1,10).clear()
-                    it.notifyItemRangeRemoved(1, 9)
+                    it.items.subList(1,6).clear()
+                    it.notifyItemRangeRemoved(1, 5)
                 }
                 true
             }
