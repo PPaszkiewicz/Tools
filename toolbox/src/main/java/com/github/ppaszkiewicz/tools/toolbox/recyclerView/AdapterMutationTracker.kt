@@ -6,6 +6,10 @@ import androidx.recyclerview.widget.RecyclerView
 class AdapterMutationTracker : RecyclerView.AdapterDataObserver() {
     private val changes = mutableListOf<Change>()
 
+    override fun onChanged() {
+        clear()
+    }
+
     override fun onItemRangeInserted(positionStart: Int, itemCount: Int) {
         changes.add(Change.Inserted(positionStart, itemCount))
     }
@@ -66,8 +70,11 @@ class AdapterMutationTracker : RecyclerView.AdapterDataObserver() {
         changes.clear()
     }
 
-    /** Determine what item will move-into [targetPosition]. */
-    fun getPrelayoutPositionForTargetPosition(targetPosition: Int): Int {
+    /**
+     * Determine where is the item will be in [targetPosition] after adapter
+     * executes its structure changes.
+     * */
+    fun getPrepositionFor(targetPosition: Int): Int {
         var prePosition = targetPosition
         changes.forEach {
             prePosition = it.get(prePosition)

@@ -7,7 +7,6 @@ import android.os.Bundle
 import android.os.Parcelable
 import android.util.Log
 import android.util.SparseArray
-import android.util.SparseIntArray
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
@@ -351,15 +350,21 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         newRange.forEach {
             if (!laidOutViews.remove(it)) {
                 val sourcePosition =
-                    adapterMutationTracker.getPrelayoutPositionForTargetPosition(it)
+                    adapterMutationTracker.getPrepositionFor(it)
                 if (sourcePosition < state.itemCount) {
-                    //todo: "it" works if no items were removed from current layout and
-                    // source position works if they were?
-                    // is this some issue with recycling?
-                    val view = recycler.getViewForPosition(sourcePosition)
+                    // here's the confusing part: recycler only has small pre-calculated range
+                    // of items that will come into layout which seems to be:
+                    // # of viewholders in layout + # of viewholders that are leaving the layout
+                    // for those items we have to get view from their "target" position
+                    // and for all other we can query from source position
+                    //todo: sometimes view is not properly animated in
+                    val recPos = recycler.convertPreLayoutPositionToPostLayout(sourcePosition)
+                    val view = if(recPos == sourcePosition)
+                        recycler.getViewForPosition(it)
+                    else recycler.getViewForPosition(sourcePosition)
                     Log.d(
                         TAG,
-                        "view $it -> from $sourcePosition l: ${view.params().viewLayoutPosition} a:${view.params().absoluteAdapterPosition}"
+                        "view $it -> from $sourcePosition p- $recPos l- ${view.params().viewLayoutPosition} a:${view.params().absoluteAdapterPosition}"
                     )
                     addView(view)
                     orientationHelper.layoutViewForPosition(view, sourcePosition)
@@ -611,6 +616,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         super.onDetachedFromWindow(view, recycler)
         mRecyclerView = null
         view?.adapter?.unregisterAdapterDataObserver(adapterMutationTracker)
+        adapterMutationTracker.clear()
         if (forceListener) scrollParentHandler.detachScrollListener(this, scrollParent)
     }
 
@@ -649,6 +655,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         itemSizes.clear()
         currentlyVisibleItemRange = IntRange.EMPTY
         oldAdapter?.unregisterAdapterDataObserver(adapterMutationTracker)
+        adapterMutationTracker.clear()
         newAdapter?.registerAdapterDataObserver(adapterMutationTracker)
         removeAllViews()
     }
