@@ -23,7 +23,6 @@ import kotlin.math.min
 import kotlin.math.sign
 
 // requires AdapterMutationTracker.kt
-// alpha version - predictive animations not ready
 //todo: add behavior that will scroll parent scroll to maintain current anchor position upon item
 // removal or addition
 /**
@@ -330,11 +329,10 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                 } else laidOutViews.add(postPosition)
             }
         }
-        Log.d(TAG, "range: $newRange")
+        Log.d(TAG, "range: $newRange, changes are: $adapterMutationTracker")
         newRange.forEach {
             if (!laidOutViews.remove(it)) {
                 val sourcePosition = adapterMutationTracker.getPrepositionFor(it)
-                // todo: for some reason this mis-animates moves due to mass addition, fix it
                 if (sourcePosition >= 0 && sourcePosition !in newRange) {
                     // here's the confusing part: recycler only has small pre-calculated range
                     // of items that will come into layout which seems to be:

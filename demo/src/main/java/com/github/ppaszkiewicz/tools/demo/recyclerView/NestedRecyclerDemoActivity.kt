@@ -106,9 +106,7 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
             }
             KeyEvent.KEYCODE_G -> { // test: large add (to move items into screen from top)
                 adapter?.let{
-                    repeat(8) { _ ->
-                        it.items.add(2, it.items.count())
-                    }
+                    it.items.addAll(2, IntArray(8){ _ -> it.items.count()}.toList())
                     it.notifyItemRangeInserted(2, 8)
                 }
                 true
