@@ -323,13 +323,10 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             val postPosition = p.absoluteAdapterPosition
             if (!p.isItemRemoved) {
                 if (postPosition !in newRange) {
-                    Log.d(TAG, "view l:${p.viewLayoutPosition}, a:$postPosition top ${view.top}")
-                    Log.d(TAG, "     -> exited to $postPosition")
                     exitingViews.add(postPosition)
                 } else laidOutViews.add(postPosition)
             }
         }
-        Log.d(TAG, "range: $newRange, changes are: $adapterMutationTracker")
         newRange.forEach {
             if (!laidOutViews.remove(it)) {
                 val sourcePosition = adapterMutationTracker.getPrepositionFor(it)
@@ -344,10 +341,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                     // we determine which position we actually have to query to bind proper view
                     val viewAdapterPos = it + (sourcePosition - convertPos)
                     val view = recycler.getViewForPosition(viewAdapterPos)
-                    Log.d(
-                        TAG,
-                        "view $sourcePosition -> $it convert: $convertPos bind: $viewAdapterPos lay: ${view.params().viewLayoutPosition} a:${view.params().absoluteAdapterPosition}"
-                    )
                     addView(view)
                     orientationHelper.layoutViewForPosition(view, sourcePosition)
                 }
@@ -406,17 +399,9 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             view = tryAdd(position, recycler)
             if (view != null) {
                 orientationHelper.layoutViewForPosition(view, position)
-//                Log.d(
-//                    TAG,
-//                    "adding view for $position, ${view.params().viewLayoutPosition} ${view.top}"
-//                )
             }
         } else {    // quickly reattach existing view
             orientationHelper.revalidateViewPosition(view) // in case something was removed/moved
-//            Log.d(
-//                TAG,
-//                "reattaching view for $position, ${view.params().viewLayoutPosition} ${view.top}"
-//            )
             attachView(view)
             viewCache.remove(position)
         }
@@ -633,7 +618,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         oldAdapter: RecyclerView.Adapter<*>?,
         newAdapter: RecyclerView.Adapter<*>?
     ) {
-        Log.d(TAG, "adapter changed")
         itemSizes.clear()
         currentlyVisibleItemRange = IntRange.EMPTY
         oldAdapter?.unregisterAdapterDataObserver(adapterMutationTracker)
