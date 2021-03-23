@@ -72,6 +72,8 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
         }
     }
 
+    // some structure change showcases, note: they're not checking for items size so it may crash
+    // on extensive use
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         return when(keyCode){
             KeyEvent.KEYCODE_Q -> { // test: small move ( in screen)
@@ -120,6 +122,19 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
             }
             KeyEvent.KEYCODE_A -> {
                 adapter?.notifyItemChanged(2, Color.RED)
+                true
+            }
+            KeyEvent.KEYCODE_Z -> { // complex modification: same as the one presented in tests
+                adapter?.let{
+                    it.items.add(1,  it.items.count())
+                    val i = it.items.removeAt(1)
+                    it.items.add(10, i)
+                    it.items.removeAt(0)
+                    it.items.removeAt(0)
+                    it.notifyItemInserted(1)
+                    it.notifyItemMoved(1, 10)
+                    it.notifyItemRangeRemoved(0, 2)
+                }
                 true
             }
             else -> super.onKeyDown(keyCode, event)
