@@ -104,6 +104,15 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
                 }
                 true
             }
+            KeyEvent.KEYCODE_G -> { // test: large add (to move items into screen from top)
+                adapter?.let{
+                    repeat(8) { _ ->
+                        it.items.add(2, it.items.count())
+                    }
+                    it.notifyItemRangeInserted(2, 8)
+                }
+                true
+            }
             KeyEvent.KEYCODE_T -> { // test: insertion
                 adapter?.let{
                     it.items.add(2, it.items.count())

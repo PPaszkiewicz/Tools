@@ -157,13 +157,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
      */
     private val exitingViews = mutableSetOf<Int>()
 
-//    /**
-//     * Moved items that will potentially enter the layout.
-//     *
-//     * Key - target position, value - source position.
-//     * */
-//    private val pendingMoves = SparseIntArray()
-
     /** Orientation helper that switches methods called in different configuration. */
     private val orientationHelper =
         if (orientation == HORIZONTAL) HorizontalOrientationHelper() else VerticalOrientationHelper()
@@ -171,15 +164,6 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     /** Observer for adapter - this is really odd that's even needed but [onItemsMoved] is called
      * post-layout which makes it useless. */
     private val adapterMutationTracker = AdapterMutationTracker()
-//    object : RecyclerView.AdapterDataObserver() {
-//        override fun onItemRangeMoved(fromPosition: Int, toPosition: Int, itemCount: Int) {
-//            Log.d(TAG, "obs - item moved: $fromPosition $toPosition $itemCount")
-//            repeat(itemCount) {
-//                pendingMoves.put(toPosition + it, fromPosition + it)
-//                Log.d(TAG, "items moved: $pendingMoves")
-//            }
-//        }
-//    }
 
     override fun isAutoMeasureEnabled() = false
     override fun canScrollVertically() = scrollsVertically
@@ -349,22 +333,22 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         Log.d(TAG, "range: $newRange")
         newRange.forEach {
             if (!laidOutViews.remove(it)) {
-                val sourcePosition =
-                    adapterMutationTracker.getPrepositionFor(it)
-                if (sourcePosition < state.itemCount) {
+                val sourcePosition = adapterMutationTracker.getPrepositionFor(it)
+                // todo: for some reason this mis-animates moves due to mass addition, fix it
+                if (sourcePosition >= 0 && sourcePosition !in newRange) {
                     // here's the confusing part: recycler only has small pre-calculated range
                     // of items that will come into layout which seems to be:
                     // # of viewholders in layout + # of viewholders that are leaving the layout
                     // for those items we have to get view from their "target" position
                     // and for all other we can query from source position
-                    //todo: sometimes view is not properly animated in
-                    val recPos = recycler.convertPreLayoutPositionToPostLayout(sourcePosition)
-                    val view = if(recPos == sourcePosition)
-                        recycler.getViewForPosition(it)
-                    else recycler.getViewForPosition(sourcePosition)
+                    val convertPos = recycler.convertPreLayoutPositionToPostLayout(sourcePosition)
+                    // by calculating how "wrong" position returned from recycler is
+                    // we determine which position we actually have to query to bind proper view
+                    val viewAdapterPos = it + (sourcePosition - convertPos)
+                    val view = recycler.getViewForPosition(viewAdapterPos)
                     Log.d(
                         TAG,
-                        "view $it -> from $sourcePosition p- $recPos l- ${view.params().viewLayoutPosition} a:${view.params().absoluteAdapterPosition}"
+                        "view $sourcePosition -> $it convert: $convertPos bind: $viewAdapterPos lay: ${view.params().viewLayoutPosition} a:${view.params().absoluteAdapterPosition}"
                     )
                     addView(view)
                     orientationHelper.layoutViewForPosition(view, sourcePosition)
