@@ -54,7 +54,7 @@ sealed class SinglePropertyTransition<T : Any> : Transition {
     /** Capture transition names if [isTransitionNameValidated]. Called internally during [getPropertyValue]. */
     fun captureTransitionName(transitionValues: TransitionValues){
         if(isTransitionNameValidated()){
-            transitionValues.values[PROP_TRANSITION_NAME] = transitionValues.view?.transitionName
+            transitionValues.values[PROP_TRANSITION_NAME] = transitionValues.view.transitionName
         }
     }
 

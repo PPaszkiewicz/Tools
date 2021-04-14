@@ -10,8 +10,8 @@ import com.github.ppaszkiewicz.tools.coroutines.service.TaskServiceJob
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.DemoTaskService.Companion.EXTRA_PARAMS
 import com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService
 import com.github.ppaszkiewicz.tools.toolbox.liveData.LiveDataProgressMap
-import kotlinx.android.parcel.Parcelize
 import kotlinx.coroutines.CancellationException
+import kotlinx.parcelize.Parcelize
 import kotlin.random.Random
 
 class DemoTaskService : QueuedTaskService<Boolean>() {
@@ -104,7 +104,7 @@ class DemoServiceJob : TaskServiceJob<Boolean>() {
     override suspend fun doInBackground(intent: Intent): Boolean {
         Log.d(TAG, "loading in service for ${intent.dataString}")
         val key = intent.dataString!!.toInt()
-        val params = intent.getParcelableExtra<JobParams>(EXTRA_PARAMS)// cast params
+        val params = intent.getParcelableExtra<JobParams>(EXTRA_PARAMS)!!// cast params
         val random = Random(key)
         repeat(params.duration) {
             cancelIfInactive()

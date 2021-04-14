@@ -2,6 +2,7 @@ package com.github.ppaszkiewicz.tools.demo.viewModel
 
 import android.os.Bundle
 import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -21,7 +22,7 @@ class SyncableLiveDataDemoActivity : AppCompatActivity() {
 
     val sourceLiveData = MutableLiveData(0)
 
-    val h = Handler()
+    val h = Handler(Looper.getMainLooper())
 
     val emitRunnable = object : Runnable {
         override fun run() {

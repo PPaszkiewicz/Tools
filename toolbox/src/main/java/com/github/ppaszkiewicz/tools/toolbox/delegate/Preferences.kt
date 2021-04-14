@@ -170,11 +170,11 @@ abstract class RWPref<T>(
     /** Actual set that modifies shared preferences. */
     protected abstract fun SPEditor.set(key: String, value: T): SPEditor
 
-    /** Actual get that modifies shared preferences. */
+    /** Actual get that accesses shared preferences. */
     protected abstract fun SP.get(key: String, default: T): T
 
     // preference livedata impl based on this preference accessor
-    protected open inner class PrefLiveData : LiveData<T>(),
+    private inner class PrefLiveData : LiveData<T>(),
         SharedPreferences.OnSharedPreferenceChangeListener {
         override fun onActive() {
             prefs.registerOnSharedPreferenceChangeListener(this)

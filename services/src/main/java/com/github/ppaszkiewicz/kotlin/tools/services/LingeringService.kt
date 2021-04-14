@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
@@ -37,7 +38,7 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
     var serviceTimeoutMs: Long = TIMEOUT_MS
         protected set
 
-    private val timeoutHandler = Handler()
+    private val timeoutHandler = Handler(Looper.getMainLooper())
 
     private val timeoutRunnable = object : Runnable {
         override fun run() {

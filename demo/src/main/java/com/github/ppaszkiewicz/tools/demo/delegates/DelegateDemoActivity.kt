@@ -52,7 +52,7 @@ class MyFragmentOne : Fragment() {
         }
     }
 
-    /** this uses class name (nestedF1) as tag **/
+    /** this uses class name (MyFragmentTwo) as tag **/
     val nestedF1 by fragments<MyFragmentTwo>()
 
     /** this references f2 of parent activity fragment manager */

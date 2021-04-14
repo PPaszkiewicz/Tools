@@ -205,7 +205,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     private fun layoutChildrenInLayout(
         recycler: RecyclerView.Recycler,
         state: RecyclerView.State?,
-        dScroll: Int
+        dScroll: Int //todo: some issues with scroll after there are new items added?
     ) {
         val itemCount = state?.itemCount ?: itemCount
         val viewCache = SparseArray<View>(childCount)
@@ -215,7 +215,10 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         val visibleItemRange = when {
             childCount != 0 -> {    // redoing existing layout
                 val range = getVisibleItemRange(dScroll, state)
-                if (!prepareViews(recycler, state, viewCache, range)) return
+                if (!prepareViews(recycler, state, viewCache, range)) {
+                    adapterMutationTracker.clear()
+                    return
+                }
                 range
             }
             mRangeWasRestored -> {  // restoring the item range
@@ -330,7 +333,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         newRange.forEach {
             if (!laidOutViews.remove(it)) {
                 val sourcePosition = adapterMutationTracker.getPrepositionFor(it)
-                if (sourcePosition >= 0 && sourcePosition !in newRange) {
+                if (sourcePosition >= 0 && sourcePosition < state.itemCount && sourcePosition !in newRange) {
                     // here's the confusing part: recycler only has small pre-calculated range
                     // of items that will come into layout which seems to be:
                     // # of viewholders in layout + # of viewholders that are leaving the layout
