@@ -109,8 +109,9 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
             }
             KeyEvent.KEYCODE_G -> { // test: large add (to move items into screen from top)
                 adapter?.let{
-                    it.items.addAll(2, IntArray(8){ _ -> it.items.count()}.toList())
-                    it.notifyItemRangeInserted(2, 8)
+                    val insertCount = 16
+                    it.items.addAll(2, IntArray(insertCount){ _ -> it.items.count()}.toList())
+                    it.notifyItemRangeInserted(2, insertCount)
                 }
                 true
             }
@@ -136,6 +137,14 @@ class NestedRecyclerDemoActivity : AppCompatActivity() {
                     it.notifyItemMoved(1, 10)
                     it.notifyItemRangeRemoved(0, 2)
                 }
+                true
+            }
+            KeyEvent.KEYCODE_X -> {
+                binding.recyclerView.scrollToPosition(0)
+                true
+            }
+            KeyEvent.KEYCODE_C -> {
+                binding.recyclerView.scrollToPosition(adapter?.itemCount ?: 0)
                 true
             }
             else -> super.onKeyDown(keyCode, event)

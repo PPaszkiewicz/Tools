@@ -23,7 +23,7 @@ import kotlin.math.min
 import kotlin.math.sign
 
 // requires AdapterMutationTracker.kt
-//todo: add behavior that will scroll parent scroll to maintain current anchor position upon item
+//todo: add optional behavior that will scroll parent scroll to maintain current anchor position upon item
 // removal or addition
 /**
  * Layout manager that handles wrap height (or width in horizontal mode) within a scroll view and
@@ -174,17 +174,20 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         state: RecyclerView.State,
         widthSpec: Int,
         heightSpec: Int
-    ) = when {
-        state.itemCount == 0 -> super.onMeasure(recycler, state, widthSpec, heightSpec)
-        childCount == 0 -> {
-            recycler.getViewForPosition(0).let { view ->
-                orientationHelper.measure(view, state.itemCount, widthSpec, heightSpec)
-                recycler.recycleView(view)
+    ) {
+        val itemCount = this.itemCount // state.itemCount causes inconsistencies (doesn't account for freshly added items)
+        when {
+            itemCount == 0 -> super.onMeasure(recycler, state, widthSpec, heightSpec)
+            childCount == 0 -> {
+                recycler.getViewForPosition(0).let { view ->
+                    orientationHelper.measure(view, itemCount, widthSpec, heightSpec)
+                    recycler.recycleView(view)
+                }
             }
-        }
-        else -> {
-            getChildAt(0)!!.let { view ->
-                orientationHelper.measure(view, state.itemCount, widthSpec, heightSpec)
+            else -> {
+                getChildAt(0)!!.let { view ->
+                    orientationHelper.measure(view, itemCount, widthSpec, heightSpec)
+                }
             }
         }
     }
@@ -205,7 +208,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     private fun layoutChildrenInLayout(
         recycler: RecyclerView.Recycler,
         state: RecyclerView.State?,
-        dScroll: Int //todo: some issues with scroll after there are new items added?
+        dScroll: Int
     ) {
         val itemCount = state?.itemCount ?: itemCount
         val viewCache = SparseArray<View>(childCount)
@@ -213,6 +216,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
             exitingViews.clear()
         }
         val visibleItemRange = when {
+
             childCount != 0 -> {    // redoing existing layout
                 val range = getVisibleItemRange(dScroll, state)
                 if (!prepareViews(recycler, state, viewCache, range)) {
@@ -275,7 +279,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
                 else prepareViewsForLayout(recycler, state, viewCache)
                 true
             }
-            anyChildIsChanged() || range != currentlyVisibleItemRange -> {
+            range != currentlyVisibleItemRange || anyChildIsChanged() -> {
                 prepareViewsForLayout(recycler, state, viewCache)
                 true
             }
@@ -501,11 +505,11 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         val prefetchList = when {
             itemsToScroll > 0 -> coercedRange(
                 currentlyVisibleItemRange.last,
-                currentlyVisibleItemRange.last + itemsToScroll
+                currentlyVisibleItemRange.last + itemsToScroll, 0, state.itemCount - 1
             )
             else -> coercedRange(
                 currentlyVisibleItemRange.first + itemsToScroll,
-                currentlyVisibleItemRange.first
+                currentlyVisibleItemRange.first, 0, state.itemCount - 1
             )
         }
         var prefetchDist = 0
