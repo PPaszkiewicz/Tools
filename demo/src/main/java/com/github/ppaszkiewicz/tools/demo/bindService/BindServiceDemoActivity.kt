@@ -16,6 +16,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
+import com.github.ppaszkiewicz.kotlin.tools.services.BindServiceConnection
 import com.github.ppaszkiewicz.kotlin.tools.services.BindServiceConnectionCallbacks
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.toolbox.extensions.LoopRunnable
@@ -198,6 +199,10 @@ class BindServiceDemoActivity : AppCompatActivity() {
 
             override fun onNullBinding() {
                 Log.d(TAG, "onNullBinding")
+            }
+
+            override fun onBindingFailed(exception: BindServiceConnection.BindingException) {
+                throw exception
             }
         }
 

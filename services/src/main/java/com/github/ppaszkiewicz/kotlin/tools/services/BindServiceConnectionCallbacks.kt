@@ -61,6 +61,14 @@ interface BindServiceConnectionCallbacks<T> {
      */
     fun onNullBinding()
 
+    /**
+     * Called when internal [Context.bindService] fails.
+     *
+     * Default behavior is to immediately throw the [exception] as it usually indicates
+     * bad configuration of binding intent.
+     */
+    fun onBindingFailed(exception: BindServiceConnection.BindingException)
+
     /** Adapter for selective override. */
     open class Adapter<T> : BindServiceConnectionCallbacks<T> {
         override fun onFirstConnect(service: T) {}
@@ -71,5 +79,7 @@ interface BindServiceConnectionCallbacks<T> {
         override fun onUnbind() {}
         override fun onBindingDied() = false
         override fun onNullBinding() {}
+        override fun onBindingFailed(exception: BindServiceConnection.BindingException): Unit =
+            throw exception
     }
 }

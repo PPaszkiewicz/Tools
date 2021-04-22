@@ -1,7 +1,5 @@
 package com.github.ppaszkiewicz.kotlin.tools.services
 
-import androidx.annotation.RequiresApi
-
 /**
  * Callback interface for [BindServiceConnection] that defines hot pluggable lambdas instead of methods.
  * */
@@ -10,19 +8,19 @@ interface BindServiceConnectionLambdas<T> {
      * Called right before [onConnect] when this is first time `bind` call resulted in successful
      * connection to a service or service object changed.
      */
-    var onFirstConnect: ((T) -> Unit)?
+    var onFirstConnect: ((service: T) -> Unit)?
 
     /**
      * Triggered when service is connected or reconnected.
      * */
-    var onConnect: ((T) -> Unit)?
+    var onConnect: ((service: T) -> Unit)?
 
     /**
      * Triggered when service is disconnected.
      *
      * To handle lost connection cases provide [onConnectionLost] callback.
      **/
-    var onDisconnect: ((T) -> Unit)?
+    var onDisconnect: ((service: T) -> Unit)?
 
     /**
      * Triggered when service connection is lost due to [ServiceConnection.onServiceDisconnected].
@@ -32,7 +30,7 @@ interface BindServiceConnectionLambdas<T> {
      *
      * Return `true` to consume callback or [onDisconnect] will be called afterwards.
      **/
-    var onConnectionLost: ((T) -> Boolean)?
+    var onConnectionLost: ((service: T) -> Boolean)?
 
     /**
      * Triggered when service binding is requested.
@@ -60,16 +58,27 @@ interface BindServiceConnectionLambdas<T> {
      */
     var onNullBinding: (() -> Unit)?
 
-    /** Default implementation that has all callbacks null. */
+    /**
+     * Called when internal [Context.bindService] fails.
+     *
+     * Default behavior is to immediately throw the [exception] as it usually indicates wrong
+     * binding intent.
+     */
+    var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit)
+
+    /** Default implementation that has all possible callbacks null. */
     open class Default<T> : BindServiceConnectionLambdas<T> {
-        override var onFirstConnect: ((T) -> Unit)? = null
-        override var onConnect: ((T) -> Unit)? = null
-        override var onDisconnect: ((T) -> Unit)? = null
-        override var onConnectionLost: ((T) -> Boolean)? = null
+        override var onFirstConnect: ((service: T) -> Unit)? = null
+        override var onConnect: ((service: T) -> Unit)? = null
+        override var onDisconnect: ((service: T) -> Unit)? = null
+        override var onConnectionLost: ((service: T) -> Boolean)? = null
         override var onBind: (() -> Unit)? = null
         override var onUnbind: (() -> Unit)? = null
         override var onBindingDied: (() -> Boolean)? = null
         override var onNullBinding: (() -> Unit)? = null
+        override var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit) = {
+            throw it
+        }
     }
 
     /**
@@ -79,35 +88,36 @@ interface BindServiceConnectionLambdas<T> {
      * */
     open class Adapter<T>(impl: BindServiceConnectionCallbacks<T> = BindServiceConnectionCallbacks.Adapter()) :
         BindServiceConnectionCallbacks<T> by impl, BindServiceConnectionLambdas<T> {
-        override var onFirstConnect: ((T) -> Unit)? = ::onFirstConnect
-        override var onConnect: ((T) -> Unit)? = ::onConnect
-        override var onDisconnect: ((T) -> Unit)? = ::onDisconnect
-        override var onConnectionLost: ((T) -> Boolean)? = ::onConnectionLost
+        override var onFirstConnect: ((service: T) -> Unit)? = ::onFirstConnect
+        override var onConnect: ((service: T) -> Unit)? = ::onConnect
+        override var onDisconnect: ((service: T) -> Unit)? = ::onDisconnect
+        override var onConnectionLost: ((service: T) -> Boolean)? = ::onConnectionLost
         override var onBind: (() -> Unit)? = ::onBind
         override var onUnbind: (() -> Unit)? = ::onUnbind
         override var onBindingDied: (() -> Boolean)? = ::onBindingDied
         override var onNullBinding: (() -> Unit)? = ::onNullBinding
+        override var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit) = ::onBindingFailed
     }
 
     /** Delegates everything to modifiable [c] object. */
     class Proxy<T>(var c: BindServiceConnectionLambdas<T> = Default()) :
         BindServiceConnectionLambdas<T> {
-        override var onFirstConnect: ((T) -> Unit)?
+        override var onFirstConnect: ((service: T) -> Unit)?
             get() = c.onFirstConnect
             set(value) {
                 c.onFirstConnect = value
             }
-        override var onConnect: ((T) -> Unit)?
+        override var onConnect: ((service: T) -> Unit)?
             get() = c.onConnect
             set(value) {
                 c.onConnect = value
             }
-        override var onDisconnect: ((T) -> Unit)?
+        override var onDisconnect: ((service: T) -> Unit)?
             get() = c.onDisconnect
             set(value) {
                 c.onDisconnect = value
             }
-        override var onConnectionLost: ((T) -> Boolean)?
+        override var onConnectionLost: ((service: T) -> Boolean)?
             get() = c.onConnectionLost
             set(value) {
                 c.onConnectionLost = value
@@ -131,6 +141,11 @@ interface BindServiceConnectionLambdas<T> {
             get() = c.onNullBinding
             set(value) {
                 c.onNullBinding = value
+            }
+        override var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit)
+            get() = c.onBindingFailed
+            set(value) {
+                c.onBindingFailed = value
             }
     }
 }

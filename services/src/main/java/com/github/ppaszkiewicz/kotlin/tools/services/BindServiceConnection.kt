@@ -2,6 +2,7 @@ package com.github.ppaszkiewicz.kotlin.tools.services
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
 import android.os.IBinder
@@ -133,8 +134,20 @@ abstract class BindServiceConnection<T> private constructor(
     protected open fun performBind(flags: Int) {
         if (!isBound) {
             isBound = true
-            context.bindService(createBindingIntent(context), serviceConnectionObject, flags)
-            onBind?.invoke()
+            var bindingOk = false
+            var bindException: SecurityException? = null
+            val bindingIntent = createBindingIntent(context)
+            try {
+                bindingOk = context.bindService(bindingIntent, serviceConnectionObject, flags)
+            } catch (exc: SecurityException) {
+                bindException = exc
+            }
+            if (bindingOk) {
+                onBind?.invoke()
+            } else {
+                isBound = false
+                onBindingFailed(BindingException(bindingIntent, bindException))
+            }
         }
     }
 
@@ -326,6 +339,23 @@ abstract class BindServiceConnection<T> private constructor(
             ldOwner: LiveData<LifecycleOwner?>,
             conn: LifecycleBindServiceConnection<T>
         ) = conn.apply { ldOwner.observe(lOwner, Observer { it?.lifecycle?.addObserver(this) }) }
+    }
+
+    /**
+     * Thrown when binding to the service fails.
+     * */
+    class BindingException(
+        /** Intent produced by [createBindingIntent] that caused the failure. */
+        val intent: Intent,
+        /** If binding returned `false` this is `null`, otherwise this is exception that was thrown. */
+        val rootException: SecurityException?
+    ) : Exception(){
+        override val message = "Failed to bind service using $intent: ${failureReasonMessage()}"
+
+        private fun failureReasonMessage() = when(rootException){
+            null -> "bind returned false"
+            else -> rootException.message
+        }
     }
 }
 
