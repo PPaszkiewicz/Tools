@@ -134,20 +134,18 @@ abstract class BindServiceConnection<T> private constructor(
     protected open fun performBind(flags: Int) {
         if (!isBound) {
             isBound = true
-            var bindingOk = false
-            var bindException: SecurityException? = null
             val bindingIntent = createBindingIntent(context)
-            try {
-                bindingOk = context.bindService(bindingIntent, serviceConnectionObject, flags)
+            val bindingExc = try {
+                if(context.bindService(bindingIntent, serviceConnectionObject, flags)){
+                    onBind?.invoke()
+                    return
+                }
+                null
             } catch (exc: SecurityException) {
-                bindException = exc
+                exc
             }
-            if (bindingOk) {
-                onBind?.invoke()
-            } else {
-                isBound = false
-                onBindingFailed(BindingException(bindingIntent, bindException))
-            }
+            isBound = false
+            onBindingFailed(BindingException(bindingIntent, bindingExc))
         }
     }
 

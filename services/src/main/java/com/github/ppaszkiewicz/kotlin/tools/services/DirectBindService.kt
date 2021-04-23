@@ -45,8 +45,6 @@ interface DirectBindService {
 
     /**
      * Default [DirectBindService] implementation extending [LifecycleService].
-     *
-     * Requires `androidx.lifecycle:lifecycle-extensions:2.2.0`
      * */
     abstract class LifecycleImpl : LifecycleService(), DirectBindService {
         @Suppress("LeakingThis")
