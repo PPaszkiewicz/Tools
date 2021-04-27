@@ -27,7 +27,9 @@ open class DirectBinder(val service: Service) : Binder()
 /**
  * This is a marker interface for services handling [BIND_DIRECT_ACTION] and returning [DirectBinder].
  *
- * If possible default implementation can be extended: [DirectBindService.Impl].
+ * If possible default implementations can be extended:
+ * - [DirectBindService.Impl] - default implementation extending [Service]
+ * - [DirectBindService.LifecycleImpl] - implementation extending [LifecycleService]
  *
  * Use [DirectBindService.ConnectionFactory] to create connections to those services.
  * */
