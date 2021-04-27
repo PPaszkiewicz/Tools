@@ -106,6 +106,12 @@ inline fun <reified T : Activity> Activity.StartActivityForResult(
     noinline editStartIntent: (Intent.() -> Unit)? = null)  =
     StartLocalActivityForResult(T::class.java, action, editStartIntent)
 
+/** Infer class for [StartLocalActivityForResult]. */
+inline fun <reified T : Activity> Fragment.StartActivityForResult(
+    action: String? = null,
+    noinline editStartIntent: (Intent.() -> Unit)? = null)  =
+    StartLocalActivityForResult(T::class.java, action, editStartIntent)
+
 /**
  * Contract to open an activity from this package (using class name).
  *
