@@ -21,19 +21,22 @@ import java.lang.ref.WeakReference
  * Base for bind service connection implementations.
  *
  * Implementing classes need to call [performBind] and [performUnbind] as they see fit.
- * ---
- * Implements following [LifecycleOwner]:
+ *
+ * Implements following [LifecycleOwner] which represents connection to single service:
  * - `null` before first [onFirstConnect]
  * - `RESUMED` right after [onFirstConnect] and [onConnect] call
  * - `STOPPED` right before [onDisconnect] call
- * - `DESTROYED` after calling [dispatchDestroyLifecycle]
+ * - `DESTROYED` after [dispatchDestroyConnectionLifecycle] which happens:
+ *      - before [onConnectionLost]
+ *      - before [onFirstConnect] (if service was restarted while unbound)
  *
- * By default [dispatchDestroyLifecycle] is called:
- * - before [onConnectionLost]
- * - before [onFirstConnect] (if service was restarted while unbound)
- * - [LifecycleBindServiceConnection]: when observed lifecycle is destroyed
+ * There's also [stateLifecycleOwner] which represents general connection state:
+ * - `CREATED` before first [onFirstConnect]
+ * - `RESUMED` right after [onFirstConnect] and [onConnect] call
+ * - `STOPPED` right before [onDisconnect] call
+ * - `DESTROYED` after calling [release]
  *
- * For other cases it should be called manually when object hosting this connection is destroyed.
+ * If you observe either lifecycle [release] must be called manually when object hosting this connection is destroyed (after performing last unbind).
  * */
 abstract class BindServiceConnection<T> private constructor(
     contextDelegate: ContextDelegate,
@@ -55,14 +58,12 @@ abstract class BindServiceConnection<T> private constructor(
      * */
     private var currentBinder: WeakReference<IBinder>? = null
 
-    private var _mlifecycle: LifecycleRegistry? = null
+    private var _connectionLifecycle: LifecycleRegistry? = null
 
-    @Suppress("LeakingThis")
-    internal val mLifecycle: LifecycleRegistry
+    internal val connectionLifecycle: LifecycleRegistry
         get() {
-            if (!config.lifecycleRepresentsConnection) _mlifecycle = LifecycleRegistry(this)
-            return _mlifecycle
-                ?: throw IllegalStateException("Cannot access lifecycle before service connects. To modify this behavior disable config.lifecycleRepresentsConnection")
+            return _connectionLifecycle
+                ?: throw IllegalStateException("Cannot access connection lifecycle before connection succeeds.")
         }
 
     /** Context provided by delegate, workaround for fragment lazy context initialization. */
@@ -89,16 +90,7 @@ abstract class BindServiceConnection<T> private constructor(
         /**
          * Force rebind when connection dies on devices below API 28.
          */
-        var autoRebindDeadBindingCompat: Boolean = true,
-        /**
-         * Call [BindServiceConnection.dispatchDestroyLifecycle] before [BindServiceConnection.onConnectionLost].
-         *
-         * This makes lifecycle represent a single connection rather than general connection state. When this is set
-         * it's impossible to access lifecycle before service connects.
-         *
-         * Default: `true`
-         */
-        var lifecycleRepresentsConnection: Boolean = true
+        var autoRebindDeadBindingCompat: Boolean = true
     )
 
     /** Raised if [performBind] was called without matching [performUnbind]. */
@@ -113,8 +105,19 @@ abstract class BindServiceConnection<T> private constructor(
     val service: T?
         get() = value
 
+    /** Lifecycle that represents general service connection state. */
+    val stateLifecycle : Lifecycle
+        get() = _stateLifecycle
+    /** Owner of [stateLifecycle]. */
+    val stateLifecycleOwner : LifecycleOwner = LifecycleOwner { _stateLifecycle }
+
+    internal val _stateLifecycle = LifecycleRegistry(stateLifecycleOwner).also {
+        it.currentState = Lifecycle.State.CREATED
+    }
+
+
     // satisfy LifecycleOwner
-    override fun getLifecycle() = mLifecycle
+    override fun getLifecycle() = connectionLifecycle
 
     // modify callbacks
 
@@ -155,7 +158,8 @@ abstract class BindServiceConnection<T> private constructor(
             isBound = false
             context.unbindService(serviceConnectionObject)
             value?.let {
-                mLifecycle.currentState = Lifecycle.State.CREATED
+                _stateLifecycle.currentState = Lifecycle.State.CREATED
+                connectionLifecycle.currentState = Lifecycle.State.CREATED
                 onDisconnect?.invoke(it)
             }
             onUnbind?.invoke()
@@ -179,29 +183,48 @@ abstract class BindServiceConnection<T> private constructor(
     }
 
     /**
-     * Force connections lifecycle to move from `STOPPED` state into `DESTROYED` state and release
-     * internal lifecycle object.
+     * Notify this connection it will never be used again (destroy lifecycles to disconnect observers).
      *
-     * Use this to forcefully disconnect all listeners that were observing this lifecycle.
+     * @throws IllegalStateException if binding is still active
+     * */
+    fun release() {
+        check(!isBound){"Cannot release while binding is still active"}
+        dispatchDestroyLifecycles()
+    }
+
+    /**
+     * Force [_stateLifecycle] and [connectionLifecycle] to move from `STOPPED` state into `DESTROYED` state and release
+     * connection lifecycle object.
+     *
+     * Use this to forcefully disconnect all listeners that were observing either lifecycle.
+     * */
+    private fun dispatchDestroyLifecycles() {
+        dispatchDestroyConnectionLifecycle(true)
+        check(_stateLifecycle.currentState < Lifecycle.State.RESUMED) { "Cannot be called while binding is active" }
+        _stateLifecycle.currentState = Lifecycle.State.DESTROYED
+    }
+
+    /**
+     * Destroy and release connection lifecycle only.
      *
      * @param releaseBinderRef (default: `true`) discard internal weak binder reference. This will force
      * [onFirstConnect] to be called on next connection even if it reconnects to the same service.
      * */
-    fun dispatchDestroyLifecycle(releaseBinderRef: Boolean = true) {
+    protected fun dispatchDestroyConnectionLifecycle(releaseBinderRef: Boolean){
         if (releaseBinderRef) currentBinder = null
-        if (_mlifecycle == null) return  // safe exit case
-        check(mLifecycle.currentState < Lifecycle.State.RESUMED) { "Cannot be called while binding is active" }
-        mLifecycle.currentState = Lifecycle.State.DESTROYED
-        _mlifecycle = null
-
+        if (_connectionLifecycle == null) return  // safe exit case (connection not initialized)
+        check(connectionLifecycle.currentState < Lifecycle.State.RESUMED) { "Cannot be called while binding is active" }
+        connectionLifecycle.currentState = Lifecycle.State.DESTROYED
+        _connectionLifecycle = null
     }
 
     /** Internal [ServiceConnection] object that's actually registered for binding. **/
     internal val serviceConnectionObject = object : ServiceConnection {
         override fun onServiceDisconnected(name: ComponentName) {
             value?.let { service ->
-                mLifecycle.currentState = Lifecycle.State.CREATED
-                if (config.lifecycleRepresentsConnection) dispatchDestroyLifecycle()
+                _stateLifecycle.currentState = Lifecycle.State.CREATED
+                connectionLifecycle.currentState = Lifecycle.State.CREATED
+                dispatchDestroyConnectionLifecycle(true)
                 val callbackConsumed = onConnectionLost?.let { it(service) }
                 if (callbackConsumed != true) onDisconnect?.invoke(service)
                 value = null
@@ -218,27 +241,28 @@ abstract class BindServiceConnection<T> private constructor(
             }
         }
 
-        override fun onServiceConnected(name: ComponentName, service: IBinder) {
-            val lcCreated = if (_mlifecycle == null) {
-                _mlifecycle = LifecycleRegistry(this@BindServiceConnection); true
+        override fun onServiceConnected(name: ComponentName, serviceBinder: IBinder) {
+            val lcCreated = if (_connectionLifecycle == null) {
+                _connectionLifecycle = LifecycleRegistry(this@BindServiceConnection); true
             } else false
             val oldBinder = currentBinder?.get()
-            transformBinder(name, service).also {
+            transformBinder(name, serviceBinder).also {
                 this@BindServiceConnection.value = it
-                if (!(oldBinder === service)) {
-                    if (!lcCreated && config.lifecycleRepresentsConnection && currentBinder != null) {
+                if (!(oldBinder === serviceBinder)) {
+                    if (!lcCreated && currentBinder != null) {
                         Log.w(
                             "BindServiceConn",
                             "service was restarted while connection was unbound - invalidating lifecycle"
                         )
-                        dispatchDestroyLifecycle()
-                        _mlifecycle = LifecycleRegistry(this@BindServiceConnection)
+                        dispatchDestroyConnectionLifecycle(false)
+                        _connectionLifecycle = LifecycleRegistry(this@BindServiceConnection)
                     }
                     onFirstConnect?.invoke(it)
-                    currentBinder = WeakReference(service)
+                    currentBinder = WeakReference(serviceBinder)
                 }
                 onConnect?.invoke(it)
-                mLifecycle.currentState = Lifecycle.State.RESUMED
+                _stateLifecycle.currentState = Lifecycle.State.RESUMED
+                connectionLifecycle.currentState = Lifecycle.State.RESUMED
             }
         }
 
@@ -341,11 +365,12 @@ abstract class BindServiceConnection<T> private constructor(
 
     /**
      * Thrown when binding to the service fails.
+     *
+     * @param intent Intent produced by [createBindingIntent] that caused the failure
+     * @param rootException If binding returned `false` this is `null`, otherwise this is exception that was thrown
      * */
     class BindingException(
-        /** Intent produced by [createBindingIntent] that caused the failure. */
         val intent: Intent,
-        /** If binding returned `false` this is `null`, otherwise this is exception that was thrown. */
         val rootException: SecurityException?
     ) : Exception(){
         override val message = "Failed to bind service using $intent: ${failureReasonMessage()}"
@@ -416,7 +441,7 @@ abstract class ObservableBindServiceConnection<T>(
 /**
  * Connection to service that is a [LifecycleObserver] and aligns binding with [bindingLifecycleState].
  *
- * This automatically calls [dispatchDestroyLifecycle] when observed lifecycle is destroyed.
+ * This automatically calls [release] when observed lifecycle is destroyed.
  * */
 abstract class LifecycleBindServiceConnection<T>(
     contextDelegate: ContextDelegate,
@@ -457,6 +482,6 @@ abstract class LifecycleBindServiceConnection<T>(
             }
             else -> throw IllegalStateException("invalid bindingLifecycleEvent")
         }
-        if (event == Lifecycle.Event.ON_DESTROY) dispatchDestroyLifecycle(true)
+        if (event == Lifecycle.Event.ON_DESTROY) release()
     }
 }

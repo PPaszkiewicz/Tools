@@ -238,7 +238,8 @@ private fun <T : LingeringService> BindServiceConnection<T>.lingeringUnbind(fini
         isBound = false
         context.unbindService(serviceConnectionObject)
         value?.let{
-            mLifecycle.currentState = Lifecycle.State.CREATED
+            _stateLifecycle.currentState = Lifecycle.State.CREATED
+            connectionLifecycle.currentState = Lifecycle.State.CREATED
             onDisconnect?.invoke(it)
         }
         onUnbind?.invoke()

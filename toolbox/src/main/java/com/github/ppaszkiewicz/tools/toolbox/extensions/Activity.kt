@@ -101,12 +101,14 @@ inline fun <reified T : Activity> Fragment.startActivityForResult(
 
 // helpers for new result API
 /** Infer class for [StartLocalActivityForResult]. */
+@Suppress("FunctionName")
 inline fun <reified T : Activity> Activity.StartActivityForResult(
     action: String? = null,
     noinline editStartIntent: (Intent.() -> Unit)? = null)  =
     StartLocalActivityForResult(T::class.java, action, editStartIntent)
 
 /** Infer class for [StartLocalActivityForResult]. */
+@Suppress("FunctionName")
 inline fun <reified T : Activity> Fragment.StartActivityForResult(
     action: String? = null,
     noinline editStartIntent: (Intent.() -> Unit)? = null)  =

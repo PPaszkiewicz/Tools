@@ -47,7 +47,7 @@ interface BindServiceConnectionLambdas<T> {
      *
      * Return `true` to consume callback or [onUnbind] and [onBind] will be called while rebinding.
      *
-     * **Works natively from API level 28. For lower versions compat behavior applies (triggered after [onConnectionLost]). **
+     * __Works natively from API level 28.__ For lower versions compat behavior applies (triggered after [onConnectionLost]).
      */
     var onBindingDied: (() -> Boolean)?
 
@@ -76,18 +76,20 @@ interface BindServiceConnectionLambdas<T> {
         override var onUnbind: (() -> Unit)? = null
         override var onBindingDied: (() -> Boolean)? = null
         override var onNullBinding: (() -> Unit)? = null
-        override var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit) = {
-            throw it
-        }
+        override var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit) =
+            {
+                throw it
+            }
     }
 
     /**
-     * Adapter with callback lambdas preset to delegate to overrideable methods.
+     * Adapter with callback lambdas preset to delegate to overrideable methods of [BindServiceConnectionCallbacks].
      *
-     * Note that modifying any lambda will prevent interface method from being called.
+     * Note that modifying any lambda will prevent [impl] methods from being called.
      * */
-    open class Adapter<T>(impl: BindServiceConnectionCallbacks<T> = BindServiceConnectionCallbacks.Adapter()) :
-        BindServiceConnectionCallbacks<T> by impl, BindServiceConnectionLambdas<T> {
+    open class Adapter<T>(
+        val impl: BindServiceConnectionCallbacks<T> = BindServiceConnectionCallbacks.Adapter()
+    ) : BindServiceConnectionCallbacks<T> by impl, BindServiceConnectionLambdas<T> {
         override var onFirstConnect: ((service: T) -> Unit)? = ::onFirstConnect
         override var onConnect: ((service: T) -> Unit)? = ::onConnect
         override var onDisconnect: ((service: T) -> Unit)? = ::onDisconnect
@@ -96,7 +98,8 @@ interface BindServiceConnectionLambdas<T> {
         override var onUnbind: (() -> Unit)? = ::onUnbind
         override var onBindingDied: (() -> Boolean)? = ::onBindingDied
         override var onNullBinding: (() -> Unit)? = ::onNullBinding
-        override var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit) = ::onBindingFailed
+        override var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit) =
+            ::onBindingFailed
     }
 
     /** Delegates everything to modifiable [c] object. */

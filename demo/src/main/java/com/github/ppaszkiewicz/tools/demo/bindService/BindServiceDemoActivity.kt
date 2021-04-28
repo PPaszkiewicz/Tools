@@ -83,6 +83,7 @@ class BindServiceDemoActivity : AppCompatActivity() {
 
             // observe lifecycle
             textView4.text = "Event: --, state: none"
+            textView4andHalf.text = "State: --, state: ${serviceConn.stateLifecycle.currentState}"
         }
     }
 
@@ -90,9 +91,14 @@ class BindServiceDemoActivity : AppCompatActivity() {
         serviceConn.lifecycle.addObserver(object : LifecycleEventObserver {
             override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
                 binding.textView4.text =
-                    "Event: ${event.name}, state: ${source.lifecycle.currentState.name}"
+                    "Conn: ${event.name}, state: ${source.lifecycle.currentState.name}"
             }
-
+        })
+        serviceConn.stateLifecycle.addObserver(object : LifecycleEventObserver {
+            override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+                binding.textView4andHalf.text =
+                    "State: ${event.name}, state: ${source.lifecycle.currentState.name}"
+            }
         })
     }
 
@@ -216,8 +222,8 @@ class BindServiceDemoActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        // using manual connection for this demo, have to handle lifecycle destruction
-        serviceConn.dispatchDestroyLifecycle()
+        // using manual connection for this demo, have to handle destruction
+        serviceConn.release()
         super.onDestroy()
     }
 }
