@@ -14,10 +14,6 @@ import androidx.lifecycle.LiveData
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 
-/*
- *   /* requires DirectBindService.kt, BindServiceConnection.kt and context delegates from delegate.Context.kt */
- * */
-
 /**
  * [DirectBindService] that gets automatically stopped when it's unbound for [serviceTimeoutMs].
  *

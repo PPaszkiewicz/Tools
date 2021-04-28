@@ -15,8 +15,6 @@ import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 import java.lang.ref.WeakReference
 
-/* requires context delegates from delegate.Context.kt */
-
 /**
  * Base for bind service connection implementations.
  *

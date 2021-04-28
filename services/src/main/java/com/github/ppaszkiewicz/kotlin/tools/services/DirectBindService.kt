@@ -15,8 +15,6 @@ import androidx.lifecycle.*
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 
-/* requires BindServiceConnection.kt and context delegates from delegate.Context.kt */
-
 /*
     Base for direct binding services.
  */
