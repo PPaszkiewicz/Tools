@@ -88,7 +88,7 @@ class BindServiceDemoActivity : AppCompatActivity() {
     }
 
     private fun observeState() {
-        serviceConn.lifecycle.addObserver(object : LifecycleEventObserver {
+        serviceConn.connectionLifecycle.addObserver(object : LifecycleEventObserver {
             override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
                 binding.textView4.text =
                     "Conn: ${event.name}, state: ${source.lifecycle.currentState.name}"
@@ -109,10 +109,10 @@ class BindServiceDemoActivity : AppCompatActivity() {
         // livedata inside the service
         //val compoundLifecycleOwner = this@BindServiceDemoActivity + serviceConn
 
-        service.serviceValue.observe(serviceConn) { bindCount ->
+        service.serviceValue.observe(serviceConn.connectionLifecycleOwner) { bindCount ->
             binding.textView3.text = "service was connected to $bindCount times"
         }
-        service.serviceLifeSpan.observe(serviceConn) { time ->
+        service.serviceLifeSpan.observe(serviceConn.connectionLifecycleOwner) { time ->
             binding.textView5.text = "Service is alive for $time seconds."
             Log.d("T", "Service is alive for $time")
         }
