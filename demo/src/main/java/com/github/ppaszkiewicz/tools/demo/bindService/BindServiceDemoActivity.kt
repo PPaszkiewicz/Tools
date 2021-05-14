@@ -260,6 +260,16 @@ class TestService : DirectBindService.Impl() {
         return binder
     }
 
+    override fun onRebind(intent: Intent?) {
+        Log.d("TestService", "REBINDING $intent")
+        super.onRebind(intent)
+    }
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        Log.d("TestService", "UNBINDING $intent")
+        return true
+    }
+
     override fun onCreate() {
         Log.d("TestService", "CREATED")
         super.onCreate()

@@ -58,7 +58,8 @@ Few common transitions and utilities.
 
 ### Views
 
-**FixedSizeTextView**, **FixedSizeChronometer** - text views that do not invalidate layout when text is changed.
+**StableTextView**, **StableChronometer** - text views that do not invalidate layout when text is changed,
+useful to prevent excessive layout requests (for example in RecyclerView).
 
 **ImmersiveConstraintLayout** - holds common logic for keeping layout immersive.
 
