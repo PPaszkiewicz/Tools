@@ -9,8 +9,14 @@ import androidx.appcompat.widget.AppCompatTextView
 import com.github.ppaszkiewicz.tools.toolbox.R
 import com.github.ppaszkiewicz.tools.toolbox.view.StableTextViewResizePolicy.*
 
-/** Base/handler of stabilizing the size during text changes. */
-open class StableTextViewImpl(val host: View) {
+// requires stable_text_attrs.xml
+
+/** Base/handler of stabilizing the size during text changes.
+ *
+ * @param host view that layout is being stabilized
+ * @param attrs attributes inheriting [R.styleable.StableTextViewPolicy]
+ * */
+open class StableTextViewImpl(val host: TextView, attrs: AttributeSet?) {
     var resizePolicy = ON_LENGTH_CHANGED
         set(value) {
             field = value
@@ -19,6 +25,17 @@ open class StableTextViewImpl(val host: View) {
         }
     private var mConsumeLayoutRequest = false
     private var mTextLength = -1
+
+    init {
+        attrs?.let {
+            host.context.obtainStyledAttributes(it, R.styleable.StableTextViewPolicy).run {
+                val resizeAttrValue = getInt(R.styleable.StableTextViewPolicy_stableSizePolicy, ON_LENGTH_CHANGED.ordinal)
+                resizePolicy = StableTextViewResizePolicy.values()[resizeAttrValue]
+                recycle()
+            }
+        }
+        mTextLength = host.text.length
+    }
 
     /** Call this during [TextView.setText] (CharSequence, BufferType) before super call. */
     fun onTextLengthChanged(text: CharSequence?) = onTextLengthChanged(text?.length ?: 0)
@@ -31,9 +48,6 @@ open class StableTextViewImpl(val host: View) {
             }
             ON_LENGTH_CHANGED -> {
                 if (textLength == mTextLength) mConsumeLayoutRequest = true
-            }
-            NEVER -> {
-                mConsumeLayoutRequest = true
             }
             IF_NOT_LAID_OUT -> {
                 mConsumeLayoutRequest = host.width != 0 && host.height != 0
@@ -65,14 +79,12 @@ enum class StableTextViewResizePolicy {
      */
     ON_LENGTH_CHANGED,
 
-    /**
-     * Never resize the text view.
-     */
-    NEVER,
-
     /** Allow layout only if one of sizes is 0 (for example during first wrap_content). */
     IF_NOT_LAID_OUT
 }
+
+//note: there are extra nullability checks as those methods are invoked during super textview
+// constructor when `impl` is not set yet.
 
 /**
  * TextView that prevents layout requests when text changes.
@@ -80,33 +92,23 @@ enum class StableTextViewResizePolicy {
  *
  * By default view will request layout only if text length changes ([StableTextViewResizePolicy.ON_LENGTH_CHANGED]).
  */
+@Suppress("UNNECESSARY_SAFE_CALL", "SimplifyBooleanWithConstants")
 class StableTextView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0
+    defStyleAttr: Int = android.R.attr.textViewStyle
 ) : AppCompatTextView(context, attrs, defStyleAttr) {
-    private val impl = StableTextViewImpl(this)
+    private val impl = StableTextViewImpl(this, attrs)
+    @Suppress("unused")
     var resizePolicy by impl::resizePolicy
 
-    init {
-        attrs?.let {
-            context.obtainStyledAttributes(it, R.styleable.StableTextView).run {
-                val resizeAttrValue = getInt(
-                    R.styleable.StableTextView_stableSizePolicy, ON_LENGTH_CHANGED.ordinal
-                )
-                resizePolicy = StableTextViewResizePolicy.values()[resizeAttrValue]
-                recycle()
-            }
-        }
-    }
-
     override fun setText(text: CharSequence?, type: BufferType?) {
-        impl.onTextLengthChanged(text)
+        impl?.onTextLengthChanged(text)
         super.setText(text, type)
     }
 
     override fun requestLayout() {
-        if (impl.allowRequestLayout()) super.requestLayout()
+        if (impl?.allowRequestLayout() != false) super.requestLayout()
     }
 }
 
@@ -116,32 +118,22 @@ class StableTextView @JvmOverloads constructor(
  *
  * By default view will request layout only if text length changes ([StableTextViewResizePolicy.ON_LENGTH_CHANGED]).
  */
+@Suppress("UNNECESSARY_SAFE_CALL", "SimplifyBooleanWithConstants")
 class StableChronometer @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0
 ) : Chronometer(context, attrs, defStyleAttr) {
-    private val impl = StableTextViewImpl(this)
+    private val impl = StableTextViewImpl(this, attrs)
+    @Suppress("unused")
     var resizePolicy by impl::resizePolicy
 
-    init {
-        attrs?.let {
-            context.obtainStyledAttributes(it, R.styleable.StableChronometer).run {
-                val resizeAttrValue = getInt(
-                    R.styleable.StableChronometer_stableSizePolicy, ON_LENGTH_CHANGED.ordinal
-                )
-                resizePolicy = StableTextViewResizePolicy.values()[resizeAttrValue]
-                recycle()
-            }
-        }
-    }
-
     override fun setText(text: CharSequence?, type: BufferType?) {
-        impl.onTextLengthChanged(text)
+        impl?.onTextLengthChanged(text)
         super.setText(text, type)
     }
 
     override fun requestLayout() {
-        if (impl.allowRequestLayout()) super.requestLayout()
+        if (impl?.allowRequestLayout() != false) super.requestLayout()
     }
 }

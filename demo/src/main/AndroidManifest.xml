@@ -32,6 +32,7 @@
         <activity android:name=".bindService.BindServiceDemoActivity" />
         <activity android:name=".viewModel.SyncableLiveDataDemoActivity" />
         <activity android:name=".recyclerView.NestedRecyclerDemoActivity" />
+        <activity android:name=".views.StableTextViewActivity" />
 
         <service android:name="com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.DemoTaskService"/>
         <service android:name=".lingeringServiceDemo.DemoLingeringService"/>

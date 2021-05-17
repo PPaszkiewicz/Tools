@@ -79,7 +79,7 @@ fun <T : ViewBinding> AppCompatActivity.viewBinding(createBinding: (LayoutInflat
     ActivityViewBindingDelegate.Provider(createBinding)
 
 /** Provides delegates for activity view bindings. */
-interface ActivityViewBindingProvider<T : ViewBinding> {
+fun interface ActivityViewBindingProvider<T : ViewBinding> {
     operator fun provideDelegate(
         thisRef: AppCompatActivity,
         property: KProperty<*>
@@ -89,8 +89,7 @@ interface ActivityViewBindingProvider<T : ViewBinding> {
 // backing viewbinding delegate implementations
 
 private class FragmentViewBindingDelegate<T : ViewBinding>(private val createBindingImpl: (View) -> T) :
-    ReadOnlyProperty<Fragment, T>,
-    LifecycleObserver {
+    ReadOnlyProperty<Fragment, T>, LifecycleObserver {
     private var value: T? = null
 
     override fun getValue(thisRef: Fragment, property: KProperty<*>): T {
@@ -153,7 +152,8 @@ private class ActivityViewBindingDelegate<T : ViewBinding>(
         if (value == null) get()
     }
 
-    class Provider<T : ViewBinding>(private val createBindingImpl: (LayoutInflater) -> T) :
+    @JvmInline
+    value class Provider<T : ViewBinding>(private val createBindingImpl: (LayoutInflater) -> T) :
         ActivityViewBindingProvider<T> {
         override operator fun provideDelegate(
             thisRef: AppCompatActivity,

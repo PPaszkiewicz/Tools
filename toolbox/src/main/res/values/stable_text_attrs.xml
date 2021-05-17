@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="StableTextViewPolicy">
+        <attr name="stableSizePolicy" format="enum">
+            <enum name="length_changed" value="1" />
+            <enum name="always" value="0" />
+            <enum name="only_once" value="2" />
+        </attr>
+    </declare-styleable>
+
+    <declare-styleable name="StableTextView" parent="StableTextViewPolicy">
+        <attr name="stableSizePolicy"/>
+    </declare-styleable>
+
+    <declare-styleable name="StableChronometer" parent="StableTextViewPolicy">
+        <attr name="stableSizePolicy"/>
+    </declare-styleable>
+</resources>

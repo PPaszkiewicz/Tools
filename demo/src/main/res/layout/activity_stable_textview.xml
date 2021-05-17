@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.github.ppaszkiewicz.tools.demo.views.LayoutListenerConstraintLayout
+        xmlns:android="http://schemas.android.com/apk/res/android"
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        xmlns:tools="http://schemas.android.com/tools"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="12dp">
+
+    <TextView
+            android:id="@+id/txtStableTitle"
+            style="@style/TextAppearance.AppCompat.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Stable Text View"
+            app:layout_constraintBottom_toTopOf="@+id/txtStableDetail"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_chainStyle="packed"
+            app:layout_constraintHorizontal_bias="0"
+            app:layout_constraintVertical_bias="0"/>
+
+    <TextView
+            android:id="@+id/txtStableDetail"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="When Textviews text changes it will force a layout pass.\nStableTextView tries to optimize it by assuming there will be no size changes if new text has same length.\nThis can help optimize user experience when you have complex view hierarchy or perform multiple frequent updates (like a timer) on a list item.\nThis layout will flash gray when layout occurs."
+            app:layout_constraintTop_toBottomOf="@id/txtStableTitle"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+    <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/txtRegularTextView"
+            app:layout_constraintTop_toBottomOf="@+id/txtStableDetail"
+            app:layout_constraintBottom_toTopOf="@+id/txtStableTextView"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/btnRegularTextView"
+            android:ellipsize="none"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:text="1234"
+            />
+
+    <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnRegularTextView"
+            app:layout_constraintBaseline_toBaselineOf="@+id/txtRegularTextView"
+            app:layout_constraintStart_toEndOf="@+id/txtRegularTextView"
+            android:text="Regular Text View"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
+    <com.github.ppaszkiewicz.tools.toolbox.view.StableTextView
+            android:id="@+id/txtStableTextView"
+            app:layout_constraintTop_toBottomOf="@+id/txtRegularTextView"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/btnStableTextView"
+            android:ellipsize="none"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:text="1234"
+        />
+
+    <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btnStableTextView"
+            app:layout_constraintBaseline_toBaselineOf="@+id/txtStableTextView"
+            app:layout_constraintStart_toEndOf="@+id/txtStableTextView"
+            app:layout_constraintEnd_toEndOf="parent"
+            android:backgroundTint="@color/colorAccent"
+            android:textColor="?android:attr/textColorPrimaryInverse"
+            android:text="Stable Text View"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+    
+    
+</com.github.ppaszkiewicz.tools.demo.views.LayoutListenerConstraintLayout>
