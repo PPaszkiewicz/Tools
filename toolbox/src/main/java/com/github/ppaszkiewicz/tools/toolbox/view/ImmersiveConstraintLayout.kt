@@ -13,6 +13,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 /**
  * ConstraintLayout designed as root of activity to keep it full screen and keep display ON.
  */
+@Deprecated("This will not work properly on API 29+ since there were systemUiVisibility changes")
 class ImmersiveConstraintLayout @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,

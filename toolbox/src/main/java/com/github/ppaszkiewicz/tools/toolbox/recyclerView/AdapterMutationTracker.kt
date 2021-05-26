@@ -109,7 +109,7 @@ class AdapterMutationTracker : RecyclerView.AdapterDataObserver() {
      *
      * Returns [RecyclerView.NO_POSITION] for items that don't exist yet (newly inserted).
      * */
-    fun getPrepositionFor(targetPosition: Int): Int {
+    fun getPrePositionFor(targetPosition: Int): Int {
         var prePosition = targetPosition
         changes.asReversed().forEach {
             if (prePosition == RecyclerView.NO_POSITION) return@forEach

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="TileRenderLinearLayout">
+        <attr name="maxDrawCount" format="enum|integer">
+            <!-- Keep drawing copies until layout is filled -->
+            <enum name="fill" value="-1"/>
+            <!-- Keep drawing copies until layout is filled with fully rendered copies (don't draw last one if it doesn't fit) -->
+            <enum name="fill_full_only" value="-2"/>
+            <!-- Draw only once (default native implementation) - this will enable shadows. -->
+            <enum name="once" value="1"/>
+        </attr>
+        <attr name="minDrawCount" format="float"/>
+        <attr name="drawSpanCount" format="enum|integer">
+            <!-- Keep drawing copies until layout is filled -->
+            <enum name="fill" value="-1"/>
+            <!-- Keep drawing copies until layout is filled with fully rendered copies (don't draw last one if it doesn't fit) -->
+            <enum name="fill_full_only" value="-2"/>
+            <!-- Draw only once (default native implementation) - this will enable shadows. -->
+            <enum name="once" value="1"/>
+        </attr>
+    </declare-styleable>
+</resources>

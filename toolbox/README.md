@@ -65,8 +65,12 @@ useful to prevent excessive layout requests (for example in RecyclerView).
 
 **SaveChildStateLayouts** - logic for containing save state of all children within their parent.  Prevents collision with duplicate view ids within the layout.
 
+**TileRenderLinearLayout** - layout that tiles out multiple drawing of its content for "pre-loading" effect.
+
+**orientation** - package of helper objects and wrappers for building horizontal/vertical layouts.
+
 ## License
-Copyright -2020 Paweł Paszkiewicz
+Copyright 2020 Paweł Paszkiewicz
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

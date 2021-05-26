@@ -22,6 +22,7 @@ inline fun <reified T : Activity> Context.startActivity(options: ActivityOptions
  * Start activity of given class.
  * @return intent that started the activity
  * */
+@Deprecated("use ActivityResultContract API instead with StartActivityForResult")
 inline fun <reified T : Activity> Context.startActivity(
     options: ActivityOptions? = null,
     editStartIntent: Intent.() -> Unit
@@ -35,6 +36,7 @@ inline fun <reified T : Activity> Context.startActivity(
  * Start activity of given class for result.
  * @return intent that started the activity
  * */
+@Deprecated("use ActivityResultContract API instead with StartActivityForResult")
 inline fun <reified T : Activity> Activity.startActivityForResult(
     requestCode: Int,
     options: ActivityOptions? = null,
@@ -79,6 +81,8 @@ inline fun <reified T : Activity> Fragment.startActivity(
  * Start activity of given class without any specific action or extras for result to return into this fragment.
  * @return intent that started the activity
  * */
+@Suppress("DeprecatedCallableAddReplaceWith")
+@Deprecated("use ActivityResultContract API instead with StartActivityForResult")
 inline fun <reified T : Activity> Fragment.startActivityForResult(
     requestCode: Int,
     options: ActivityOptions? = null
@@ -90,6 +94,7 @@ inline fun <reified T : Activity> Fragment.startActivityForResult(
  * Start activity of given class for result to return into this fragment.
  * @return intent that started the activity
  * */
+@Deprecated("use ActivityResultContract API instead with StartActivityForResult")
 inline fun <reified T : Activity> Fragment.startActivityForResult(
     requestCode: Int,
     options: ActivityOptions? = null,

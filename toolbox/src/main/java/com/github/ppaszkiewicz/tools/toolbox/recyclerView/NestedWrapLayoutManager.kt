@@ -336,7 +336,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
         }
         newRange.forEach {
             if (!laidOutViews.remove(it)) {
-                val sourcePosition = adapterMutationTracker.getPrepositionFor(it)
+                val sourcePosition = adapterMutationTracker.getPrePositionFor(it)
                 if (sourcePosition >= 0 && sourcePosition < state.itemCount && sourcePosition !in newRange) {
                     // here's the confusing part: recycler only has small pre-calculated range
                     // of items that will come into layout which seems to be:
