@@ -70,7 +70,7 @@ useful to prevent excessive layout requests (for example in RecyclerView).
 **orientation** - package of helper objects and wrappers for building horizontal/vertical layouts.
 
 ## License
-Copyright 2020 Paweł Paszkiewicz
+Copyright 2021 Paweł Paszkiewicz
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
