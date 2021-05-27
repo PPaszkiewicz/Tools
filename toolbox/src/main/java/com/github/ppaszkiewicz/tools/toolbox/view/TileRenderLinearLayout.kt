@@ -9,6 +9,7 @@ import androidx.core.content.res.use
 import androidx.core.graphics.withTranslation
 import androidx.core.view.children
 import com.github.ppaszkiewicz.tools.toolbox.R
+import com.github.ppaszkiewicz.tools.toolbox.view.orientation.OrientationHandler
 import com.github.ppaszkiewicz.tools.toolbox.view.orientation.OrientationHelper
 
 /* Requires view.orientation package. */
@@ -234,8 +235,8 @@ class TileRenderLinearLayout @JvmOverloads constructor(
     }
 
     override fun setOrientation(orientation: Int) {
-        super.setOrientation(orientation)
         _orientHelper = null
+        super.setOrientation(orientation)
     }
 
     private fun remeasureToFit(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -279,32 +280,31 @@ class TileRenderLinearLayout @JvmOverloads constructor(
         }
     }
 
-    @Suppress("LeakingThis")
     private abstract inner class OrientHelper(
-        val self: OrientationHelper.View
-    ) : OrientationHelper.View by self {
+        override val handler: OrientationHandler
+    ) : OrientationHelper.View {
+        override val src = this@TileRenderLinearLayout
         val drawSrc: OrientationHelper.Rect
         val drawDst: OrientationHelper.Rect
         val point: OrientationHelper.Point
+
         init {
+            @Suppress("LeakingThis")
             handler.run {
                 drawSrc = helperFor(srcRect)
                 drawDst = helperFor(drawRect)
                 point = helperFor(mPoint)
             }
         }
+
         abstract fun altSizeOf(bitmap: Bitmap): Int
     }
 
-    private inner class HorizontalOrientHelper : OrientHelper(
-        OrientationHelper.horizontal(this)
-    ) {
+    private inner class HorizontalOrientHelper : OrientHelper(OrientationHandler.Horizontal) {
         override fun altSizeOf(bitmap: Bitmap) = bitmap.height
     }
 
-    private inner class VerticalOrientHelper : OrientHelper(
-        OrientationHelper.vertical(this)
-    ) {
+    private inner class VerticalOrientHelper : OrientHelper(OrientationHandler.Vertical) {
         override fun altSizeOf(bitmap: Bitmap) = bitmap.width
     }
 }
