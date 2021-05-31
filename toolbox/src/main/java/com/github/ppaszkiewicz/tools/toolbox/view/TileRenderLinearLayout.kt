@@ -3,9 +3,11 @@ package com.github.ppaszkiewicz.tools.toolbox.view
 import android.content.Context
 import android.graphics.*
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
 import androidx.core.content.res.use
+import androidx.core.graphics.withSave
 import androidx.core.graphics.withTranslation
 import androidx.core.view.children
 import com.github.ppaszkiewicz.tools.toolbox.R
@@ -13,6 +15,7 @@ import com.github.ppaszkiewicz.tools.toolbox.view.orientation.OrientationHandler
 import com.github.ppaszkiewicz.tools.toolbox.view.orientation.OrientationHelper
 
 /* Requires view.orientation package. */
+
 /**
  * Linear layout that fill itself by tiling out its children (for pre load effect).
  *
@@ -23,15 +26,16 @@ class TileRenderLinearLayout @JvmOverloads constructor(
 ) : LinearLayout(context, attrs, defStyleAttr) {
     // pre allocated variables used while drawing/measuring
     private val mPoint = Point() // throwaway point for size
-    private var drawBitmap: Bitmap? = null
-    private var bmpCanvas: Canvas? = null
-    private val srcRect = Rect() // source rect to take from bitmap
-    private val drawRect = Rect() // target rect to draw on canvas
+    private val renderer = Renderer()
+
+    private val mContentRect = Rect() // bounds of all children (with margins)
+    private val mDrawRect = Rect() // target rect that is being drawn
+
     private var currentRenders = 0
-    private var renderStart = 0
     private var drawLimit = 0
-    private var currentSpanOffset = 0
     private var drawLimitAlt = 0
+
+    private var maxDraws = 0
 
     private var _orientHelper: OrientHelper? = null
         get() = field ?: when (orientation) {
@@ -92,6 +96,17 @@ class TileRenderLinearLayout @JvmOverloads constructor(
             requestLayout()
         }
 
+    /**
+     * Alter internal draw to render views on bitmap and "stamp" over the canvas. This prevents
+     * multiple calls to childrens `onDraw` but it does not support shadows and will have
+     * compatibility issues with outline clipping.
+     * */
+    var useBitmapRendering = false
+        set(value) {
+            if (field && !value) renderer.recycleBitmap()
+            field = value
+        }
+
     init {
         descendantFocusability = FOCUS_BLOCK_DESCENDANTS
         attrs?.let { attrz ->
@@ -99,6 +114,8 @@ class TileRenderLinearLayout @JvmOverloads constructor(
                 maxDrawCount = it.getInt(R.styleable.TileRenderLinearLayout_maxDrawCount, DRAW_FILL)
                 minDrawCount = it.getFloat(R.styleable.TileRenderLinearLayout_minDrawCount, 1f)
                 spanCount = it.getInt(R.styleable.TileRenderLinearLayout_drawSpanCount, 1)
+                useBitmapRendering =
+                    it.getBoolean(R.styleable.TileRenderLinearLayout_useBitmapRendering, false)
             }
         }
     }
@@ -109,70 +126,79 @@ class TileRenderLinearLayout @JvmOverloads constructor(
             super.dispatchDraw(canvas)
             return
         }
-        // draw views on a bitmap (excluding padding) so we can "stamp" them all over
-        // note: drawing views on bitmap canvas does not generate shadows
-        // because default "canvas" is platform subclass that uses some internal trick to queue shadow
-        // rendering for later
-        val bitmap = getOrPrepareBitmap()
-        bmpCanvas!!.withTranslation(-paddingLeft.toFloat(), -paddingTop.toFloat()) {
-            super.dispatchDraw(bmpCanvas)
+
+        // prepare renderer: measure children area into mContentRect and spawn a backing bitmap if needed
+        renderer.prepareDraw()
+        if (mContentRect.isEmpty) {
+            super.dispatchDraw(canvas) // there's nothing to draw so invoke super impl and exit
+            return
         }
 
-        // tile out our bitmap (reinclude padding)
-        canvas.withTranslation(paddingLeft.toFloat(), paddingTop.toFloat()) {
-            drawSpans(bitmap, canvas)
+        // tile out the drawing
+        canvas.withSave {
+            if (clipToPadding) {
+                canvas.clipRect(
+                    paddingLeft,
+                    paddingTop,
+                    this@TileRenderLinearLayout.width - paddingRight,
+                    this@TileRenderLinearLayout.height - paddingBottom
+                )
+            }
+            drawSpans(canvas)
+        }
+        if (maxDraws >= 200) {
+            Log.e("TRLL", "too many draws executed, drawing interrupted!")
         }
     }
 
-    private fun drawSpans(bitmap: Bitmap, canvas: Canvas) {
-        // determine drawing limits
+    // do super draw on canvas
+    private fun superDispatchDraw(canvas: Canvas) {
+        super.dispatchDraw(canvas)
+    }
+
+    private fun drawSpans(canvas: Canvas) {
+        maxDraws =
+            0 // this is just a fallback to prevent infinite draws in case of a measurement error
         orientHelper.apply {
-            renderStart = handler.startOf(children.first()) - paddingStart
+            // determine drawing limits (essentially content width/height to fill in)
             drawLimit = size - paddingStart - if (clipToPadding) paddingEnd else 0
             drawLimitAlt = altSize - paddingAltStart - if (clipToPadding) paddingAltEnd else 0
+            // set rectangle to track where drawing has to occur and if it's already out of viewport
+            mDrawRect.set(0, 0, mContentRect.width(), mContentRect.height())
+
             if (spanCount == 1) {
-                drawSpan(bitmap, canvas, 0)
+                drawSpan(canvas)
             } else {
                 // respect requested span count as long as it fits
                 if (spanCount > 0) {
-                    drawLimitAlt = (altSizeOf(bitmap) * spanCount).coerceAtMost(drawLimitAlt)
+                    drawLimitAlt = (contentRect.altSize * spanCount).coerceAtMost(drawLimitAlt)
                 }
-                currentSpanOffset = 0
-                while (currentSpanOffset < drawLimitAlt) {
-                    drawSpan(bitmap, canvas, currentSpanOffset)
-                    currentSpanOffset += altSizeOf(bitmap)
+                while (drawRect.altStart < drawLimitAlt) {
+                    if (spanCount == DRAW_FILL_FULL_ONLY && drawRect.altEnd > drawLimitAlt) {
+                        return // early exit - if configured to not clip last span
+                    }
+                    drawSpan(canvas)
+                    drawRect.offset(-drawRect.start, contentRect.altSize)
+                    if (maxDraws > 200) return
                 }
             }
         }
     }
 
-    private fun drawSpan(bitmap: Bitmap, canvas: Canvas, altOffset: Int) {
+    private fun drawSpan(canvas: Canvas) {
         orientHelper.apply {
             currentRenders = 0
-            srcRect.set(0, 0, bitmap.width, bitmap.height)
-            drawRect.set(0, 0, bitmap.width, bitmap.height)
-            drawDst.offset(altDir = altOffset)
-            // if this is last span clipping should be applied
-            if (drawDst.altEnd > drawLimitAlt) {
-                // early exit - if configured to not clip last span
-                if (spanCount == DRAW_FILL_FULL_ONLY) return
-                val overDraw = drawDst.altEnd - drawLimitAlt
-                drawSrc.altEnd = drawSrc.altEnd - overDraw
-                drawDst.altEnd = drawDst.altEnd - overDraw
-            }
-
-            while (drawDst.start + renderStart < drawLimit && checkRenderCount()) {
-                // case for last copy: it doesn't fit so it might be clipped
-                if (drawDst.end > drawLimit) {
-                    // early exit - if configured to not clip last copy
-                    if (maxDrawCount == DRAW_FILL_FULL_ONLY) return
-                    val overDraw = drawDst.end - drawLimit
-                    drawSrc.end = drawSrc.end - overDraw
-                    drawDst.end = drawDst.end - overDraw
+            while (drawRect.start < drawLimit && checkRenderCount()) {
+                if (maxDrawCount == DRAW_FILL_FULL_ONLY && drawRect.end > drawLimit) {
+                    return // early exit - if configured to not clip last copy
                 }
-                canvas.drawBitmap(bitmap, srcRect, drawRect, null)
-                drawDst.offset(drawDst.size, 0)
+                canvas.withTranslation(mDrawRect.left.toFloat(), mDrawRect.top.toFloat()) {
+                    renderer.render(canvas)
+                }
+                drawRect.offset(dir = contentRect.size)
                 currentRenders++
+                maxDraws++
+                if (maxDraws > 200) return
             }
         }
     }
@@ -182,54 +208,21 @@ class TileRenderLinearLayout @JvmOverloads constructor(
         else -> true
     }
 
-    private fun getOrPrepareBitmap(): Bitmap {
-        // measure the size of bitmap (enough to fit views and their margins)
-        orientHelper.apply {
-            point.set(
-                children.last().let { handler.endOf(it) + handler.marginEndOf(it) } - paddingStart,
-                children.maxOf { handler.altEndOf(it) + handler.marginAltEndOf(it) } - paddingAltStart
-            )
-        }
-        val oldBmp = drawBitmap
-        return when {
-            // new bitmap needed
-            oldBmp == null || oldBmp.width != mPoint.x || oldBmp.height != mPoint.y -> {
-                createBitmap(mPoint.x, mPoint.y)
-            }
-            // just clear bitmap for drawing
-            else -> oldBmp.apply { eraseColor(Color.TRANSPARENT) }
-        }
-    }
-
-    private fun createBitmap(w: Int, h: Int): Bitmap {
-        recycleBitmap()
-        return Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
-            drawBitmap = it
-            bmpCanvas = Canvas(it)
-        }
-    }
-
-    private fun recycleBitmap() {
-        bmpCanvas = null
-        drawBitmap?.recycle()
-        drawBitmap = null
-    }
-
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
-        recycleBitmap()
+        renderer.recycleBitmap()
     }
 
     override fun onVisibilityChanged(changedView: View, visibility: Int) {
         if (visibility != View.VISIBLE) {
-            recycleBitmap()
+            renderer.recycleBitmap()
         }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         // we might be altering the size
-        if (minDrawCount > 1f && spanCount > 1) {
+        if (minDrawCount > 1f || spanCount > 1) {
             remeasureToFit(widthMeasureSpec, heightMeasureSpec)
         }
     }
@@ -280,31 +273,107 @@ class TileRenderLinearLayout @JvmOverloads constructor(
         }
     }
 
+    private inner class Renderer {
+        private var bitmap: Bitmap? = null
+        private var bmpCanvas: Canvas? = null
+
+
+        fun render(canvas: Canvas) {
+            bitmap?.let {
+                // bitmap rendering needs extra offset
+                canvas.withTranslation(paddingLeft.toFloat(), paddingTop.toFloat()) {
+                    canvas.drawBitmap(it, 0f, 0f, null)
+                }
+            } ?: run {
+                // otherwise just dispatch draw of children
+                superDispatchDraw(canvas)
+            }
+        }
+
+        fun prepareDraw() {
+            orientHelper.apply {
+                contentRect.set(
+                    start = paddingStart,
+                    altStart = paddingAltStart,
+                    end = children.last()
+                        .let { handler.endOf(it) + handler.marginEndOf(it) },
+                    altEnd = children.maxOf { handler.altEndOf(it) + handler.marginAltEndOf(it) }
+                )
+            }
+            if (useBitmapRendering) {
+                prepareBitmap()
+                bmpCanvas!!.withTranslation(-paddingLeft.toFloat(), -paddingTop.toFloat()) {
+                    superDispatchDraw(bmpCanvas!!)
+                }
+            } else recycleBitmap()
+        }
+
+        private fun prepareBitmap() {
+            val oldBmp = bitmap
+            when {
+                // new bitmap needed
+                oldBmp == null || !bitmapFitsContentRect(oldBmp) -> {
+                    createBitmap(mContentRect.width(), mContentRect.height())
+                }
+                // just clear bitmap for drawing
+                else -> oldBmp.apply { eraseColor(Color.TRANSPARENT) }
+            }
+        }
+
+        private fun bitmapFitsContentRect(bmp: Bitmap) =
+            bmp.width == mContentRect.width() && bmp.height == mContentRect.height()
+
+        private fun createBitmap(w: Int, h: Int) {
+            recycleBitmap()
+            bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also {
+                bmpCanvas = Canvas(it)
+            }
+        }
+
+        fun recycleBitmap() {
+            bmpCanvas = null
+            bitmap?.recycle()
+            bitmap = null
+        }
+    }
+
     private abstract inner class OrientHelper(
-        override val handler: OrientationHandler
+        override var handler: OrientationHandler
     ) : OrientationHelper.View {
         override val src = this@TileRenderLinearLayout
-        val drawSrc: OrientationHelper.Rect
-        val drawDst: OrientationHelper.Rect
+        val contentRect: OrientationHelper.Rect
+        val drawRect: OrientationHelper.Rect
         val point: OrientationHelper.Point
 
         init {
             @Suppress("LeakingThis")
             handler.run {
-                drawSrc = helperFor(srcRect)
-                drawDst = helperFor(drawRect)
+                contentRect = helperFor(mContentRect)
+                drawRect = helperFor(mDrawRect)
                 point = helperFor(mPoint)
             }
         }
 
-        abstract fun altSizeOf(bitmap: Bitmap): Int
+//        abstract fun clip(canvas: Canvas, end: Int = size, altEnd: Int = altSize)
+//        abstract fun translate(canvas: Canvas, dir: Float = 0f, altDir: Float = 0f)
     }
-
     private inner class HorizontalOrientHelper : OrientHelper(OrientationHandler.Horizontal) {
-        override fun altSizeOf(bitmap: Bitmap) = bitmap.height
+//        override fun translate(canvas: Canvas, dir: Float, altDir: Float) {
+//            canvas.translate(dir, altDir)
+//        }
+//
+//        override fun clip(canvas: Canvas, end: Int, altEnd: Int) {
+//            canvas.clipRect(0, 0, end, altEnd)
+//        }
     }
 
     private inner class VerticalOrientHelper : OrientHelper(OrientationHandler.Vertical) {
-        override fun altSizeOf(bitmap: Bitmap) = bitmap.width
+//        override fun translate(canvas: Canvas, dir: Float, altDir: Float) {
+//            canvas.translate(altDir, dir)
+//        }
+//
+//        override fun clip(canvas: Canvas, end: Int, altEnd: Int) {
+//            canvas.clipRect(0, 0, altEnd, end)
+//        }
     }
 }

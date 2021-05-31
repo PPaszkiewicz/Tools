@@ -18,5 +18,6 @@
             <!-- Draw only once (default native implementation) - this will enable shadows. -->
             <enum name="once" value="1"/>
         </attr>
+        <attr name="useBitmapRendering" format="boolean" />
     </declare-styleable>
 </resources>
