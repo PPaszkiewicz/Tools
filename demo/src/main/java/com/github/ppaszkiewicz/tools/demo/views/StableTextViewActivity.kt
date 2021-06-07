@@ -18,13 +18,13 @@ class StableTextViewActivity : AppCompatActivity(R.layout.activity_stable_textvi
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        v.root.onLayout = { lay ->
+        v.root.onLayout = { _ ->
             colorAnim?.cancel()
-            lay.setBackgroundColor(Color.LTGRAY)
+            v.txtStableDetail.setBackgroundColor(Color.LTGRAY)
             colorAnim = ValueAnimator.ofArgb(Color.LTGRAY, Color.TRANSPARENT).apply {
                 addUpdateListener {
                     duration = 150
-                    lay.setBackgroundColor(it.animatedValue as Int)
+                    v.txtStableDetail.setBackgroundColor(it.animatedValue as Int)
                 }
                 start()
             }

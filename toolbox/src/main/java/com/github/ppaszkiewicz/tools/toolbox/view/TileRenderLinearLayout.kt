@@ -338,7 +338,7 @@ class TileRenderLinearLayout @JvmOverloads constructor(
     }
 
     private abstract inner class OrientHelper(
-        override var handler: OrientationHandler
+        override val handler: OrientationHandler
     ) : OrientationHelper.View {
         override val src = this@TileRenderLinearLayout
         val contentRect: OrientationHelper.Rect

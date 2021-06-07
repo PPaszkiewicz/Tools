@@ -7,7 +7,7 @@ import android.widget.Chronometer
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatTextView
 import com.github.ppaszkiewicz.tools.toolbox.R
-import com.github.ppaszkiewicz.tools.toolbox.view.StableTextViewResizePolicy.*
+import com.github.ppaszkiewicz.tools.toolbox.view.StableTextView.ResizePolicy.*
 
 // requires stable_text_attrs.xml
 
@@ -17,7 +17,7 @@ import com.github.ppaszkiewicz.tools.toolbox.view.StableTextViewResizePolicy.*
  * @param attrs attributes inheriting [R.styleable.StableTextViewPolicy]
  * */
 open class StableTextViewImpl(val host: TextView, attrs: AttributeSet?) {
-    var resizePolicy = ON_LENGTH_CHANGED
+    var resizePolicy : StableTextView.ResizePolicy = ON_LENGTH_CHANGED
         set(value) {
             field = value
             mConsumeLayoutRequest = false
@@ -30,7 +30,7 @@ open class StableTextViewImpl(val host: TextView, attrs: AttributeSet?) {
         attrs?.let {
             host.context.obtainStyledAttributes(it, R.styleable.StableTextViewPolicy).run {
                 val resizeAttrValue = getInt(R.styleable.StableTextViewPolicy_stableSizePolicy, ON_LENGTH_CHANGED.ordinal)
-                resizePolicy = StableTextViewResizePolicy.values()[resizeAttrValue]
+                resizePolicy = StableTextView.ResizePolicy.values()[resizeAttrValue]
                 recycle()
             }
         }
@@ -67,30 +67,14 @@ open class StableTextViewImpl(val host: TextView, attrs: AttributeSet?) {
     }
 }
 
-/** Possible resize policies of stable text views. */
-enum class StableTextViewResizePolicy {
-    /**
-     * Always resize the text view on text change.
-     */
-    ALWAYS,
-
-    /**
-     * Resize text view only when text length changes. This is the default.
-     */
-    ON_LENGTH_CHANGED,
-
-    /** Allow layout only if one of sizes is 0 (for example during first wrap_content). */
-    IF_NOT_LAID_OUT
-}
-
 //note: there are extra nullability checks as those methods are invoked during super textview
-// constructor when `impl` is not set yet.
+// constructor when `impl` is not set yet, it should be safe to ignore them then though.
 
 /**
  * TextView that prevents layout requests when text changes.
  * Use some padding and ellipsize = none for most predictable results.
  *
- * By default view will request layout only if text length changes ([StableTextViewResizePolicy.ON_LENGTH_CHANGED]).
+ * By default view will request layout only if text length changes ([StableTextView.ResizePolicy.ON_LENGTH_CHANGED]).
  */
 @Suppress("UNNECESSARY_SAFE_CALL", "SimplifyBooleanWithConstants")
 class StableTextView @JvmOverloads constructor(
@@ -98,6 +82,22 @@ class StableTextView @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = android.R.attr.textViewStyle
 ) : AppCompatTextView(context, attrs, defStyleAttr) {
+    /** Possible resize policies of stable text views. */
+    enum class ResizePolicy {
+        /**
+         * Always resize the text view on text change.
+         */
+        ALWAYS,
+
+        /**
+         * Resize text view only when text length changes. This is the default.
+         */
+        ON_LENGTH_CHANGED,
+
+        /** Allow layout only if one of sizes is 0 (for example during first wrap_content). */
+        IF_NOT_LAID_OUT
+    }
+
     private val impl = StableTextViewImpl(this, attrs)
     @Suppress("unused")
     var resizePolicy by impl::resizePolicy
@@ -116,7 +116,7 @@ class StableTextView @JvmOverloads constructor(
  * Chronometer that prevents layout requests when text changes.
  * Use some padding and ellipsize = none for most predictable results.
  *
- * By default view will request layout only if text length changes ([StableTextViewResizePolicy.ON_LENGTH_CHANGED]).
+ * By default view will request layout only if text length changes ([StableTextView.ResizePolicy.ON_LENGTH_CHANGED]).
  */
 @Suppress("UNNECESSARY_SAFE_CALL", "SimplifyBooleanWithConstants")
 class StableChronometer @JvmOverloads constructor(

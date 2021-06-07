@@ -25,7 +25,7 @@
             android:id="@+id/txtStableDetail"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="When Textviews text changes it will force a layout pass.\nStableTextView tries to optimize it by assuming there will be no size changes if new text has same length.\nThis can help optimize user experience when you have complex view hierarchy or perform multiple frequent updates (like a timer) on a list item.\nThis layout will flash gray when layout occurs."
+            android:text="When Textviews text changes it will force a layout pass.\nStableTextView tries to optimize it by assuming there will be no size changes if new text has same length.\nThis can help optimize user experience when you have complex view hierarchy or perform multiple frequent updates (like a timer) on a list item.\nThis text will flash gray when layout occurs."
             app:layout_constraintTop_toBottomOf="@id/txtStableTitle"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
