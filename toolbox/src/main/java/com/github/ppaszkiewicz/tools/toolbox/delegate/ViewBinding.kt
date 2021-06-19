@@ -1,15 +1,12 @@
 package com.github.ppaszkiewicz.tools.toolbox.delegate
 
-import android.app.Activity
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleObserver
-import androidx.lifecycle.OnLifecycleEvent
+import androidx.lifecycle.*
 import androidx.viewbinding.ViewBinding
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
@@ -60,9 +57,9 @@ inline fun <reified T : ViewBinding> AppCompatActivity.viewBinding() = viewBindi
  *
  * @param bindingClass view binding class to instantiate
  */
-fun <T : ViewBinding> AppCompatActivity.viewBinding(bindingClass: Class<T>): ActivityViewBindingProvider<T>{
+fun <T : ViewBinding> AppCompatActivity.viewBinding(bindingClass: Class<T>): ActivityViewBindingProvider<T> {
     val inflate = bindingClass.getDeclaredMethod("inflate", LayoutInflater::class.java)
-    return ActivityViewBindingDelegate.Provider{ inflate(null, it) as T }
+    return ActivityViewBindingDelegate.Provider { inflate(null, it) as T }
 }
 
 
@@ -88,22 +85,26 @@ fun interface ActivityViewBindingProvider<T : ViewBinding> {
 
 // backing viewbinding delegate implementations
 
-private class FragmentViewBindingDelegate<T : ViewBinding>(private val createBindingImpl: (View) -> T) :
-    ReadOnlyProperty<Fragment, T>, LifecycleObserver {
+private class FragmentViewBindingDelegate<T : ViewBinding>(private val bindingFactory: (View) -> T) :
+    ReadOnlyProperty<Fragment, T>, Observer<LifecycleOwner> {
     private var value: T? = null
+    private var ld: LiveData<LifecycleOwner>? = null
 
     override fun getValue(thisRef: Fragment, property: KProperty<*>): T {
         if (value == null) {
-            value = createBindingImpl(thisRef.requireView())
-            thisRef.viewLifecycleOwner.lifecycle.addObserver(this)
+            check(ld == null) { "viewLifecycleOwner was not cleared since previous value initialization" }
+            ld = thisRef.viewLifecycleOwnerLiveData.also { it.observeForever(this) }
+            value = bindingFactory(thisRef.requireView())
         }
         return value!!
     }
 
-    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
-    @Suppress("Unused")
-    fun onDestroyView() {
-        value = null
+    override fun onChanged(viewLifecycleOwner: LifecycleOwner?) {
+        if (viewLifecycleOwner == null) {
+            value = null
+            ld!!.removeObserver(this)
+            ld = null
+        }
     }
 }
 

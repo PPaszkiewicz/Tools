@@ -105,14 +105,14 @@ inline fun <reified T : Activity> Fragment.startActivityForResult(
 }
 
 // helpers for new result API
-/** Infer class for [StartLocalActivityForResult]. */
+/** Infer class used to construct  [StartLocalActivityForResult]. */
 @Suppress("FunctionName")
 inline fun <reified T : Activity> Activity.StartActivityForResult(
     action: String? = null,
     noinline editStartIntent: (Intent.() -> Unit)? = null)  =
     StartLocalActivityForResult(T::class.java, action, editStartIntent)
 
-/** Infer class for [StartLocalActivityForResult]. */
+/** Infer class used to construct [StartLocalActivityForResult]. */
 @Suppress("FunctionName")
 inline fun <reified T : Activity> Fragment.StartActivityForResult(
     action: String? = null,
@@ -122,10 +122,11 @@ inline fun <reified T : Activity> Fragment.StartActivityForResult(
 /**
  * Contract to open an activity from this package (using class name).
  *
- * This consumes input bundle by merging it with intent extras.
+ * This consumes input bundle by merging it (and possibly overriding) intent extras created with
+ * [editStartIntent].
  *
  * @param targetClass activity class
- * @param action action to include in start intent (default: null)
+ * @param action action to include in start intent (default: `null`)
  * @param editStartIntent optional lambda to manipulate constructed intent
  */
 class StartLocalActivityForResult(
@@ -135,9 +136,9 @@ class StartLocalActivityForResult(
 ) : ActivityResultContract<Bundle, ActivityResult>() {
     override fun createIntent(context: Context, input: Bundle?) =
         Intent(context, targetClass).also {
-            input?.let { b -> it.putExtras(b) }
             it.action = action
             editStartIntent?.invoke(it)
+            input?.let { b -> it.putExtras(b) }
         }
 
     override fun parseResult(resultCode: Int, intent: Intent?): ActivityResult {
