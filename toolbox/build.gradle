@@ -20,9 +20,12 @@ android {
     }
 
     buildTypes {
+        debug{
+            consumerProguardFiles 'proguard-rules.pro'
+        }
         release {
             minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            consumerProguardFiles 'proguard-rules.pro'
         }
     }
     compileOptions {

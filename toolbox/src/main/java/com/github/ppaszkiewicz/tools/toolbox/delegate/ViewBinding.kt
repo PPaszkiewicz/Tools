@@ -12,6 +12,13 @@ import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
 // View binding delegate (requires AS 3.6 and view binding generation enabled)
+// requires viewbinding to be excluded by proguard:
+
+//-keep class * implements androidx.viewbinding.ViewBinding {
+//    public static *** bind(android.view.View);
+//    public static *** inflate(android.view.LayoutInflater);
+//    public static *** inflate(android.view.LayoutInflater, android.view.ViewGroup, boolean);
+//}
 
 /**
  * Lazy delegate for ViewBinding that automatically releases it when view is destroyed. Uses reflection
@@ -58,6 +65,8 @@ inline fun <reified T : ViewBinding> AppCompatActivity.viewBinding() = viewBindi
  * @param bindingClass view binding class to instantiate
  */
 fun <T : ViewBinding> AppCompatActivity.viewBinding(bindingClass: Class<T>): ActivityViewBindingProvider<T> {
+    Log.d("VBINDING", "$bindingClass")
+    Log.d("VBINDING", "${bindingClass.declaredMethods.joinToString { "${it.name}(${it.parameterTypes.joinToString(it.name)})"}}")
     val inflate = bindingClass.getDeclaredMethod("inflate", LayoutInflater::class.java)
     return ActivityViewBindingDelegate.Provider { inflate(null, it) as T }
 }
