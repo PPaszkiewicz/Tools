@@ -32,14 +32,15 @@
                     android:text="All those layouts inflate the same checkboxes with same two IDs.
 Issue with normal layouts is they store state in shared SparseArray, so only state of last two
 checkboxes is saved and it's restored into all checkboxes with same ID.\nSaveState layouts circumvent this issue
-by holding save state of all their children within their own save state." />
+by holding save state of all their children within their own save state.\n\nPress button below to recreate fragments view and
+force restoration from views state." />
 
             <Button
-                    android:id="@+id/btnRecreate"
+                    android:id="@+id/btnReattach"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_gravity="center"
-                    android:text="Recreate" />
+                    android:text="Reattach" />
 
         </LinearLayout>
 

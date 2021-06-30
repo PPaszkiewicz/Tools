@@ -20,6 +20,42 @@ import kotlin.reflect.KProperty
 //    public static *** inflate(android.view.LayoutInflater, android.view.ViewGroup, boolean);
 //}
 
+//*********** FRAGMENT ****************/
+
+// note this delegate is not restricted to viewbinding - it can be used for anything that needs
+// to live alongside view
+/**
+ * Lazy delegate for value that's bound to views lifecycle - released when view is destroyed.
+ * @param initValue use provided view to create the value
+ */
+@Suppress("Unused")
+fun <T> Fragment.viewValue(initValue: (View) -> T): ReadOnlyProperty<Fragment, T> =
+    ViewBoundValueDelegate(initValue)
+
+// backing delegate implementations
+private class ViewBoundValueDelegate<T>(private val valueFactory: (View) -> T) :
+    ReadOnlyProperty<Fragment, T>, Observer<LifecycleOwner> {
+    private var value: T? = null
+    private var ld: LiveData<LifecycleOwner>? = null
+
+    override fun getValue(thisRef: Fragment, property: KProperty<*>): T {
+        if (value == null) {
+            check(ld == null) { "viewLifecycleOwner was not cleared since previous value initialization" }
+            ld = thisRef.viewLifecycleOwnerLiveData.also { it.observeForever(this) }
+            value = valueFactory(thisRef.requireView())
+        }
+        return value!!
+    }
+
+    override fun onChanged(viewLifecycleOwner: LifecycleOwner?) {
+        if (viewLifecycleOwner == null) {
+            value = null
+            ld!!.removeObserver(this)
+            ld = null
+        }
+    }
+}
+
 /**
  * Lazy delegate for ViewBinding that automatically releases it when view is destroyed. Uses reflection
  * to get the static bind method.
@@ -35,20 +71,10 @@ inline fun <reified T : ViewBinding> Fragment.viewBinding() = viewBinding(T::cla
  */
 fun <T : ViewBinding> Fragment.viewBinding(bindingClass: Class<T>): ReadOnlyProperty<Fragment, T> {
     val bindMethod = bindingClass.getDeclaredMethod("bind", View::class.java)
-    return viewBinding { bindMethod(null, it) as T }
+    return viewValue { bindMethod(null, it) as T }
 }
 
-/**
- * Lazy delegate for ViewBinding that automatically releases it when view is destroyed.
- * @param createBinding use provided view to create the binding (by using static *bind* method).
- *
- * For example:
- *
- *          val binding by viewBinding { MyFragmentBinding.bind(it) }.
- */
-@Suppress("Unused")
-fun <T : ViewBinding> Fragment.viewBinding(createBinding: (View) -> T): ReadOnlyProperty<Fragment, T> =
-    FragmentViewBindingDelegate(createBinding)
+//*********** ACTIVITY ****************/
 
 /**
  * Delegate for ViewBinding that's lazy but with a fallback that ensures binding will be inflated. Uses reflection
@@ -64,11 +90,9 @@ inline fun <reified T : ViewBinding> AppCompatActivity.viewBinding() = viewBindi
  *
  * @param bindingClass view binding class to instantiate
  */
-fun <T : ViewBinding> AppCompatActivity.viewBinding(bindingClass: Class<T>): ActivityViewBindingProvider<T> {
-    Log.d("VBINDING", "$bindingClass")
-    Log.d("VBINDING", "${bindingClass.declaredMethods.joinToString { "${it.name}(${it.parameterTypes.joinToString(it.name)})"}}")
+fun <T : ViewBinding> AppCompatActivity.viewBinding(bindingClass: Class<T>): ActivityViewBindingDelegateProvider<T> {
     val inflate = bindingClass.getDeclaredMethod("inflate", LayoutInflater::class.java)
-    return ActivityViewBindingDelegate.Provider { inflate(null, it) as T }
+    return ActivityViewBindingDelegateProvider { inflate(null, it) as T }
 }
 
 
@@ -81,42 +105,19 @@ fun <T : ViewBinding> AppCompatActivity.viewBinding(bindingClass: Class<T>): Act
  *          val binding by viewBinding { MyActivityBinding.inflate(it) }.
  */
 @Suppress("Unused")
-fun <T : ViewBinding> AppCompatActivity.viewBinding(createBinding: (LayoutInflater) -> T): ActivityViewBindingProvider<T> =
-    ActivityViewBindingDelegate.Provider(createBinding)
+fun <T : ViewBinding> AppCompatActivity.viewBinding(createBinding: (LayoutInflater) -> T) =
+    ActivityViewBindingDelegateProvider(createBinding)
 
-/** Provides delegates for activity view bindings. */
-fun interface ActivityViewBindingProvider<T : ViewBinding> {
+/** Provider for [ActivityViewBindingDelegate]. */
+@JvmInline
+value class ActivityViewBindingDelegateProvider<T : ViewBinding>(private val createBindingImpl: (LayoutInflater) -> T) {
     operator fun provideDelegate(
         thisRef: AppCompatActivity,
         property: KProperty<*>
-    ): ReadOnlyProperty<AppCompatActivity, T>
-}
-
-// backing viewbinding delegate implementations
-
-private class FragmentViewBindingDelegate<T : ViewBinding>(private val bindingFactory: (View) -> T) :
-    ReadOnlyProperty<Fragment, T>, Observer<LifecycleOwner> {
-    private var value: T? = null
-    private var ld: LiveData<LifecycleOwner>? = null
-
-    override fun getValue(thisRef: Fragment, property: KProperty<*>): T {
-        if (value == null) {
-            check(ld == null) { "viewLifecycleOwner was not cleared since previous value initialization" }
-            ld = thisRef.viewLifecycleOwnerLiveData.also { it.observeForever(this) }
-            value = bindingFactory(thisRef.requireView())
-        }
-        return value!!
-    }
-
-    override fun onChanged(viewLifecycleOwner: LifecycleOwner?) {
-        if (viewLifecycleOwner == null) {
-            value = null
-            ld!!.removeObserver(this)
-            ld = null
-        }
+    ): ReadOnlyProperty<AppCompatActivity, T> {
+        return ActivityViewBindingDelegate(thisRef, createBindingImpl)
     }
 }
-
 
 // backing delegate
 private class ActivityViewBindingDelegate<T : ViewBinding>(
@@ -131,7 +132,7 @@ private class ActivityViewBindingDelegate<T : ViewBinding>(
     }
 
     override fun getValue(thisRef: AppCompatActivity, property: KProperty<*>): T {
-        require(thisRef === activity)
+        require(thisRef === activity) { "thisRef must be equal to activity this delegate was created for" }
         return get()
     }
 
@@ -160,16 +161,5 @@ private class ActivityViewBindingDelegate<T : ViewBinding>(
     fun onCreated() {
         // this is a fallback to ensure viewbinding will be created even if not referenced during onCreate
         if (value == null) get()
-    }
-
-    @JvmInline
-    value class Provider<T : ViewBinding>(private val createBindingImpl: (LayoutInflater) -> T) :
-        ActivityViewBindingProvider<T> {
-        override operator fun provideDelegate(
-            thisRef: AppCompatActivity,
-            property: KProperty<*>
-        ): ReadOnlyProperty<AppCompatActivity, T> {
-            return ActivityViewBindingDelegate(thisRef, createBindingImpl)
-        }
     }
 }
