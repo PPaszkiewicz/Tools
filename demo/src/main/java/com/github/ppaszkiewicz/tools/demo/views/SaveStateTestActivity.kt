@@ -39,7 +39,7 @@ class SaveStateTestFragment : Fragment(R.layout.activity_save_state_test){
 
     override fun onViewStateRestored(savedInstanceState: Bundle?) {
         super.onViewStateRestored(savedInstanceState)
-        requireView().jumpDrawablesToCurrentState()
+        binding.root.jumpDrawablesToCurrentState()
     }
 
     override fun onDestroyView() {

@@ -20,6 +20,8 @@ import java.lang.ref.WeakReference
  *
  * Implementing classes need to call [performBind] and [performUnbind] as they see fit and [release]
  * when object hosting this connection is destroyed (after performing last unbind).
+ *
+ * Implements two lifecycles: [stateLifecycle] and [connectionLifecycle].
  * */
 abstract class BindServiceConnection<T> private constructor(
     contextDelegate: ContextDelegate,

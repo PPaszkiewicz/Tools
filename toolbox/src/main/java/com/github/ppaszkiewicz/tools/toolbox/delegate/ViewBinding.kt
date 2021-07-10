@@ -8,10 +8,13 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
 import androidx.viewbinding.ViewBinding
+import com.github.ppaszkiewicz.tools.toolbox.R
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
-// View binding delegate (requires AS 3.6 and view binding generation enabled)
+// Delegates for ViewBindings and values that should be auto-cleared
+// alongside fragments view
+
 // requires viewbinding to be excluded by proguard:
 
 //-keep class * implements androidx.viewbinding.ViewBinding {
@@ -20,10 +23,42 @@ import kotlin.reflect.KProperty
 //    public static *** inflate(android.view.LayoutInflater, android.view.ViewGroup, boolean);
 //}
 
+// also requires declaration of R.id.viewBinding
+
+//***********   VIEW   ****************/
+/**
+ * Viewbinding as tag on a view. Instantiates it with reflection.
+ */
+inline fun <reified T : ViewBinding> View.viewBinding() = viewBinding(T::class.java)
+
+/**
+ * Viewbinding as tag on a view. Instantiates it with reflection.
+ */
+fun <T : ViewBinding> View.viewBinding(bindingClass: Class<T>): T {
+    val bindMethod = bindingClass.getDeclaredMethod("bind", View::class.java)
+    return lazyTagValue(R.id.viewBinding) { bindMethod(null, it) as T }
+}
+
+/**
+ * Viewbinding as tag on a view. Instantiates it with [bindingFactory].
+ */
+fun <T : ViewBinding> View.viewBinding(bindingFactory: (View) -> T): T {
+    return lazyTagValue(R.id.viewBinding, bindingFactory)
+}
+
+// not restricted to viewbinding
+/**
+ * "Lazy" value stored within views tag. Returns it or uses [valueInit] to set it.
+ */
+fun <T> View.lazyTagValue(key: Int, valueInit: (View) -> T): T {
+    return getTag(key)?.let { it as T } ?: valueInit(this).also {
+        setTag(key, it)
+    }
+}
+
 //*********** FRAGMENT ****************/
 
-// note this delegate is not restricted to viewbinding - it can be used for anything that needs
-// to live alongside view
+// not restricted to viewbinding
 /**
  * Lazy delegate for value that's bound to views lifecycle - released when view is destroyed.
  * @param initValue use provided view to create the value
@@ -32,7 +67,16 @@ import kotlin.reflect.KProperty
 fun <T> Fragment.viewValue(initValue: (View) -> T): ReadOnlyProperty<Fragment, T> =
     ViewBoundValueDelegate(initValue)
 
-// backing delegate implementations
+/**
+ * Lazy delegate for value that's stored as root views tag so it gets cleared alongside it.
+ * @param key unique resource ID to use when tagging
+ * @param initValue use provided view to create the value
+ */
+@Suppress("Unused")
+fun <T> Fragment.viewValue(key: Int, initValue: (View) -> T): ReadOnlyProperty<Fragment, T> =
+    ViewTagValueDelegate(key, initValue)
+
+/** Delegate that observes lifecycle.*/
 private class ViewBoundValueDelegate<T>(private val valueFactory: (View) -> T) :
     ReadOnlyProperty<Fragment, T>, Observer<LifecycleOwner> {
     private var value: T? = null
@@ -56,6 +100,14 @@ private class ViewBoundValueDelegate<T>(private val valueFactory: (View) -> T) :
     }
 }
 
+/** Delegate that keeps its value within fragments view, so it's auto cleared without
+ * using any listener. */
+private class ViewTagValueDelegate<T>(val key: Int, private val valueFactory: (View) -> T) :
+    ReadOnlyProperty<Fragment, T> {
+    override fun getValue(thisRef: Fragment, property: KProperty<*>): T =
+        thisRef.requireView().lazyTagValue(key, valueFactory)
+}
+
 /**
  * Lazy delegate for ViewBinding that automatically releases it when view is destroyed. Uses reflection
  * to get the static bind method.
@@ -71,8 +123,15 @@ inline fun <reified T : ViewBinding> Fragment.viewBinding() = viewBinding(T::cla
  */
 fun <T : ViewBinding> Fragment.viewBinding(bindingClass: Class<T>): ReadOnlyProperty<Fragment, T> {
     val bindMethod = bindingClass.getDeclaredMethod("bind", View::class.java)
-    return viewValue { bindMethod(null, it) as T }
+    return viewValue(R.id.viewBinding) { bindMethod(null, it) as T }
 }
+
+/**
+ * Lazy delegate for ViewBinding that automatically releases it when view is destroyed.
+ * @param bindingFactory factory to create the binding
+ */
+fun <T : ViewBinding> Fragment.viewBinding(bindingFactory: (View) -> T) =
+    viewValue(R.id.viewBinding, bindingFactory)
 
 //*********** ACTIVITY ****************/
 
@@ -94,7 +153,6 @@ fun <T : ViewBinding> AppCompatActivity.viewBinding(bindingClass: Class<T>): Act
     val inflate = bindingClass.getDeclaredMethod("inflate", LayoutInflater::class.java)
     return ActivityViewBindingDelegateProvider { inflate(null, it) as T }
 }
-
 
 /**
  * Delegate for ViewBinding that's lazy but with a fallback that ensures binding will be inflated.
