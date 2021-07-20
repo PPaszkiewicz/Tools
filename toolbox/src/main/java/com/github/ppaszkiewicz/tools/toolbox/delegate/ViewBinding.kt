@@ -9,6 +9,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
 import androidx.viewbinding.ViewBinding
 import com.github.ppaszkiewicz.tools.toolbox.R
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
@@ -48,12 +50,30 @@ fun <T : ViewBinding> View.viewBinding(bindingFactory: (View) -> T): T {
 
 // not restricted to viewbinding
 /**
+ * [View.getTag] that will throw if tag is set but not of type [T].
+ * */
+fun <T> View.getTagValue() : T? = tag?.let { it as T }
+
+/**
+ * [View.getTag] that will throw if tag for [key] is set but not of type [T].
+ * */
+fun <T> View.getTagValue(key: Int) : T? = getTag(key)?.let { it as T }
+
+/**
+ * [View.setTag] that returns [value].
+ * */
+fun <T> View.setTagValue(value : T) : T = value.also { tag = it }
+
+/**
+ * [View.setTag] that returns [value].
+ * */
+fun <T> View.setTagValue(key: Int, value : T) : T = value.also { setTag(key, it) }
+
+/**
  * "Lazy" value stored within views tag. Returns it or uses [valueInit] to set it.
  */
-fun <T> View.lazyTagValue(key: Int, valueInit: (View) -> T): T {
-    return getTag(key)?.let { it as T } ?: valueInit(this).also {
-        setTag(key, it)
-    }
+inline fun <T> View.lazyTagValue(key: Int, valueInit: (View) -> T): T {
+    return getTagValue(key) ?: setTagValue(key, valueInit(this))
 }
 
 //*********** FRAGMENT ****************/
