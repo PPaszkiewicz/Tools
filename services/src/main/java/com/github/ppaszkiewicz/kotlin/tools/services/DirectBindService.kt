@@ -9,7 +9,6 @@ import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
 import androidx.lifecycle.LifecycleService
-import androidx.lifecycle.LiveData
 import com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService.Companion.BIND_DIRECT_ACTION
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 
@@ -107,7 +106,7 @@ interface DirectBindService {
 
         override fun createLifecycleConnection(
             contextDelegate: ContextDelegate,
-            configBuilder: BindServiceConnection.LifecycleAware.ConfigBuilder?
+            configBuilder: BindServiceConnection.LifecycleAware.Config.Builder?
         ) = BindServiceConnection.LifecycleAware(contextDelegate, connectionProxy, configBuilder)
     }
 }

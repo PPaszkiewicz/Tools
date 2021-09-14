@@ -49,57 +49,11 @@ abstract class BindServiceConnection<T> private constructor(
     val context by contextDelegate
 
     /** Holds configuration. */
-    val config = configBuilder?.build() ?: Config.DEFAULT
+    @Suppress("LeakingThis")
+    val config = configBuilder?.build() ?: getDefaultConfig()
 
-    /** Holds configuration. */
-    class Config internal constructor(
-        /**
-         * Bind flags used as when binding (by default [Context.BIND_AUTO_CREATE]).
-         * */
-        val defaultBindFlags: Int,
-        /**
-         * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
-         *
-         * This works natively starting from API 28, for lower versions compatibility behavior is
-         * enabled by [autoRebindDeadBindingCompat].
-         */
-        val autoRebindDeadBinding: Boolean,
-        /**
-         * If [autoRebindDeadBinding] is set enables compat behavior on devices below API 28 - rebind when
-         * connection dies.
-         */
-        val autoRebindDeadBindingCompat: Boolean
-    ) {
-        companion object {
-            val DEFAULT = Builder().build()
-        }
-
-        /** Holds arguments for configuration. */
-        open class Builder {
-            /**
-             * Bind flags used as when binding (by default [Context.BIND_AUTO_CREATE]).
-             * */
-            var defaultBindFlags: Int = Context.BIND_AUTO_CREATE
-
-            /**
-             * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
-             *
-             * This works natively starting from API 28, for lower versions compatibility behavior is
-             * enabled by [autoRebindDeadBindingCompat].
-             */
-            var autoRebindDeadBinding: Boolean = true
-
-            /**
-             * If [autoRebindDeadBinding] is set enables compat behavior on devices below API 28 - rebind when
-             * connection dies.
-             */
-            var autoRebindDeadBindingCompat: Boolean = true
-
-            internal fun build() = Config(
-                defaultBindFlags, autoRebindDeadBinding, autoRebindDeadBindingCompat
-            )
-        }
-    }
+    /** Get default config object if provided configBuilder is `null` - only return final static objects. */
+    protected open fun getDefaultConfig(): Config = Config.DEFAULT
 
     /** Raised if [performBind] was called without matching [performUnbind]. */
     var isBound = false
@@ -326,6 +280,56 @@ abstract class BindServiceConnection<T> private constructor(
         }
     }
 
+    /** Holds configuration. */
+    open class Config internal constructor(
+        /**
+         * Bind flags used as when binding (by default [Context.BIND_AUTO_CREATE]).
+         * */
+        val defaultBindFlags: Int,
+        /**
+         * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
+         *
+         * This works natively starting from API 28, for lower versions compatibility behavior is
+         * enabled by [autoRebindDeadBindingCompat].
+         */
+        val autoRebindDeadBinding: Boolean,
+        /**
+         * If [autoRebindDeadBinding] is set enables compat behavior on devices below API 28 - rebind when
+         * connection dies.
+         */
+        val autoRebindDeadBindingCompat: Boolean
+    ) {
+        companion object {
+            val DEFAULT = Builder().build()
+        }
+
+        /** Holds arguments for configuration. */
+        open class Builder {
+            /**
+             * Bind flags used as when binding (by default [Context.BIND_AUTO_CREATE]).
+             * */
+            var defaultBindFlags: Int = Context.BIND_AUTO_CREATE
+
+            /**
+             * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
+             *
+             * This works natively starting from API 28, for lower versions compatibility behavior is
+             * enabled by [autoRebindDeadBindingCompat].
+             */
+            var autoRebindDeadBinding: Boolean = true
+
+            /**
+             * If [autoRebindDeadBinding] is set enables compat behavior on devices below API 28 - rebind when
+             * connection dies.
+             */
+            var autoRebindDeadBindingCompat: Boolean = true
+
+            internal open fun build() = Config(
+                defaultBindFlags, autoRebindDeadBinding, autoRebindDeadBindingCompat
+            )
+        }
+    }
+
     /** Base for connection factories that connect to service of type [T]. */
     abstract class ConnectionFactory<T> : ConnectionFactoryBase<T,
             BindServiceConnection.Manual<T>,
@@ -351,7 +355,7 @@ abstract class BindServiceConnection<T> private constructor(
         /** Create [BindServiceConnection.LifecycleAware] to return from [lifecycle] and [viewLifecycle]. */
         abstract fun createLifecycleConnection(
             contextDelegate: ContextDelegate,
-            configBuilder: LifecycleAware.ConfigBuilder? = null
+            configBuilder: LifecycleAware.Config.Builder? = null
         ): LIFECYCLE
 
         // default calls
@@ -375,19 +379,19 @@ abstract class BindServiceConnection<T> private constructor(
         fun lifecycle(
             contextDelegate: ContextDelegate,
             lifecycleOwner: LifecycleOwner,
-            configBuilder: LifecycleAware.ConfigBuilder? = null
+            configBuilder: LifecycleAware.Config.Builder? = null
         ) = attach(lifecycleOwner, createLifecycleConnection(contextDelegate, configBuilder))
 
         /** Create [BindServiceConnection.LifecycleAware] - this uses activity lifecycle to connect to service automatically. */
         fun lifecycle(
             activity: AppCompatActivity,
-            configBuilder: LifecycleAware.ConfigBuilder? = null
+            configBuilder: LifecycleAware.Config.Builder? = null
         ) = lifecycle(activity.contextDelegate, activity, configBuilder)
 
         /** Create [BindServiceConnection.LifecycleAware] - this uses fragment lifecycle to connect to service automatically. */
         fun lifecycle(
             fragment: Fragment,
-            configBuilder: LifecycleAware.ConfigBuilder? = null
+            configBuilder: LifecycleAware.Config.Builder? = null
         ) = lifecycle(fragment.contextDelegate, fragment, configBuilder)
 
         /**
@@ -395,7 +399,7 @@ abstract class BindServiceConnection<T> private constructor(
          * */
         fun viewLifecycle(
             fragment: Fragment,
-            configBuilder: LifecycleAware.ConfigBuilder? = null
+            configBuilder: LifecycleAware.Config.Builder? = null
         ) = attach(
             fragment, fragment.viewLifecycleOwnerLiveData,
             createLifecycleConnection(fragment.contextDelegate, configBuilder)
@@ -425,19 +429,19 @@ abstract class BindServiceConnection<T> private constructor(
         inline fun lifecycle(
             contextDelegate: ContextDelegate,
             lifecycleOwner: LifecycleOwner,
-            configBuilder: LifecycleAware.ConfigBuilder.() -> Unit
+            configBuilder: LifecycleAware.Config.Builder.() -> Unit
         ) = lifecycle(contextDelegate, lifecycleOwner, lifecycleConfig(configBuilder))
 
         /** Create [BindServiceConnection.LifecycleAware] - this uses activity lifecycle to connect to service automatically. */
         inline fun lifecycle(
             activity: AppCompatActivity,
-            configBuilder: LifecycleAware.ConfigBuilder.() -> Unit
+            configBuilder: LifecycleAware.Config.Builder.() -> Unit
         ) = lifecycle(activity, lifecycleConfig(configBuilder))
 
         /** Create [BindServiceConnection.LifecycleAware] - this uses fragment lifecycle to connect to service automatically. */
         inline fun lifecycle(
             fragment: Fragment,
-            configBuilder: LifecycleAware.ConfigBuilder.() -> Unit
+            configBuilder: LifecycleAware.Config.Builder.() -> Unit
         ) = lifecycle(fragment, lifecycleConfig(configBuilder))
 
         /**
@@ -445,7 +449,7 @@ abstract class BindServiceConnection<T> private constructor(
          * */
         inline fun viewLifecycle(
             fragment: Fragment,
-            configBuilder: LifecycleAware.ConfigBuilder.() -> Unit
+            configBuilder: LifecycleAware.Config.Builder.() -> Unit
         ) = viewLifecycle(fragment, lifecycleConfig(configBuilder))
 
         // internal to attach observers
@@ -462,8 +466,8 @@ abstract class BindServiceConnection<T> private constructor(
 
         // inline helpers
         @PublishedApi
-        internal inline fun lifecycleConfig(f: LifecycleAware.ConfigBuilder.() -> Unit) =
-            LifecycleAware.ConfigBuilder().apply { f() }
+        internal inline fun lifecycleConfig(f: LifecycleAware.Config.Builder.() -> Unit) =
+            LifecycleAware.Config.Builder().apply { f() }
 
         @PublishedApi
         internal inline fun config(f: Config.Builder.() -> Unit) = Config.Builder().apply { f() }
@@ -553,19 +557,11 @@ abstract class BindServiceConnection<T> private constructor(
     open class LifecycleAware<T>(
         contextDelegate: ContextDelegate,
         connectionProxy: BindServiceConnectionProxy<T>,
-        configBuilder: ConfigBuilder? = null
+        configBuilder: Config.Builder? = null
     ) : BindServiceConnection<T>(contextDelegate, connectionProxy, configBuilder), LifecycleObserver {
         /** Lifecycle state that will trigger the binding. */
-        val bindingLifecycleState: Lifecycle.State =
-            configBuilder?.bindingLifecycleState ?: Lifecycle.State.STARTED
-
-        init {
-            require(
-                bindingLifecycleState == Lifecycle.State.STARTED ||
-                        bindingLifecycleState == Lifecycle.State.RESUMED ||
-                        bindingLifecycleState == Lifecycle.State.CREATED
-            )
-        }
+        val bindingLifecycleState: Lifecycle.State
+            get() = (config as Config).bindingLifecycleState
 
         @OnLifecycleEvent(Lifecycle.Event.ON_ANY)
         fun onLifecycleEvent(source: LifecycleOwner, event: Lifecycle.Event) {
@@ -590,14 +586,48 @@ abstract class BindServiceConnection<T> private constructor(
             if (event == Lifecycle.Event.ON_DESTROY) release()
         }
 
-        /** Holds configuration data for service. */
-        open class ConfigBuilder : Config.Builder() {
+        override fun getDefaultConfig() = Config.DEFAULT
+
+        /** Extended config. */
+        open class Config(
+            defaultBindFlags: Int,
+            autoRebindDeadBinding: Boolean,
+            autoRebindDeadBindingCompat: Boolean,
             /**
              * Lifecycle state that will trigger the binding.
              *
              * This has to be either [Lifecycle.State.STARTED], [Lifecycle.State.RESUMED] or [Lifecycle.State.CREATED].
              */
-            var bindingLifecycleState: Lifecycle.State = Lifecycle.State.STARTED
+            val bindingLifecycleState: Lifecycle.State = Lifecycle.State.STARTED
+        ) : BindServiceConnection.Config(
+            defaultBindFlags,
+            autoRebindDeadBinding,
+            autoRebindDeadBindingCompat
+        ) {
+            companion object{
+                val DEFAULT = Builder().build()
+            }
+            init {
+                require(bindingLifecycleState.isAtLeast(Lifecycle.State.CREATED))
+                { "Provided lifecycle state must be STARTED, RESUMED or CREATED, got $bindingLifecycleState" }
+            }
+
+            /** Holds configuration data for service. */
+            open class Builder : BindServiceConnection.Config.Builder() {
+                /**
+                 * Lifecycle state that will trigger the binding.
+                 *
+                 * This has to be either [Lifecycle.State.STARTED], [Lifecycle.State.RESUMED] or [Lifecycle.State.CREATED].
+                 */
+                var bindingLifecycleState: Lifecycle.State = Lifecycle.State.STARTED
+
+                override fun build(): BindServiceConnection.Config = Config(
+                    defaultBindFlags,
+                    autoRebindDeadBinding,
+                    autoRebindDeadBindingCompat,
+                    bindingLifecycleState
+                )
+            }
         }
     }
 }

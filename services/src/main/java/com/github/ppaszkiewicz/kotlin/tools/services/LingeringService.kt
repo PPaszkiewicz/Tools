@@ -150,7 +150,7 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
 
         override fun createLifecycleConnection(
             contextDelegate: ContextDelegate,
-            configBuilder: BindServiceConnection.LifecycleAware.ConfigBuilder?
+            configBuilder: BindServiceConnection.LifecycleAware.Config.Builder?
         ) = LifecycleConnection(contextDelegate, connectionProxy, configBuilder)
     }
 
@@ -189,7 +189,7 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
     open class LifecycleConnection<T : LingeringService>(
         contextDelegate: ContextDelegate,
         connectionProxy: BindServiceConnectionProxy<T>,
-        configBuilder: ConfigBuilder?
+        configBuilder: Config.Builder?
     ) : BindServiceConnection.LifecycleAware<T>(contextDelegate, connectionProxy, configBuilder.v()) {
         override fun performUnbind() = unbind(false)
         fun unbind(finishImmediately: Boolean = false) = lingeringUnbind(finishImmediately)

@@ -26,7 +26,7 @@ object RemoteBindService {
 
         override fun createLifecycleConnection(
             contextDelegate: ContextDelegate,
-            configBuilder: BindServiceConnection.LifecycleAware.ConfigBuilder?
+            configBuilder: BindServiceConnection.LifecycleAware.Config.Builder?
         ) = BindServiceConnection.LifecycleAware(contextDelegate, connectionProxy, configBuilder)
     }
 }
