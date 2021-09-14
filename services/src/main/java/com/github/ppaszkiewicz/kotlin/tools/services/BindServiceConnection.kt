@@ -25,16 +25,17 @@ import java.lang.ref.WeakReference
  * */
 abstract class BindServiceConnection<T> private constructor(
     contextDelegate: ContextDelegate,
-    bindFlags: Int = Context.BIND_AUTO_CREATE,
+    /** Creates binding intent and transforms binder. */
+    val connectionProxy: BindServiceConnectionProxy<T>,
+    configBuilder: Config.Builder?,
     private val callbacksProxy: BindServiceConnectionLambdas.Proxy<T>
-) : LiveData<T?>(), BindServiceConnectionProxy<T>,
-    BindServiceConnectionLambdas<T> by callbacksProxy {
+) : LiveData<T?>(), BindServiceConnectionLambdas<T> by callbacksProxy {
 
     constructor(
         contextDelegate: ContextDelegate,
-        /** Default bind flags to use. */
-        bindFlags: Int = Context.BIND_AUTO_CREATE
-    ) : this(contextDelegate, bindFlags, BindServiceConnectionLambdas.Proxy())
+        connectionProxy: BindServiceConnectionProxy<T>,
+        configBuilder: Config.Builder? = null
+    ) : this(contextDelegate, connectionProxy, configBuilder, BindServiceConnectionLambdas.Proxy())
 
     /**
      * Used to determine if [onFirstConnect] should trigger - this is based on the fact that
@@ -48,28 +49,57 @@ abstract class BindServiceConnection<T> private constructor(
     val context by contextDelegate
 
     /** Holds configuration. */
-    val config = Config(bindFlags)
+    val config = configBuilder?.build() ?: Config.DEFAULT
 
     /** Holds configuration. */
     class Config internal constructor(
         /**
-         * Bind flags used as when binding.
-         *
-         * By default this is [Context.BIND_AUTO_CREATE].
+         * Bind flags used as when binding (by default [Context.BIND_AUTO_CREATE]).
          * */
-        var defaultBindFlags: Int,
+        val defaultBindFlags: Int,
         /**
          * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
          *
          * This works natively starting from API 28, for lower versions compatibility behavior is
          * enabled by [autoRebindDeadBindingCompat].
          */
-        var autoRebindDeadBinding: Boolean = true,
+        val autoRebindDeadBinding: Boolean,
         /**
-         * Force rebind when connection dies on devices below API 28.
+         * If [autoRebindDeadBinding] is set enables compat behavior on devices below API 28 - rebind when
+         * connection dies.
          */
-        var autoRebindDeadBindingCompat: Boolean = true
-    )
+        val autoRebindDeadBindingCompat: Boolean
+    ) {
+        companion object {
+            val DEFAULT = Builder().build()
+        }
+
+        /** Holds arguments for configuration. */
+        open class Builder {
+            /**
+             * Bind flags used as when binding (by default [Context.BIND_AUTO_CREATE]).
+             * */
+            var defaultBindFlags: Int = Context.BIND_AUTO_CREATE
+
+            /**
+             * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
+             *
+             * This works natively starting from API 28, for lower versions compatibility behavior is
+             * enabled by [autoRebindDeadBindingCompat].
+             */
+            var autoRebindDeadBinding: Boolean = true
+
+            /**
+             * If [autoRebindDeadBinding] is set enables compat behavior on devices below API 28 - rebind when
+             * connection dies.
+             */
+            var autoRebindDeadBindingCompat: Boolean = true
+
+            internal fun build() = Config(
+                defaultBindFlags, autoRebindDeadBinding, autoRebindDeadBindingCompat
+            )
+        }
+    }
 
     /** Raised if [performBind] was called without matching [performUnbind]. */
     var isBound = false
@@ -140,7 +170,7 @@ abstract class BindServiceConnection<T> private constructor(
     protected open fun performBind(flags: Int) {
         if (!isBound) {
             isBound = true
-            val bindingIntent = createBindingIntent(context)
+            val bindingIntent = connectionProxy.createBindingIntent(context)
             val bindingExc = try {
                 if (context.bindService(bindingIntent, serviceConnectionObject, flags)) {
                     _stateLifecycle.currentState = Lifecycle.State.CREATED
@@ -176,7 +206,11 @@ abstract class BindServiceConnection<T> private constructor(
         if (isBound) {
             context.unbindService(serviceConnectionObject)
             if (doCallbacks) onUnbind?.invoke()
-            context.bindService(createBindingIntent(context), serviceConnectionObject, flags)
+            context.bindService(
+                connectionProxy.createBindingIntent(context),
+                serviceConnectionObject,
+                flags
+            )
             if (doCallbacks) onBind?.invoke()
         }
     }
@@ -254,7 +288,7 @@ abstract class BindServiceConnection<T> private constructor(
             } else false
             var isFirstConnect = false
             val oldBinder = currentBinder?.get()
-            transformBinder(name, serviceBinder).also {
+            connectionProxy.transformBinder(name, serviceBinder).also {
                 this@BindServiceConnection.value = it
                 if (oldBinder !== serviceBinder) { // this is not reconnecting event
                     if (!hasFreshConnectionLifecycle && currentBinder != null) {
@@ -293,83 +327,146 @@ abstract class BindServiceConnection<T> private constructor(
     }
 
     /** Base for connection factories that connect to service of type [T]. */
-    abstract class ConnectionFactory<T> {
-        /** Create [LifecycleBindServiceConnection] - this uses activity lifecycle to connect to service automatically. */
+    abstract class ConnectionFactory<T> : ConnectionFactoryBase<T,
+            BindServiceConnection.Manual<T>,
+            BindServiceConnection.Observable<T>,
+            BindServiceConnection.LifecycleAware<T>>()
+
+    /** Base of connection factory that can be used if custom connection types are returned. */
+    abstract class ConnectionFactoryBase<T,
+            MANUAL : Manual<T>,
+            OBSERVABLE : Observable<T>,
+            LIFECYCLE : LifecycleAware<T>> {
+        // required implementations
+        /** Create [BindServiceConnection.Manual] to return from [BindServiceConnection.Manual]. */
+        abstract fun createManualConnection(
+            contextDelegate: ContextDelegate, configBuilder: Config.Builder?
+        ): MANUAL
+
+        /** Create [[BindServiceConnection.Observable]] to return from [observable]. */
+        abstract fun createObservableConnection(
+            contextDelegate: ContextDelegate, configBuilder: Config.Builder?
+        ): OBSERVABLE
+
+        /** Create [BindServiceConnection.LifecycleAware] to return from [lifecycle] and [viewLifecycle]. */
+        abstract fun createLifecycleConnection(
+            contextDelegate: ContextDelegate,
+            configBuilder: LifecycleAware.ConfigBuilder? = null
+        ): LIFECYCLE
+
+        // default calls
+        /** Create [BindServiceConnection.Manual]. Need to manually call [bind] and [unbind] to connect.*/
+        fun manual(context: Context, configBuilder: Config.Builder? = null) =
+            createManualConnection(context.contextDelegate, configBuilder)
+
+        /** Create [BindServiceConnection.Manual]. Need to manually call [bind] and [unbind] to connect.*/
+        fun manual(fragment: Fragment, configBuilder: Config.Builder? = null) =
+            createManualConnection(fragment.contextDelegate, configBuilder)
+
+        /** Create [[BindServiceConnection.Observable]], it will be bound when there are active observers. */
+        fun observable(context: Context, configBuilder: Config.Builder? = null) =
+            createObservableConnection(context.contextDelegate, configBuilder)
+
+        /** Create [[BindServiceConnection.Observable]], it will be bound when there are active observers. */
+        fun observable(fragment: Fragment, configBuilder: Config.Builder? = null) =
+            createObservableConnection(fragment.contextDelegate, configBuilder)
+
+        /** Create [BindServiceConnection.LifecycleAware] - this uses given context and lifecycle to connect to service automatically. */
+        fun lifecycle(
+            contextDelegate: ContextDelegate,
+            lifecycleOwner: LifecycleOwner,
+            configBuilder: LifecycleAware.ConfigBuilder? = null
+        ) = attach(lifecycleOwner, createLifecycleConnection(contextDelegate, configBuilder))
+
+        /** Create [BindServiceConnection.LifecycleAware] - this uses activity lifecycle to connect to service automatically. */
         fun lifecycle(
             activity: AppCompatActivity,
-            bindFlags: Int = Context.BIND_AUTO_CREATE,
-            bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = attach(
-            activity,
-            createLifecycleConnection(activity.contextDelegate, bindFlags, bindState)
-        )
+            configBuilder: LifecycleAware.ConfigBuilder? = null
+        ) = lifecycle(activity.contextDelegate, activity, configBuilder)
 
-        /** Create [LifecycleBindServiceConnection] - this uses fragment lifecycle to connect to service automatically. */
+        /** Create [BindServiceConnection.LifecycleAware] - this uses fragment lifecycle to connect to service automatically. */
         fun lifecycle(
             fragment: Fragment,
-            bindFlags: Int = Context.BIND_AUTO_CREATE,
-            bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = attach(
-            fragment,
-            createLifecycleConnection(fragment.contextDelegate, bindFlags, bindState)
-        )
+            configBuilder: LifecycleAware.ConfigBuilder? = null
+        ) = lifecycle(fragment.contextDelegate, fragment, configBuilder)
 
         /**
-         * Create [LifecycleBindServiceConnection] that observes view lifecycle of [fragment] when it's ready.
+         * Create [BindServiceConnection.LifecycleAware] that observes view lifecycle of [fragment] when it's ready.
          * */
         fun viewLifecycle(
             fragment: Fragment,
-            bindFlags: Int = Context.BIND_AUTO_CREATE
+            configBuilder: LifecycleAware.ConfigBuilder? = null
         ) = attach(
             fragment, fragment.viewLifecycleOwnerLiveData,
-            createLifecycleConnection(fragment.contextDelegate, bindFlags, Lifecycle.State.RESUMED)
+            createLifecycleConnection(fragment.contextDelegate, configBuilder)
         )
+        // inline overloads with lambda for initializing the config
+        /** Create [BindServiceConnection.Manual]. Need to manually call [bind] and [unbind] to connect.*/
+        inline fun manual(context: Context, configBuilder: Config.Builder.() -> Unit) =
+            manual(context, config(configBuilder))
 
-        /** Create [ObservableBindServiceConnection], it will be bound when there are active observers. */
-        fun observable(context: Context, bindFlags: Int = Context.BIND_AUTO_CREATE) =
-            createObservableConnection(context.contextDelegate, bindFlags)
+        /** Create [BindServiceConnection.Manual]. Need to manually call [bind] and [unbind] to connect.*/
+        inline fun manual(fragment: Fragment, configBuilder: Config.Builder.() -> Unit) =
+            manual(fragment, config(configBuilder))
 
-        /** Create [ObservableBindServiceConnection], it will be bound when there are active observers. */
-        fun observable(fragment: Fragment, bindFlags: Int = Context.BIND_AUTO_CREATE) =
-            createObservableConnection(fragment.contextDelegate, bindFlags)
+        /** Create [BindServiceConnection.Observable], it will be bound when there are active observers. */
+        inline fun observable(
+            context: Context,
+            configBuilder: Config.Builder.() -> Unit
+        ) = observable(context, config(configBuilder))
 
-        /** Create [ManualBindServiceConnection]. Need to manually call [bind] and [unbind] to connect.*/
-        fun manual(context: Context, bindFlags: Int = Context.BIND_AUTO_CREATE) =
-            createManualConnection(context.contextDelegate, bindFlags)
+        /** Create [BindServiceConnection.Observable], it will be bound when there are active observers. */
+        inline fun observable(
+            fragment: Fragment,
+            configBuilder: Config.Builder.() -> Unit
+        ) = observable(fragment, config(configBuilder))
 
-        /** Create [ManualBindServiceConnection]. Need to manually call [bind] and [unbind] to connect.*/
-        fun manual(fragment: Fragment, bindFlags: Int = Context.BIND_AUTO_CREATE) =
-            createManualConnection(fragment.contextDelegate, bindFlags)
-
-        // implementations
-        /** Create [LifecycleBindServiceConnection] to return from [lifecycle] and [viewLifecycle]. */
-        abstract fun createLifecycleConnection(
+        /** Create [BindServiceConnection.LifecycleAware] - this uses given context and lifecycle to connect to service automatically. */
+        inline fun lifecycle(
             contextDelegate: ContextDelegate,
-            bindFlags: Int = Context.BIND_AUTO_CREATE,
-            bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ): LifecycleBindServiceConnection<T>
+            lifecycleOwner: LifecycleOwner,
+            configBuilder: LifecycleAware.ConfigBuilder.() -> Unit
+        ) = lifecycle(contextDelegate, lifecycleOwner, lifecycleConfig(configBuilder))
 
-        /** Create [ObservableBindServiceConnection] to return from [observable]. */
-        abstract fun createObservableConnection(
-            contextDelegate: ContextDelegate, bindFlags: Int = Context.BIND_AUTO_CREATE
-        ): ObservableBindServiceConnection<T>
+        /** Create [BindServiceConnection.LifecycleAware] - this uses activity lifecycle to connect to service automatically. */
+        inline fun lifecycle(
+            activity: AppCompatActivity,
+            configBuilder: LifecycleAware.ConfigBuilder.() -> Unit
+        ) = lifecycle(activity, lifecycleConfig(configBuilder))
 
-        /** Create [ManualBindServiceConnection] to return from [manual]. */
-        abstract fun createManualConnection(
-            contextDelegate: ContextDelegate, bindFlags: Int = Context.BIND_AUTO_CREATE
-        ): ManualBindServiceConnection<T>
+        /** Create [BindServiceConnection.LifecycleAware] - this uses fragment lifecycle to connect to service automatically. */
+        inline fun lifecycle(
+            fragment: Fragment,
+            configBuilder: LifecycleAware.ConfigBuilder.() -> Unit
+        ) = lifecycle(fragment, lifecycleConfig(configBuilder))
+
+        /**
+         * Create [BindServiceConnection.LifecycleAware] that observes view lifecycle of [fragment] when it's ready.
+         * */
+        inline fun viewLifecycle(
+            fragment: Fragment,
+            configBuilder: LifecycleAware.ConfigBuilder.() -> Unit
+        ) = viewLifecycle(fragment, lifecycleConfig(configBuilder))
 
         // internal to attach observers
         /** Make [conn] observe [lOwner]. */
-        protected fun attach(lOwner: LifecycleOwner, conn: LifecycleBindServiceConnection<T>) =
+        protected fun attach(lOwner: LifecycleOwner, conn: LifecycleAware<T>) =
             conn.apply { lOwner.lifecycle.addObserver(this) }
 
         /** Make [conn] observe any lifecycle emitted by [ldOwner] as long as [lOwner] is alive. */
         protected fun attach(
             lOwner: LifecycleOwner,
             ldOwner: LiveData<LifecycleOwner?>,
-            conn: LifecycleBindServiceConnection<T>
+            conn: LifecycleAware<T>
         ) = conn.apply { ldOwner.observe(lOwner, Observer { it?.lifecycle?.addObserver(this) }) }
+
+        // inline helpers
+        @PublishedApi
+        internal inline fun lifecycleConfig(f: LifecycleAware.ConfigBuilder.() -> Unit) =
+            LifecycleAware.ConfigBuilder().apply { f() }
+
+        @PublishedApi
+        internal inline fun config(f: Config.Builder.() -> Unit) = Config.Builder().apply { f() }
     }
 
     /**
@@ -389,108 +486,118 @@ abstract class BindServiceConnection<T> private constructor(
             else -> rootException.message
         }
     }
-}
 
-/** Connection to service that requires manual [bind] and [unbind] calls. */
-abstract class ManualBindServiceConnection<T>(
-    contextDelegate: ContextDelegate,
-    /** Default bind flags to use. */
-    bindFlags: Int = Context.BIND_AUTO_CREATE
-) : BindServiceConnection<T>(contextDelegate, bindFlags) {
-    /**
-     * Flag that was used for ongoing binding - this might be different from [defaultBindFlags] if
-     * user provided custom argument for [bind].
-     *
-     * If not bound this is -1.
-     * */
-    var currentBindFlags = -1
-        protected set
 
-    /**
-     * Bind to service using [connectionFlags] (by default [defaultBindFlags]).
-     * */
-    fun bind(connectionFlags: Int = config.defaultBindFlags) {
-        if (!isBound) currentBindFlags = connectionFlags
-        performBind(connectionFlags)
-    }
+    /** Connection to service that requires manual [bind] and [unbind] calls. */
+    open class Manual<T>(
+        contextDelegate: ContextDelegate,
+        connectionProxy: BindServiceConnectionProxy<T>,
+        configBuilder: Config.Builder? = null
+    ) : BindServiceConnection<T>(contextDelegate, connectionProxy, configBuilder) {
+        /**
+         * Flag that was used for ongoing binding - this might be different from [defaultBindFlags] if
+         * user provided custom argument for [bind].
+         *
+         * If not bound this is -1.
+         * */
+        var currentBindFlags = -1
+            protected set
 
-    /**
-     * Request unbind (disconnect) from service.
-     */
-    fun unbind() {
-        performUnbind()
-        currentBindFlags = -1
-    }
-
-    override fun performRebind(doCallbacks: Boolean, flags: Int) {
-        currentBindFlags = flags
-        super.performRebind(doCallbacks, flags)
-    }
-}
-
-/**
- * Connection to service that relies on this object also being a [LiveData]: binds as long as there's any
- * active observer.
- * */
-abstract class ObservableBindServiceConnection<T>(
-    contextDelegate: ContextDelegate,
-    /** Default bind flags to use. */
-    bindFlags: Int = Context.BIND_AUTO_CREATE
-) : BindServiceConnection<T>(contextDelegate, bindFlags) {
-    // override livedata methods
-    override fun onActive() {
-        performBind(config.defaultBindFlags)
-    }
-
-    override fun onInactive() {
-        performUnbind()
-    }
-}
-
-/**
- * Connection to service that is a [LifecycleObserver] and aligns binding with [bindingLifecycleState].
- *
- * This automatically calls [release] when observed lifecycle is destroyed.
- * */
-abstract class LifecycleBindServiceConnection<T>(
-    contextDelegate: ContextDelegate,
-    /**
-     * Lifecycle state that will trigger the binding.
-     *
-     * This has to be either [Lifecycle.State.STARTED], [Lifecycle.State.RESUMED] or [Lifecycle.State.CREATED].
-     */
-    val bindingLifecycleState: Lifecycle.State,
-    /** Default bind flags to use. */
-    bindFlags: Int = Context.BIND_AUTO_CREATE
-) : BindServiceConnection<T>(contextDelegate, bindFlags), LifecycleObserver {
-    init {
-        require(
-            bindingLifecycleState == Lifecycle.State.STARTED ||
-                    bindingLifecycleState == Lifecycle.State.RESUMED ||
-                    bindingLifecycleState == Lifecycle.State.CREATED
-        )
-    }
-
-    @OnLifecycleEvent(Lifecycle.Event.ON_ANY)
-    fun onLifecycleEvent(source: LifecycleOwner, event: Lifecycle.Event) {
-        when (bindingLifecycleState) {
-            Lifecycle.State.STARTED -> when (event) {
-                Lifecycle.Event.ON_START -> performBind(config.defaultBindFlags)
-                Lifecycle.Event.ON_STOP -> performUnbind()
-                else -> Unit // ignored
-            }
-            Lifecycle.State.RESUMED -> when (event) {
-                Lifecycle.Event.ON_RESUME -> performBind(config.defaultBindFlags)
-                Lifecycle.Event.ON_PAUSE -> performUnbind()
-                else -> Unit // ignored
-            }
-            Lifecycle.State.CREATED -> when (event) {
-                Lifecycle.Event.ON_CREATE -> performBind(config.defaultBindFlags)
-                Lifecycle.Event.ON_DESTROY -> performUnbind()
-                else -> Unit // ignored
-            }
-            else -> throw IllegalStateException("invalid bindingLifecycleEvent")
+        /**
+         * Bind to service using [connectionFlags] (ignoring [Config.defaultBindFlags]).
+         * */
+        fun bind(connectionFlags: Int = config.defaultBindFlags) {
+            if (!isBound) currentBindFlags = connectionFlags
+            performBind(connectionFlags)
         }
-        if (event == Lifecycle.Event.ON_DESTROY) release()
+
+        /**
+         * Request unbind (disconnect) from service.
+         */
+        fun unbind() {
+            performUnbind()
+            currentBindFlags = -1
+        }
+
+        override fun performRebind(doCallbacks: Boolean, flags: Int) {
+            currentBindFlags = flags
+            super.performRebind(doCallbacks, flags)
+        }
+    }
+
+    /**
+     * Connection to service that relies on this object also being a [LiveData]: binds as long as there's any
+     * active observer.
+     * */
+    open class Observable<T>(
+        contextDelegate: ContextDelegate,
+        connectionProxy: BindServiceConnectionProxy<T>,
+        configBuilder: Config.Builder? = null
+    ) : BindServiceConnection<T>(contextDelegate, connectionProxy, configBuilder) {
+        // override livedata methods
+        override fun onActive() {
+            performBind(config.defaultBindFlags)
+        }
+
+        override fun onInactive() {
+            performUnbind()
+        }
+    }
+
+
+    /**
+     * Connection to service that is a [LifecycleObserver] and aligns binding with [bindingLifecycleState].
+     *
+     * This automatically calls [release] when observed lifecycle is destroyed.
+     * */
+    open class LifecycleAware<T>(
+        contextDelegate: ContextDelegate,
+        connectionProxy: BindServiceConnectionProxy<T>,
+        configBuilder: ConfigBuilder? = null
+    ) : BindServiceConnection<T>(contextDelegate, connectionProxy, configBuilder), LifecycleObserver {
+        /** Lifecycle state that will trigger the binding. */
+        val bindingLifecycleState: Lifecycle.State =
+            configBuilder?.bindingLifecycleState ?: Lifecycle.State.STARTED
+
+        init {
+            require(
+                bindingLifecycleState == Lifecycle.State.STARTED ||
+                        bindingLifecycleState == Lifecycle.State.RESUMED ||
+                        bindingLifecycleState == Lifecycle.State.CREATED
+            )
+        }
+
+        @OnLifecycleEvent(Lifecycle.Event.ON_ANY)
+        fun onLifecycleEvent(source: LifecycleOwner, event: Lifecycle.Event) {
+            when (bindingLifecycleState) {
+                Lifecycle.State.STARTED -> when (event) {
+                    Lifecycle.Event.ON_START -> performBind(config.defaultBindFlags)
+                    Lifecycle.Event.ON_STOP -> performUnbind()
+                    else -> Unit // ignored
+                }
+                Lifecycle.State.RESUMED -> when (event) {
+                    Lifecycle.Event.ON_RESUME -> performBind(config.defaultBindFlags)
+                    Lifecycle.Event.ON_PAUSE -> performUnbind()
+                    else -> Unit // ignored
+                }
+                Lifecycle.State.CREATED -> when (event) {
+                    Lifecycle.Event.ON_CREATE -> performBind(config.defaultBindFlags)
+                    Lifecycle.Event.ON_DESTROY -> performUnbind()
+                    else -> Unit // ignored
+                }
+                else -> throw IllegalStateException("invalid bindingLifecycleEvent")
+            }
+            if (event == Lifecycle.Event.ON_DESTROY) release()
+        }
+
+        /** Holds configuration data for service. */
+        open class ConfigBuilder : Config.Builder() {
+            /**
+             * Lifecycle state that will trigger the binding.
+             *
+             * This has to be either [Lifecycle.State.STARTED], [Lifecycle.State.RESUMED] or [Lifecycle.State.CREATED].
+             */
+            var bindingLifecycleState: Lifecycle.State = Lifecycle.State.STARTED
+        }
     }
 }

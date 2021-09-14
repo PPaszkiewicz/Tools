@@ -32,7 +32,9 @@ class BindServiceDemoActivity : AppCompatActivity() {
         const val TAG = "BindDemoActivity"
     }
 
-    val serviceConn = TestService.connectionFactory.manual(this, 0)
+    val serviceConn = TestService.connectionFactory.manual(this){
+        defaultBindFlags = 0
+    }
 
     val binding by viewBinding<ActivityButtonsBinding>()
 

@@ -5,15 +5,13 @@ package com.github.ppaszkiewicz.kotlin.tools.services
 import android.app.Service
 import android.content.ComponentName
 import android.content.Context
-import android.content.Context.BIND_AUTO_CREATE
 import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
-import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.Fragment
-import androidx.lifecycle.*
+import androidx.lifecycle.LifecycleService
+import androidx.lifecycle.LiveData
+import com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService.Companion.BIND_DIRECT_ACTION
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
-import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 
 /*
     Base for direct binding services.
@@ -95,50 +93,21 @@ interface DirectBindService {
      */
     open class ConnectionFactory<T : DirectBindService>(protected val serviceClass: Class<T>) :
         BindServiceConnection.ConnectionFactory<T>() {
+        val connectionProxy = proxy(serviceClass)
+
+        override fun createManualConnection(
+            contextDelegate: ContextDelegate,
+            configBuilder: BindServiceConnection.Config.Builder?
+        ) = BindServiceConnection.Manual(contextDelegate, connectionProxy, configBuilder)
+
+        override fun createObservableConnection(
+            contextDelegate: ContextDelegate,
+            configBuilder: BindServiceConnection.Config.Builder?
+        ) = BindServiceConnection.Observable(contextDelegate, connectionProxy, configBuilder)
+
         override fun createLifecycleConnection(
             contextDelegate: ContextDelegate,
-            bindFlags: Int,
-            bindState: Lifecycle.State
-        ) = DirectLifecycleServiceConnection(contextDelegate, serviceClass, bindState, bindFlags)
-
-        override fun createObservableConnection(contextDelegate: ContextDelegate, bindFlags: Int) =
-            DirectObservableServiceConnection(contextDelegate, serviceClass, bindFlags)
-
-        override fun createManualConnection(contextDelegate: ContextDelegate, bindFlags: Int) =
-            DirectManualServiceConnection(contextDelegate, serviceClass, bindFlags)
+            configBuilder: BindServiceConnection.LifecycleAware.ConfigBuilder?
+        ) = BindServiceConnection.LifecycleAware(contextDelegate, connectionProxy, configBuilder)
     }
 }
-
-/**
- * Binds to a DirectBindService when [bind] and [unbind] are called and provides basic callbacks.
- */
-open class DirectManualServiceConnection<T : DirectBindService>(
-    contextDelegate: ContextDelegate,
-    val serviceClass: Class<T>,
-    /** Default bind flags to use. */
-    bindFlags: Int = BIND_AUTO_CREATE
-) : ManualBindServiceConnection<T>(contextDelegate, bindFlags),
-    BindServiceConnectionProxy<T> by DirectBindService.proxy(serviceClass)
-
-/**
- * Binds to a DirectBindService when it has active [LiveData] observers and provides basic callbacks.
- */
-open class DirectObservableServiceConnection<T : DirectBindService>(
-    contextDelegate: ContextDelegate,
-    val serviceClass: Class<T>,
-    /** Default bind flags to use. */
-    bindFlags: Int = BIND_AUTO_CREATE
-) : ObservableBindServiceConnection<T>(contextDelegate, bindFlags),
-    BindServiceConnectionProxy<T> by DirectBindService.proxy(serviceClass)
-
-/**
- * Binds to a DirectBindService based on lifecycle and provides basic callbacks.
- */
-open class DirectLifecycleServiceConnection<T : DirectBindService>(
-    contextDelegate: ContextDelegate,
-    val serviceClass: Class<T>,
-    bindingLifecycleState: Lifecycle.State,
-    /** Default bind flags to use. */
-    bindFlags: Int = BIND_AUTO_CREATE
-) : LifecycleBindServiceConnection<T>(contextDelegate, bindingLifecycleState, bindFlags),
-    BindServiceConnectionProxy<T> by DirectBindService.proxy(serviceClass)

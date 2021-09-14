@@ -5,14 +5,11 @@ import android.content.Intent
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.LiveData
 import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
-import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 
 /**
  * [DirectBindService] that gets automatically stopped when it's unbound for [serviceTimeoutMs].
@@ -134,89 +131,69 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
      *
      * For convenience this can be inherited or created by that services companion object.
      */
-    open class ConnectionFactory<T : LingeringService>(protected val serviceClass: Class<T>) {
-        /** Create [LingeringLifecycleServiceConnection] - this uses activity lifecycle to connect to service automatically, so
-         * it will always linger for given delay. */
-        fun lifecycle(
-            activity: AppCompatActivity,
-            bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = attach(activity, lifecycle(activity.contextDelegate, bindState))
+    open class ConnectionFactory<T : LingeringService>(protected val serviceClass: Class<T>) :
+        BindServiceConnection.ConnectionFactoryBase<T,
+                ManualConnection<T>,
+                ObservableConnection<T>,
+                LifecycleConnection<T>>(){
+        val connectionProxy = DirectBindService.proxy(serviceClass)
 
-        /** Create [LingeringLifecycleServiceConnection] - this uses fragment lifecycle to connect to service automatically, so
-         * it will always linger for given delay. */
-        fun lifecycle(
-            fragment: Fragment,
-            bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = attach(fragment, lifecycle(fragment.contextDelegate, bindState))
-
-        /** Create [LingeringLifecycleServiceConnection] - this can observe lifecycle to connect to service automatically, so
-         * it will always linger for given delay. */
-        fun lifecycle(
+        override fun createManualConnection(
             contextDelegate: ContextDelegate,
-            bindState: Lifecycle.State = Lifecycle.State.STARTED
-        ) = LingeringLifecycleServiceConnection(contextDelegate, serviceClass, bindState)
+            configBuilder: BindServiceConnection.Config.Builder?
+        ) = ManualConnection(contextDelegate, connectionProxy, configBuilder)
 
-        /** Create [LingeringObservableServiceConnection], it will be bound when there are active observers and
-         * linger when last observer disconnects. */
-        fun observable(context: Context) =
-            LingeringObservableServiceConnection(context.contextDelegate, serviceClass)
+        override fun createObservableConnection(
+            contextDelegate: ContextDelegate,
+            configBuilder: BindServiceConnection.Config.Builder?
+        )= ObservableConnection(contextDelegate, connectionProxy, configBuilder)
 
-        /** Create [LingeringObservableServiceConnection], it will be bound when there are active observers and
-         * linger when last observer disconnects. */
-        fun observable(fragment: Fragment) =
-            LingeringObservableServiceConnection(fragment.contextDelegate, serviceClass)
-
-        /** Create manual connection. See [LingeringManualServiceConnection] how to control it. */
-        fun manual(context: Context) =
-            LingeringManualServiceConnection(context.contextDelegate, serviceClass)
-
-        /** Create manual connection. See [LingeringManualServiceConnection] how to control it. */
-        fun manual(fragment: Fragment) =
-            LingeringManualServiceConnection(fragment.contextDelegate, serviceClass)
-
-        /** Make [conn] observe [lOwner]. */
-        protected fun attach(lOwner: LifecycleOwner, conn: LingeringLifecycleServiceConnection<T>) =
-            conn.apply { lOwner.lifecycle.addObserver(this) }
+        override fun createLifecycleConnection(
+            contextDelegate: ContextDelegate,
+            configBuilder: BindServiceConnection.LifecycleAware.ConfigBuilder?
+        ) = LifecycleConnection(contextDelegate, connectionProxy, configBuilder)
     }
-}
 
-/**
- * Binds to a LingeringService when [bind] and [unbind] are called and provides basic callbacks.
- *
- * Controlling this connection:
- * - call [bind] when needed (usually during onStart)
- * - call [unbind] with false to stop service after a delay (in onPause)
- * - call [unbind] with true to force stop service instantly (for example in onFinish)
- */
-open class LingeringManualServiceConnection<T : LingeringService>(
-    contextDelegate: ContextDelegate,
-    serviceClass: Class<T>
-) : DirectManualServiceConnection<T>(contextDelegate, serviceClass) {
-    override fun performUnbind() = unbind(false)
-    fun unbind(finishImmediately: Boolean = false) = lingeringUnbind(finishImmediately)
-}
+    /**
+     * Binds to a LingeringService when [bind] and [unbind] are called and provides basic callbacks.
+     *
+     * Controlling this connection:
+     * - call [bind] when needed (usually during onStart)
+     * - call [unbind] with false to stop service after a delay (in onPause)
+     * - call [unbind] with true to force stop service instantly (for example in onFinish)
+     */
+    open class ManualConnection<T : LingeringService>(
+        contextDelegate: ContextDelegate,
+        connectionProxy: BindServiceConnectionProxy<T>,
+        configBuilder: Config.Builder?
+    ) : BindServiceConnection.Manual<T>(contextDelegate, connectionProxy, configBuilder.v()) {
+        override fun performUnbind() = unbind(false)
+        fun unbind(finishImmediately: Boolean = false) = lingeringUnbind(finishImmediately)
+    }
 
-/**
- * Binds to a LingeringService when it has active [LiveData] observers and provides basic callbacks.
- */
-open class LingeringObservableServiceConnection<T : LingeringService>(
-    contextDelegate: ContextDelegate,
-    serviceClass: Class<T>
-) : DirectObservableServiceConnection<T>(contextDelegate, serviceClass) {
-    override fun performUnbind() = unbind(false)
-    fun unbind(finishImmediately: Boolean = false) = lingeringUnbind(finishImmediately)
-}
+    /**
+     * Binds to a LingeringService when it has active [LiveData] observers and provides basic callbacks.
+     */
+    open class ObservableConnection<T : LingeringService>(
+        contextDelegate: ContextDelegate,
+        connectionProxy: BindServiceConnectionProxy<T>,
+        configBuilder: Config.Builder?
+    ) : BindServiceConnection.Observable<T>(contextDelegate, connectionProxy, configBuilder.v()) {
+        override fun performUnbind() = unbind(false)
+        fun unbind(finishImmediately: Boolean = false) = lingeringUnbind(finishImmediately)
+    }
 
-/**
- * Binds to a LingeringService based on lifecycle and provides basic callbacks.
- */
-open class LingeringLifecycleServiceConnection<T : LingeringService>(
-    contextDelegate: ContextDelegate,
-    serviceClass: Class<T>,
-    bindingLifecycleState: Lifecycle.State
-) : DirectLifecycleServiceConnection<T>(contextDelegate, serviceClass, bindingLifecycleState) {
-    override fun performUnbind() = unbind(false)
-    fun unbind(finishImmediately: Boolean = false) = lingeringUnbind(finishImmediately)
+    /**
+     * Binds to a LingeringService based on lifecycle and provides basic callbacks.
+     */
+    open class LifecycleConnection<T : LingeringService>(
+        contextDelegate: ContextDelegate,
+        connectionProxy: BindServiceConnectionProxy<T>,
+        configBuilder: ConfigBuilder?
+    ) : BindServiceConnection.LifecycleAware<T>(contextDelegate, connectionProxy, configBuilder.v()) {
+        override fun performUnbind() = unbind(false)
+        fun unbind(finishImmediately: Boolean = false) = lingeringUnbind(finishImmediately)
+    }
 }
 
 // shared implementation
@@ -227,7 +204,7 @@ private fun <T : LingeringService> BindServiceConnection<T>.lingeringUnbind(fini
         } else {
             // let service self-start, so it won't get instantly killed due to unbind
             // service implements delayed stopSelf() if it's not rebound soon.
-            createBindingIntent(context)
+            connectionProxy.createBindingIntent(context)
                 .setAction(LingeringService.ACTION_LINGERING_SERVICE_START_LINGER)
                 .let { context.startService(it) }
         }
@@ -240,4 +217,10 @@ private fun <T : LingeringService> BindServiceConnection<T>.lingeringUnbind(fini
         }
         onUnbind?.invoke()
     }
+}
+
+// validate the config - lingering connections requires BIND_AUTO_CREATE flag to be set
+private fun <T: BindServiceConnection.Config.Builder>T?.v() = this?.also{
+    if(defaultBindFlags and Context.BIND_AUTO_CREATE != Context.BIND_AUTO_CREATE)
+        defaultBindFlags = defaultBindFlags or Context.BIND_AUTO_CREATE
 }
