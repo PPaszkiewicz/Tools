@@ -1,5 +1,9 @@
 package com.github.ppaszkiewicz.kotlin.tools.services
 
+import android.content.Context
+import android.content.ServiceConnection
+import com.github.ppaszkiewicz.tools.services.*
+
 /**
  * Callback interface for [BindServiceConnection] that defines hot pluggable lambdas instead of methods.
  * */
@@ -59,6 +63,16 @@ interface BindServiceConnectionLambdas<T> {
     var onNullBinding: (() -> Unit)?
 
     /**
+     * Called when bind succeeded but connection was not established within [BindServiceConnection.Config.notConnectedTimeoutMs].
+     *
+     * This will happen if connection is not using [Context.BIND_AUTO_CREATE] and service is not started or it's binding
+     * to remote process and service is still launching.
+     *
+     * Even after this is called service might still connect as long as binding is active.
+     * */
+    var onNotConnected: (() -> Unit)?
+
+    /**
      * Called when internal [Context.bindService] fails.
      *
      * Default behavior is to immediately throw the [exception] as it usually indicates wrong
@@ -76,6 +90,7 @@ interface BindServiceConnectionLambdas<T> {
         override var onUnbind: (() -> Unit)? = null
         override var onBindingDied: (() -> Boolean)? = null
         override var onNullBinding: (() -> Unit)? = null
+        override var onNotConnected: (() -> Unit)? = null
         override var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit) =
             {
                 throw it
@@ -98,6 +113,7 @@ interface BindServiceConnectionLambdas<T> {
         override var onUnbind: (() -> Unit)? = ::onUnbind
         override var onBindingDied: (() -> Boolean)? = ::onBindingDied
         override var onNullBinding: (() -> Unit)? = ::onNullBinding
+        override var onNotConnected: (() -> Unit)? = ::onNotConnected
         override var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit) =
             ::onBindingFailed
     }
@@ -144,6 +160,11 @@ interface BindServiceConnectionLambdas<T> {
             get() = c.onNullBinding
             set(value) {
                 c.onNullBinding = value
+            }
+        override var onNotConnected: (() -> Unit)?
+            get() = c.onNotConnected
+            set(value) {
+                c.onNotConnected = value
             }
         override var onBindingFailed: ((exception: BindServiceConnection.BindingException) -> Unit)
             get() = c.onBindingFailed

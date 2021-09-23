@@ -62,6 +62,16 @@ interface BindServiceConnectionCallbacks<T> {
     fun onNullBinding()
 
     /**
+     * Called when bind succeeded but connection was not established within [BindServiceConnection.Config.notConnectedTimeoutMs].
+     *
+     * This will happen if connection is not using [Context.BIND_AUTO_CREATE] and service is not started or it's binding
+     * to remote process and service is still launching.
+     *
+     * Even after this is called service might still connect as long as binding is active.
+     * */
+    fun onNotConnected()
+
+    /**
      * Called when internal [Context.bindService] fails.
      *
      * Default behavior is to immediately throw the [exception] as it usually indicates
@@ -79,6 +89,7 @@ interface BindServiceConnectionCallbacks<T> {
         override fun onUnbind() {}
         override fun onBindingDied() = false
         override fun onNullBinding() {}
+        override fun onNotConnected() {}
         override fun onBindingFailed(exception: BindServiceConnection.BindingException): Unit =
             throw exception
     }

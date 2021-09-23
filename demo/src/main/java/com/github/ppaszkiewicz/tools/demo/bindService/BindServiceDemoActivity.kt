@@ -73,6 +73,8 @@ class BindServiceDemoActivity : AppCompatActivity() {
             }
 
             button5.setOnClickListener {
+                if(!serviceConn.isConnected)
+                    textView2.text = null
                 serviceConn.unbind()
             }
 
@@ -163,6 +165,10 @@ class BindServiceDemoActivity : AppCompatActivity() {
             onUnbind = {
                 binding.textView00.text = "Connection bound = false ($currentBindFlags)"
             }
+            onNotConnected = {
+                binding.textView2.text = "Awaiting connection"
+
+            }
         }
     }
 
@@ -207,6 +213,11 @@ class BindServiceDemoActivity : AppCompatActivity() {
 
             override fun onNullBinding() {
                 Log.d(TAG, "onNullBinding")
+            }
+
+            override fun onNotConnected() {
+                Log.d(TAG, "onNotConnected")
+                binding.textView2.text = "Awaiting connection"
             }
 
             override fun onBindingFailed(exception: BindServiceConnection.BindingException) {

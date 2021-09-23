@@ -5,7 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.system.Os.bind
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
@@ -30,12 +32,41 @@ abstract class BindServiceConnection<T> private constructor(
     configBuilder: Config.Builder?,
     private val callbacksProxy: BindServiceConnectionLambdas.Proxy<T>
 ) : LiveData<T?>(), BindServiceConnectionLambdas<T> by callbacksProxy {
-
     constructor(
         contextDelegate: ContextDelegate,
         connectionProxy: BindServiceConnectionProxy<T>,
         configBuilder: Config.Builder? = null
     ) : this(contextDelegate, connectionProxy, configBuilder, BindServiceConnectionLambdas.Proxy())
+
+    companion object {
+        /** Default time after which connection triggers [onNotConnected]. */
+        const val DEFAULT_TIMEOUT_MS = 100L
+        private val mainHandler = Handler(Looper.getMainLooper())
+        private val isP = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+    }
+
+    /**
+     * Possible behaviors to handle [ServiceConnection.onBindingDied].
+     *
+     * For API below 28 this callback does not exist here it can be configured to be called alongside
+     * [ServiceConnection.onServiceDisconnected] instead.
+     */
+    enum class DeadBindingBehavior(val callback: Boolean, val rebind: Boolean) {
+        /** Don't recreate lost bindings and don't call [onBindingDied]. */
+        IGNORE(false, false),
+
+        /** Call [onBindingDied] on API 28+ only but don't recreate bindings. */
+        NATIVE_CALLBACK_ONLY(isP, false),
+
+        /** Call [onBindingDied] and recreate binding on API 28+ only. */
+        RECREATE_NATIVE_ONLY(isP, isP),
+
+        /** Call [onBindingDied] but don't recreate bindings. */
+        CALLBACK_ONLY(true, false),
+
+        /** Call [onBindingDied] and recreate on all apis. */
+        RECREATE(true, true);
+    }
 
     /**
      * Used to determine if [onFirstConnect] should trigger - this is based on the fact that
@@ -129,6 +160,7 @@ abstract class BindServiceConnection<T> private constructor(
                 if (context.bindService(bindingIntent, serviceConnectionObject, flags)) {
                     _stateLifecycle.currentState = Lifecycle.State.CREATED
                     onBind?.invoke()
+                    startNotConnectedRunnable()
                     return
                 }
                 null
@@ -143,6 +175,7 @@ abstract class BindServiceConnection<T> private constructor(
     /** Perform unbinding after triggering event. */
     protected open fun performUnbind() {
         if (isBound) {
+            clearNotConnectedRunnable()
             isBound = false
             context.unbindService(serviceConnectionObject)
             value?.let {
@@ -158,14 +191,18 @@ abstract class BindServiceConnection<T> private constructor(
     /** Perform rebind after unexpected binding death. */
     protected open fun performRebind(doCallbacks: Boolean, flags: Int) {
         if (isBound) {
+            clearNotConnectedRunnable()
             context.unbindService(serviceConnectionObject)
             if (doCallbacks) onUnbind?.invoke()
+            //todo: should lifecycles get recreated as well?
+            // is exception handling here necessary?
             context.bindService(
                 connectionProxy.createBindingIntent(context),
                 serviceConnectionObject,
                 flags
             )
             if (doCallbacks) onBind?.invoke()
+            startNotConnectedRunnable()
         }
     }
 
@@ -228,15 +265,13 @@ abstract class BindServiceConnection<T> private constructor(
                         "Connection: ${this::javaClass.name}, Service name: $name"
             )
             // compat behavior - assume this event killed the binding
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P
-                && config.autoRebindDeadBindingCompat
-                && config.autoRebindDeadBinding
-            ) {
-                onBindingDied(name)
+            if (!isP && config.deadBindingBehavior.callback) {
+                internalOnBindingDied(name)
             }
         }
 
         override fun onServiceConnected(name: ComponentName, serviceBinder: IBinder) {
+            clearNotConnectedRunnable()
             val hasFreshConnectionLifecycle = if (_connectionLifecycle == null) {
                 _connectionLifecycle = LifecycleRegistry(connectionLifecycleOwner); true
             } else false
@@ -265,9 +300,14 @@ abstract class BindServiceConnection<T> private constructor(
 
         // added in API level 28
         override fun onBindingDied(name: ComponentName?) {
+            clearNotConnectedRunnable()
             // this is always triggered after onServiceDisconnected ?
+            if(config.deadBindingBehavior.callback) internalOnBindingDied(name)
+        }
+
+        private fun internalOnBindingDied(name: ComponentName?) {
             val callbackConsumed = onBindingDied?.invoke() ?: false
-            if (config.autoRebindDeadBinding) {
+            if (config.deadBindingBehavior.rebind) {
                 performRebind(!callbackConsumed, config.defaultBindFlags)
             } else if (isBound) {
                 isBound = false
@@ -276,28 +316,37 @@ abstract class BindServiceConnection<T> private constructor(
 
         // added in API level 26
         override fun onNullBinding(name: ComponentName?) {
+            clearNotConnectedRunnable()
             onNullBinding?.invoke()
         }
     }
 
-    /** Holds configuration. */
+    private val notConnectedRunnable = object : Runnable {
+        override fun run() {
+            if(service == null) onNotConnected?.invoke()
+            clearNotConnectedRunnable()
+        }
+    }
+
+    private fun startNotConnectedRunnable(){
+        when {
+            config.notConnectedTimeoutMs <= 0 -> return
+            else -> mainHandler.postDelayed(notConnectedRunnable, config.notConnectedTimeoutMs)
+         }
+    }
+
+    private fun clearNotConnectedRunnable() {
+        mainHandler.removeCallbacks(notConnectedRunnable)
+    }
+
+            /** Holds configuration. */
     open class Config internal constructor(
-        /**
-         * Bind flags used as when binding (by default [Context.BIND_AUTO_CREATE]).
-         * */
+        /** Bind flags used as when binding (by default [Context.BIND_AUTO_CREATE]). */
         val defaultBindFlags: Int,
-        /**
-         * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
-         *
-         * This works natively starting from API 28, for lower versions compatibility behavior is
-         * enabled by [autoRebindDeadBindingCompat].
-         */
-        val autoRebindDeadBinding: Boolean,
-        /**
-         * If [autoRebindDeadBinding] is set enables compat behavior on devices below API 28 - rebind when
-         * connection dies.
-         */
-        val autoRebindDeadBindingCompat: Boolean
+        /** Defines how to handle [onBindingDied]. */
+        val deadBindingBehavior: DeadBindingBehavior,
+        /** Time after which [onNotConnected] is called. If this is not positive then it's never called. */
+        val notConnectedTimeoutMs: Long
     ) {
         companion object {
             val DEFAULT = Builder().build()
@@ -305,27 +354,17 @@ abstract class BindServiceConnection<T> private constructor(
 
         /** Holds arguments for configuration. */
         open class Builder {
-            /**
-             * Bind flags used as when binding (by default [Context.BIND_AUTO_CREATE]).
-             * */
+            /** Bind flags used as when binding (by default [Context.BIND_AUTO_CREATE]). */
             var defaultBindFlags: Int = Context.BIND_AUTO_CREATE
 
-            /**
-             * Automatically recreate binding using [defaultBindFlags] if [onBindingDied] occurs (default: `true`).
-             *
-             * This works natively starting from API 28, for lower versions compatibility behavior is
-             * enabled by [autoRebindDeadBindingCompat].
-             */
-            var autoRebindDeadBinding: Boolean = true
+            /** Defines how to handle [onBindingDied] (default: [DeadBindingBehavior.RECREATE]). */
+            var deadBindingBehavior: DeadBindingBehavior = DeadBindingBehavior.RECREATE
 
-            /**
-             * If [autoRebindDeadBinding] is set enables compat behavior on devices below API 28 - rebind when
-             * connection dies.
-             */
-            var autoRebindDeadBindingCompat: Boolean = true
+            /** Time after which [onNotConnected] is called. If this is not positive then it's never called. */
+            var notConnectedTimeoutMs: Long = DEFAULT_TIMEOUT_MS
 
             internal open fun build() = Config(
-                defaultBindFlags, autoRebindDeadBinding, autoRebindDeadBindingCompat
+                defaultBindFlags, deadBindingBehavior, notConnectedTimeoutMs
             )
         }
     }
@@ -558,7 +597,8 @@ abstract class BindServiceConnection<T> private constructor(
         contextDelegate: ContextDelegate,
         connectionProxy: BindServiceConnectionProxy<T>,
         configBuilder: Config.Builder? = null
-    ) : BindServiceConnection<T>(contextDelegate, connectionProxy, configBuilder), LifecycleObserver {
+    ) : BindServiceConnection<T>(contextDelegate, connectionProxy, configBuilder),
+        LifecycleObserver {
         /** Lifecycle state that will trigger the binding. */
         val bindingLifecycleState: Lifecycle.State
             get() = (config as Config).bindingLifecycleState
@@ -591,8 +631,8 @@ abstract class BindServiceConnection<T> private constructor(
         /** Extended config. */
         open class Config(
             defaultBindFlags: Int,
-            autoRebindDeadBinding: Boolean,
-            autoRebindDeadBindingCompat: Boolean,
+            deadBindingBehavior: DeadBindingBehavior,
+            notConnectedTimeoutMs: Long,
             /**
              * Lifecycle state that will trigger the binding.
              *
@@ -601,12 +641,13 @@ abstract class BindServiceConnection<T> private constructor(
             val bindingLifecycleState: Lifecycle.State = Lifecycle.State.STARTED
         ) : BindServiceConnection.Config(
             defaultBindFlags,
-            autoRebindDeadBinding,
-            autoRebindDeadBindingCompat
+            deadBindingBehavior,
+            notConnectedTimeoutMs
         ) {
-            companion object{
+            companion object {
                 val DEFAULT = Builder().build()
             }
+
             init {
                 require(bindingLifecycleState.isAtLeast(Lifecycle.State.CREATED))
                 { "Provided lifecycle state must be STARTED, RESUMED or CREATED, got $bindingLifecycleState" }
@@ -623,8 +664,8 @@ abstract class BindServiceConnection<T> private constructor(
 
                 override fun build(): BindServiceConnection.Config = Config(
                     defaultBindFlags,
-                    autoRebindDeadBinding,
-                    autoRebindDeadBindingCompat,
+                    deadBindingBehavior,
+                    notConnectedTimeoutMs,
                     bindingLifecycleState
                 )
             }

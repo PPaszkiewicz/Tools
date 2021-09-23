@@ -80,7 +80,7 @@ interface DirectBindService {
                     (binder as DirectBinder).service as T
             }
 
-        /** Create [ConnectionFactory] factory for [DirectBindService] of class [T]. */
+        /** Create [ConnectionFactory] for [DirectBindService] of class [T]. */
         inline fun <reified T : DirectBindService> ConnectionFactory() =
             ConnectionFactory(T::class.java)
     }
