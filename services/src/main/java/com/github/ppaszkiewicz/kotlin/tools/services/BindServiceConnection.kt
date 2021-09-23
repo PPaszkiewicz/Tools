@@ -39,8 +39,13 @@ abstract class BindServiceConnection<T> private constructor(
     ) : this(contextDelegate, connectionProxy, configBuilder, BindServiceConnectionLambdas.Proxy())
 
     companion object {
-        /** Default time after which connection triggers [onNotConnected]. */
-        const val DEFAULT_TIMEOUT_MS = 100L
+        /** Force [onNotConnected] to await third main looper cycle after [onBind]. */
+        const val NOT_CONNECTED_REPOST = 0L
+        /**
+         * Since binding request and connection callbacks are posted on main looper too [notConnectedRunnable]
+         * has to be bounced twice to ensure it doesn't execute before they do.
+         * */
+        private const val NOT_CONNECTED_REPOST_COUNT = 2
         private val mainHandler = Handler(Looper.getMainLooper())
         private val isP = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
     }
@@ -322,16 +327,31 @@ abstract class BindServiceConnection<T> private constructor(
     }
 
     private val notConnectedRunnable = object : Runnable {
+        var repost = NOT_CONNECTED_REPOST_COUNT
+
         override fun run() {
+            if(repost-- > 0) {
+                mainHandler.post(this)
+                return
+            }
             if(service == null) onNotConnected?.invoke()
             clearNotConnectedRunnable()
         }
     }
 
     private fun startNotConnectedRunnable(){
+        clearNotConnectedRunnable()
+
         when {
-            config.notConnectedTimeoutMs <= 0 -> return
-            else -> mainHandler.postDelayed(notConnectedRunnable, config.notConnectedTimeoutMs)
+            config.notConnectedTimeoutMs < 0 -> return
+            config.notConnectedTimeoutMs == NOT_CONNECTED_REPOST -> {
+                notConnectedRunnable.repost = NOT_CONNECTED_REPOST_COUNT
+                mainHandler.post(notConnectedRunnable)
+            }
+            else -> {
+                notConnectedRunnable.repost = 0
+                mainHandler.postDelayed(notConnectedRunnable, config.notConnectedTimeoutMs)
+            }
          }
     }
 
@@ -345,7 +365,7 @@ abstract class BindServiceConnection<T> private constructor(
         val defaultBindFlags: Int,
         /** Defines how to handle [onBindingDied]. */
         val deadBindingBehavior: DeadBindingBehavior,
-        /** Time after which [onNotConnected] is called. If this is not positive then it's never called. */
+        /** Time after which [onNotConnected] is called or [NOT_CONNECTED_REPOST]. If this is negative then it's never called. */
         val notConnectedTimeoutMs: Long
     ) {
         companion object {
@@ -360,8 +380,8 @@ abstract class BindServiceConnection<T> private constructor(
             /** Defines how to handle [onBindingDied] (default: [DeadBindingBehavior.RECREATE]). */
             var deadBindingBehavior: DeadBindingBehavior = DeadBindingBehavior.RECREATE
 
-            /** Time after which [onNotConnected] is called. If this is not positive then it's never called. */
-            var notConnectedTimeoutMs: Long = DEFAULT_TIMEOUT_MS
+            /** Time after which [onNotConnected] is called or [NOT_CONNECTED_REPOST]. If this is negative then it's never called. */
+            var notConnectedTimeoutMs: Long = NOT_CONNECTED_REPOST
 
             internal open fun build() = Config(
                 defaultBindFlags, deadBindingBehavior, notConnectedTimeoutMs
