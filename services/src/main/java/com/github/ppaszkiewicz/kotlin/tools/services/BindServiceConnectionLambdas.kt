@@ -63,7 +63,7 @@ interface BindServiceConnectionLambdas<T> {
     var onNullBinding: (() -> Unit)?
 
     /**
-     * Called when bind succeeded but connection was not established within [BindServiceConnection.Config.notConnectedTimeoutMs].
+     * Called when bind succeeded but connection was not established within [BindServiceConnection.Config.notConnectedTimeout].
      *
      * This will happen if connection is not using [Context.BIND_AUTO_CREATE] and service is not started or it's binding
      * to remote process and service is still launching.
