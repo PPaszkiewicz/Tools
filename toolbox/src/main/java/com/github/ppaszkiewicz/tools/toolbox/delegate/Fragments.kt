@@ -125,7 +125,7 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager> {
     override fun getValue(thisRef: Any, property: KProperty<*>) = get()
     abstract fun get(): FragmentManager
 
-    // returns provide value
+    // returns "self"
     class Direct(private val fm: FragmentManager) : FragmentManagerProvider() {
         override fun get() = fm
     }
@@ -147,29 +147,46 @@ sealed class FragmentManagerProvider : ReadOnlyProperty<Any, FragmentManager> {
     inline fun <reified T : Fragment> createDelegate(
         usePropName: Boolean,
         noinline buildImpl: (() -> T)?
-    ): FragmentManagerDelegatePrimary<T> {
-        return FragmentManagerDelegatePrimary(
-            this,
-            if (usePropName) null else T::class.java.name,
-            buildImpl ?: NewInstanceFragmentFactory()
-        )
-    }
+    ) = FragmentDelegateProvider(
+        this,
+        if (usePropName) null else T::class.java.name,
+        buildImpl ?: NewInstanceFragmentFactory()
+    )
 
     // builder for delegate
     inline fun <reified T : Fragment> createDelegate(
         tag: String?,
         noinline buildImpl: (() -> T)?
-    ): FragmentManagerDelegatePrimary<T> {
-        return FragmentManagerDelegatePrimary(
-            this,
-            tag ?: T::class.java.name,
-            buildImpl ?: NewInstanceFragmentFactory()
-        )
-    }
+    ) = FragmentDelegateProvider(
+        this,
+        tag ?: T::class.java.name,
+        buildImpl ?: NewInstanceFragmentFactory()
+    )
+}
+
+/**
+ * Provides [FragmentDelegate] or spawns delegates with altered behavior.
+ */
+class FragmentDelegateProvider<T : Fragment>(
+    val manager: FragmentManagerProvider,
+    val tag: String?,
+    val buildImpl: () -> T
+) {
+    /** Default: provide delegate that finds fragment in fragment manager or uses [buildImpl] to create it. */
+    operator fun provideDelegate(
+        thisRef: Any,
+        property: KProperty<*>
+    ) = FragmentDelegate(manager, tag, buildImpl)
+
+    /** Assumes fragment is initialized elsewhere, throws exception if it's is missing instead of instantiating it. */
+    fun required(): FragmentDelegate<T> = FragmentDelegate(manager, tag, null)
+
+    /** Assume fragment might not exist, return null if it's is missing instead of instantiating it. */
+    fun nullable() = FragmentDelegateNullable<T>(manager, tag)
 }
 
 /** Lazy fragment delegate object. If [tag] is null then property name is used. */
-sealed class FragmentDelegate<T : Fragment>(
+class FragmentDelegate<T : Fragment>(
     val manager: FragmentManagerProvider,
     val tag: String?,
     private var buildImpl: (() -> T)?
@@ -194,30 +211,6 @@ sealed class FragmentDelegate<T : Fragment>(
         return f2
     }
 }
-
-/**
- * Fragment delegate object that uses provided tag or property name if tag is null.
- *
- * Also provides factory methods to alter how it works by altering self parameters.
- * */
-class FragmentManagerDelegatePrimary<T : Fragment>(
-    manager: FragmentManagerProvider,
-    tag: String?,
-    buildImpl: () -> T
-) : FragmentDelegate<T>(manager, tag, buildImpl) {
-    /** Assumes fragment is initialized elsewhere, throws exception if it's is missing instead of instantiating it. */
-    fun required(): FragmentDelegate<T> = FragmentManagerDelegateSecondary(manager, tag, null)
-
-    /** Assume fragment might not exist, return null if it's is missing instead of instantiating it. */
-    fun nullable() = FragmentDelegateNullable<T>(manager, tag)
-}
-
-/** Fragment delegate spawned by [FragmentManagerDelegatePrimary]. */
-class FragmentManagerDelegateSecondary<T : Fragment>(
-    manager: FragmentManagerProvider,
-    tag: String?,
-    buildImpl: (() -> T)?
-) : FragmentDelegate<T>(manager, tag, buildImpl)
 
 /** Fragment delegate that returns null if target fragment is not found. */
 class FragmentDelegateNullable<T : Fragment>(
