@@ -136,22 +136,22 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
                 ManualConnection<T>,
                 ObservableConnection<T>,
                 LifecycleConnection<T>>(){
-        val connectionProxy = DirectBindService.proxy(serviceClass)
+        val adapter = DirectBindService.createAdapter(serviceClass)
 
         override fun createManualConnection(
             contextDelegate: ContextDelegate,
             configBuilder: BindServiceConnection.Config.Builder?
-        ) = ManualConnection(contextDelegate, connectionProxy, configBuilder)
+        ) = ManualConnection(contextDelegate, adapter, configBuilder)
 
         override fun createObservableConnection(
             contextDelegate: ContextDelegate,
             configBuilder: BindServiceConnection.Config.Builder?
-        )= ObservableConnection(contextDelegate, connectionProxy, configBuilder)
+        )= ObservableConnection(contextDelegate, adapter, configBuilder)
 
         override fun createLifecycleConnection(
             contextDelegate: ContextDelegate,
             configBuilder: BindServiceConnection.LifecycleAware.Config.Builder?
-        ) = LifecycleConnection(contextDelegate, connectionProxy, configBuilder)
+        ) = LifecycleConnection(contextDelegate, adapter, configBuilder)
     }
 
     /**
@@ -164,9 +164,9 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
      */
     open class ManualConnection<T : LingeringService>(
         contextDelegate: ContextDelegate,
-        connectionProxy: BindServiceConnectionProxy<T>,
+        adapter: Adapter<T>,
         configBuilder: Config.Builder?
-    ) : BindServiceConnection.Manual<T>(contextDelegate, connectionProxy, configBuilder.v()) {
+    ) : BindServiceConnection.Manual<T>(contextDelegate, adapter, configBuilder.v()) {
         override fun performUnbind() = unbind(false)
         fun unbind(finishImmediately: Boolean = false) = lingeringUnbind(finishImmediately)
     }
@@ -176,9 +176,9 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
      */
     open class ObservableConnection<T : LingeringService>(
         contextDelegate: ContextDelegate,
-        connectionProxy: BindServiceConnectionProxy<T>,
+        adapter: Adapter<T>,
         configBuilder: Config.Builder?
-    ) : BindServiceConnection.Observable<T>(contextDelegate, connectionProxy, configBuilder.v()) {
+    ) : BindServiceConnection.Observable<T>(contextDelegate, adapter, configBuilder.v()) {
         override fun performUnbind() = unbind(false)
         fun unbind(finishImmediately: Boolean = false) = lingeringUnbind(finishImmediately)
     }
@@ -188,9 +188,9 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
      */
     open class LifecycleConnection<T : LingeringService>(
         contextDelegate: ContextDelegate,
-        connectionProxy: BindServiceConnectionProxy<T>,
+        adapter: Adapter<T>,
         configBuilder: Config.Builder?
-    ) : BindServiceConnection.LifecycleAware<T>(contextDelegate, connectionProxy, configBuilder.v()) {
+    ) : BindServiceConnection.LifecycleAware<T>(contextDelegate, adapter, configBuilder.v()) {
         override fun performUnbind() = unbind(false)
         fun unbind(finishImmediately: Boolean = false) = lingeringUnbind(finishImmediately)
     }
@@ -204,7 +204,7 @@ private fun <T : LingeringService> BindServiceConnection<T>.lingeringUnbind(fini
         } else {
             // let service self-start, so it won't get instantly killed due to unbind
             // service implements delayed stopSelf() if it's not rebound soon.
-            connectionProxy.createBindingIntent(context)
+            adapter.createBindingIntent(context)
                 .setAction(LingeringService.ACTION_LINGERING_SERVICE_START_LINGER)
                 .let { context.startService(it) }
         }
@@ -219,7 +219,7 @@ private fun <T : LingeringService> BindServiceConnection<T>.lingeringUnbind(fini
     }
 }
 
-// validate the config - lingering connections requires BIND_AUTO_CREATE flag to be set
+// ensure config is valid - lingering connections requires BIND_AUTO_CREATE flag to be set
 private fun <T: BindServiceConnection.Config.Builder>T?.v() = this?.also{
     if(defaultBindFlags and Context.BIND_AUTO_CREATE != Context.BIND_AUTO_CREATE)
         defaultBindFlags = defaultBindFlags or Context.BIND_AUTO_CREATE

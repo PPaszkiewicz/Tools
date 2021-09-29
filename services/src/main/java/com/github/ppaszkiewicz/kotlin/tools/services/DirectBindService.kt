@@ -70,9 +70,9 @@ interface DirectBindService {
         inline fun <reified T : DirectBindService> createIntentFor(context: Context) =
             createIntentFor(context, T::class.java)
 
-        /** Create direct binding proxy implementation to use as delegate. */
-        fun <T : DirectBindService> proxy(serviceClass: Class<T>) =
-            object : BindServiceConnectionProxy<T> {
+        /** Create direct binding adapter implementation to use as delegate. */
+        fun <T : DirectBindService> createAdapter(serviceClass: Class<T>) =
+            object : BindServiceConnection.Adapter<T> {
                 override fun createBindingIntent(context: Context) =
                     createIntentFor(context, serviceClass)
 
@@ -92,21 +92,21 @@ interface DirectBindService {
      */
     open class ConnectionFactory<T : DirectBindService>(protected val serviceClass: Class<T>) :
         BindServiceConnection.ConnectionFactory<T>() {
-        val connectionProxy = proxy(serviceClass)
+        val adapter = createAdapter(serviceClass)
 
         override fun createManualConnection(
             contextDelegate: ContextDelegate,
             configBuilder: BindServiceConnection.Config.Builder?
-        ) = BindServiceConnection.Manual(contextDelegate, connectionProxy, configBuilder)
+        ) = BindServiceConnection.Manual(contextDelegate, adapter, configBuilder)
 
         override fun createObservableConnection(
             contextDelegate: ContextDelegate,
             configBuilder: BindServiceConnection.Config.Builder?
-        ) = BindServiceConnection.Observable(contextDelegate, connectionProxy, configBuilder)
+        ) = BindServiceConnection.Observable(contextDelegate, adapter, configBuilder)
 
         override fun createLifecycleConnection(
             contextDelegate: ContextDelegate,
             configBuilder: BindServiceConnection.LifecycleAware.Config.Builder?
-        ) = BindServiceConnection.LifecycleAware(contextDelegate, connectionProxy, configBuilder)
+        ) = BindServiceConnection.LifecycleAware(contextDelegate, adapter, configBuilder)
     }
 }

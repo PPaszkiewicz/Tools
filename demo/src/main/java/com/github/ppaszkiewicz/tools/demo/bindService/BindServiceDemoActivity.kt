@@ -34,6 +34,8 @@ class BindServiceDemoActivity : AppCompatActivity() {
 
     val serviceConn = TestService.connectionFactory.manual(this){
         defaultBindFlags = 0
+        // uncomment to prevent auto rebinding when service is stopped
+        //deadBindingBehavior = BindServiceConnection.DeadBindingBehavior.CALLBACK_ONLY
     }
 
     val binding by viewBinding<ActivityButtonsBinding>()
@@ -55,6 +57,8 @@ class BindServiceDemoActivity : AppCompatActivity() {
         """.trimMargin()
 
             button1.setOnClickListener {
+                //NOTE: this will return TRUE even if service is not started but it has active binding
+                //  even if that binding does not carry BIND_AUTO_CREATE flag
                 startService<TestService>()
                 Log.d(TAG, "startService, isBound: ${serviceConn.isBound}")
             }
@@ -154,6 +158,9 @@ class BindServiceDemoActivity : AppCompatActivity() {
             }
             onBindingDied = {
                 Log.d(TAG, "onBindingDied")
+                if(!serviceConn.config.deadBindingBehavior.rebind){
+                    "Connection bound = false ($currentBindFlags)"
+                }
                 true
             }
             onNullBinding = {

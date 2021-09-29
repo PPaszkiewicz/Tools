@@ -72,9 +72,9 @@ When you cannot access and modify the service class to bind to (for example when
 
 ```kotlin
 // create static factory object to use across project
-object MyAidlConnectionFactory : RemoteBindService.ConnectionFactory<MyAidlInterface>(aidlProxy)
+object MyAidlConnectionFactory : RemoteBindService.ConnectionFactory<MyAidlInterface>(aidlAdapter)
 
-private val aidlProxy = object : BindServiceConnectionProxy<MyAidlInterface> {
+private val aidlAdapter = object : BindServiceConnection.Adapter<MyAidlInterface> {
     override fun createBindingIntent(context: Context): Intent {
         val aidlService = ComponentName("com.sample.sample", "com.sample.sample.MyAidlService")
         return Intent(MyAidlInterface.BIND_ACTION).setComponent(aidlService)

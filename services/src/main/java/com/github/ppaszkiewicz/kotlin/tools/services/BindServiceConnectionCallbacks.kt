@@ -64,7 +64,7 @@ interface BindServiceConnectionCallbacks<T> {
     /**
      * Called when bind succeeded but connection was not established within [BindServiceConnection.Config.notConnectedTimeout].
      *
-     * This will happen if connection is not using [Context.BIND_AUTO_CREATE] and service is not started or it's binding
+     * This will happen if connection is __not__ using [Context.BIND_AUTO_CREATE] and service is not started or it's binding
      * to remote process and service is still launching.
      *
      * Even after this is called service might still connect as long as binding is active.

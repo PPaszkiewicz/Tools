@@ -28,15 +28,15 @@ import java.lang.ref.WeakReference
 abstract class BindServiceConnection<T> private constructor(
     contextDelegate: ContextDelegate,
     /** Creates binding intent and transforms binder. */
-    val connectionProxy: BindServiceConnectionProxy<T>,
+    val adapter: Adapter<T>,
     configBuilder: Config.Builder?,
     private val callbacksProxy: BindServiceConnectionLambdas.Proxy<T>
 ) : LiveData<T?>(), BindServiceConnectionLambdas<T> by callbacksProxy {
     constructor(
         contextDelegate: ContextDelegate,
-        connectionProxy: BindServiceConnectionProxy<T>,
+        adapter: Adapter<T>,
         configBuilder: Config.Builder? = null
-    ) : this(contextDelegate, connectionProxy, configBuilder, BindServiceConnectionLambdas.Proxy())
+    ) : this(contextDelegate, adapter, configBuilder, BindServiceConnectionLambdas.Proxy())
 
     companion object {
         /**
@@ -55,7 +55,7 @@ abstract class BindServiceConnection<T> private constructor(
     /**
      * Possible behaviors to handle [ServiceConnection.onBindingDied].
      *
-     * For API below 28 this callback does not exist here it can be configured to be called alongside
+     * For API below 28 this callback does not exist. Here it can be configured to be called alongside
      * [ServiceConnection.onServiceDisconnected] instead.
      */
     enum class DeadBindingBehavior(val callback: Boolean, val rebind: Boolean) {
@@ -127,8 +127,9 @@ abstract class BindServiceConnection<T> private constructor(
      * - `RESUMED` right before [onFirstConnect] & [onConnect] call
      * - `STOPPED` right before [onDisconnect] call
      * - `DESTROYED` after [dispatchDestroyConnectionLifecycle] which happens:
-     *      - before [onConnectionLost]
+     *      - before [onConnectionLost] (unexpected disconnect)
      *      - before [onFirstConnect] (if service was restarted while unbound and we got new service object)
+     *      - after [release] (connection shutting down)
      *
      * This is purposefully unaware of binding call as (during reconnection) its impossible to determine if we're
      * going to re-connect or connect to a new service.
@@ -162,21 +163,29 @@ abstract class BindServiceConnection<T> private constructor(
     protected open fun performBind(flags: Int) {
         if (!isBound) {
             isBound = true
-            val bindingIntent = connectionProxy.createBindingIntent(context)
-            val bindingExc = try {
-                if (context.bindService(bindingIntent, serviceConnectionObject, flags)) {
-                    _stateLifecycle.currentState = Lifecycle.State.CREATED
-                    onBind?.invoke()
-                    startNotConnectedRunnable()
-                    return
-                }
-                null
-            } catch (exc: SecurityException) {
-                exc
+            val bindingExc = performBindImpl(true, flags)
+            if(bindingExc != null) {
+                isBound = false
+                onBindingFailed(bindingExc)
             }
-            isBound = false
-            onBindingFailed(BindingException(bindingIntent, bindingExc))
         }
+    }
+
+    /** Internal binding call without altering [isBound]. Returns `null` on success, otherwise exception. */
+    protected fun performBindImpl(doCallback: Boolean, flags: Int) : BindingException?{
+        val bindingIntent = adapter.createBindingIntent(context)
+        val bindingExc = try {
+            if (context.bindService(bindingIntent, serviceConnectionObject, flags)) {
+                _stateLifecycle.currentState = Lifecycle.State.CREATED
+                if(doCallback) onBind?.invoke()
+                startNotConnectedRunnable()
+                return null
+            }
+            null
+        } catch (exc: SecurityException) {
+            exc
+        }
+        return BindingException(bindingIntent, bindingExc)
     }
 
     /** Perform unbinding after triggering event. */
@@ -198,18 +207,16 @@ abstract class BindServiceConnection<T> private constructor(
     /** Perform rebind after unexpected binding death. */
     protected open fun performRebind(doCallbacks: Boolean, flags: Int) {
         if (isBound) {
-            clearNotConnectedRunnable()
+            check(value == null){"performRebind cannot be called when there's an active connection"}
+            // unbind doesn't need to account for anything since service should've disconnected already
             context.unbindService(serviceConnectionObject)
             if (doCallbacks) onUnbind?.invoke()
-            //todo: should lifecycles get recreated as well?
-            // is exception handling here necessary?
-            context.bindService(
-                connectionProxy.createBindingIntent(context),
-                serviceConnectionObject,
-                flags
-            )
-            if (doCallbacks) onBind?.invoke()
-            startNotConnectedRunnable()
+
+            val bindingExc = performBindImpl(doCallbacks, flags) // exception handling for binding
+            if(bindingExc != null) {
+                isBound = false
+                onBindingFailed(bindingExc)
+            }
         }
     }
 
@@ -284,7 +291,7 @@ abstract class BindServiceConnection<T> private constructor(
             } else false
             var isFirstConnect = false
             val oldBinder = currentBinder?.get()
-            connectionProxy.transformBinder(name, serviceBinder).also {
+            adapter.transformBinder(name, serviceBinder).also {
                 this@BindServiceConnection.value = it
                 if (oldBinder !== serviceBinder) { // this is not reconnecting event
                     if (!hasFreshConnectionLifecycle && currentBinder != null) {
@@ -324,6 +331,8 @@ abstract class BindServiceConnection<T> private constructor(
         // added in API level 26
         override fun onNullBinding(name: ComponentName?) {
             clearNotConnectedRunnable()
+            //NOTE: this will be called when service is force stopped (context.stopService)
+            // even if connection is bound but not connected
             onNullBinding?.invoke()
         }
     }
@@ -389,6 +398,16 @@ abstract class BindServiceConnection<T> private constructor(
                 defaultBindFlags, deadBindingBehavior, notConnectedTimeout
             )
         }
+    }
+
+
+    /** Methods required to connect to service and connection. */
+    interface Adapter<T> {
+        /** Intent that is used to bind to the service. */
+        fun createBindingIntent(context: Context): Intent
+
+        /** Transform [binder] object into valid [LiveData] value of service connection. */
+        fun transformBinder(name: ComponentName, binder: IBinder): T
     }
 
     /** Base for connection factories that connect to service of type [T]. */
@@ -577,9 +596,9 @@ abstract class BindServiceConnection<T> private constructor(
     /** Connection to service that requires manual [bind] and [unbind] calls. */
     open class Manual<T>(
         contextDelegate: ContextDelegate,
-        connectionProxy: BindServiceConnectionProxy<T>,
+        adapter: Adapter<T>,
         configBuilder: Config.Builder? = null
-    ) : BindServiceConnection<T>(contextDelegate, connectionProxy, configBuilder) {
+    ) : BindServiceConnection<T>(contextDelegate, adapter, configBuilder) {
         /**
          * Flag that was used for ongoing binding - this might be different from [defaultBindFlags] if
          * user provided custom argument for [bind].
@@ -617,9 +636,9 @@ abstract class BindServiceConnection<T> private constructor(
      * */
     open class Observable<T>(
         contextDelegate: ContextDelegate,
-        connectionProxy: BindServiceConnectionProxy<T>,
+        adapter: Adapter<T>,
         configBuilder: Config.Builder? = null
-    ) : BindServiceConnection<T>(contextDelegate, connectionProxy, configBuilder) {
+    ) : BindServiceConnection<T>(contextDelegate, adapter, configBuilder) {
         // override livedata methods
         override fun onActive() {
             performBind(config.defaultBindFlags)
@@ -638,9 +657,9 @@ abstract class BindServiceConnection<T> private constructor(
      * */
     open class LifecycleAware<T>(
         contextDelegate: ContextDelegate,
-        connectionProxy: BindServiceConnectionProxy<T>,
+        adapter: Adapter<T>,
         configBuilder: Config.Builder? = null
-    ) : BindServiceConnection<T>(contextDelegate, connectionProxy, configBuilder),
+    ) : BindServiceConnection<T>(contextDelegate, adapter, configBuilder),
         LifecycleObserver {
         /** Lifecycle state that will trigger the binding. */
         val bindingLifecycleState: Lifecycle.State
