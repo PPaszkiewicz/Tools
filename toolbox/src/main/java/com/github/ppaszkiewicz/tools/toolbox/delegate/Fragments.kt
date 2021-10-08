@@ -200,12 +200,12 @@ class FragmentDelegateProvider<T : Fragment>(
         val manager: FragmentManagerProvider,
         val tag: String?,
         val buildImpl: () -> T
-    ){
+    ) {
         /** Discard destroyed fragments and recreate them instead. */
         operator fun provideDelegate(
             thisRef: Any,
             property: KProperty<*>
-        ) : FragmentDelegate<T> = FragmentDelegate.Temporary(manager, tag, buildImpl)
+        ): FragmentDelegate<T> = FragmentDelegate.Temporary(manager, tag, buildImpl)
 
         /** Assumes fragment is initialized elsewhere, throws exception if it's is missing instead of instantiating it. */
         fun required(): FragmentDelegate<T> = FragmentDelegate.Temporary(manager, tag, null)
@@ -225,15 +225,15 @@ open class FragmentDelegate<T : Fragment>(
         getCurrentValue(thisRef, property)?.also { return it }
         val f = restoreValue(thisRef, property) ?: createValue(thisRef, property)
         value = f
-        if(discardBuilder()) buildImpl = null
+        if (discardBuilder()) buildImpl = null
         return f
     }
 
-    protected open fun getCurrentValue(thisRef: Any, property: KProperty<*>) : T?{
+    protected open fun getCurrentValue(thisRef: Any, property: KProperty<*>): T? {
         return value
     }
 
-    protected open fun restoreValue(thisRef: Any, property: KProperty<*>) : T? {
+    protected open fun restoreValue(thisRef: Any, property: KProperty<*>): T? {
         val f = manager.get().findFragmentByTag(tag ?: (property.name)) as T?
         if (f != null) {
             value = f
@@ -242,7 +242,7 @@ open class FragmentDelegate<T : Fragment>(
         return null
     }
 
-    protected open fun createValue(thisRef: Any, property: KProperty<*>) : T{
+    protected open fun createValue(thisRef: Any, property: KProperty<*>): T {
         check(buildImpl != null) { "Fragment not found and creation in this delegate is disabled." }
         return buildImpl!!()
     }
@@ -278,11 +278,11 @@ open class FragmentDelegateNullable<T : Fragment>(
         return f
     }
 
-    protected open fun getCurrentValue(thisRef: Any, property: KProperty<*>) : T?{
+    protected open fun getCurrentValue(thisRef: Any, property: KProperty<*>): T? {
         return value
     }
 
-    protected open fun restoreValue(thisRef: Any, property: KProperty<*>) : T? {
+    protected open fun restoreValue(thisRef: Any, property: KProperty<*>): T? {
         val f = manager.get().findFragmentByTag(tag ?: (property.name)) as T?
         if (f != null) {
             value = f
@@ -292,7 +292,7 @@ open class FragmentDelegateNullable<T : Fragment>(
     }
 
     /** Nullable delegate that considers destroyed fragments invalid. */
-    class Managed<T: Fragment>(manager: FragmentManagerProvider, tag : String?) :
+    class Managed<T : Fragment>(manager: FragmentManagerProvider, tag: String?) :
         FragmentDelegateNullable<T>(manager, tag) {
         override fun getCurrentValue(thisRef: Any, property: KProperty<*>): T? {
             return value?.takeIf { it.lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED) }
