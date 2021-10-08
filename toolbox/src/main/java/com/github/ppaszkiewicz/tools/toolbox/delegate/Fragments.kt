@@ -3,12 +3,17 @@ package com.github.ppaszkiewicz.tools.toolbox.delegate
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.Lifecycle
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
 /*
   Those delegates can be used to lazily create or find fragments in the FragmentManager.
   They do not add the fragment itself to the FragmentManager, it's up to user to do so.
+  They're intended for fragments that are "hard" and never get destroyed as they will hold reference,
+        to handle destructible fragments use temporary() or managed() otherwise you might end up
+        adding fragments that were previously destroyed.
+
   Delegate factory functions below.
  */
 
@@ -181,54 +186,120 @@ class FragmentDelegateProvider<T : Fragment>(
     /** Assumes fragment is initialized elsewhere, throws exception if it's is missing instead of instantiating it. */
     fun required(): FragmentDelegate<T> = FragmentDelegate(manager, tag, null)
 
+    /** Discard destroyed fragments and recreate them instead. */
+    fun temporary() = Temporary(manager, tag, buildImpl)
+
     /** Assume fragment might not exist, return null if it's is missing instead of instantiating it. */
     fun nullable() = FragmentDelegateNullable<T>(manager, tag)
+
+    /** Similar to [nullable] but will not return destroyed fragments. */
+    fun managed() = FragmentDelegateNullable.Managed<T>(manager, tag)
+
+    /** Considers destroyed fragments invalid for return. */
+    class Temporary<T : Fragment>(
+        val manager: FragmentManagerProvider,
+        val tag: String?,
+        val buildImpl: () -> T
+    ){
+        /** Discard destroyed fragments and recreate them instead. */
+        operator fun provideDelegate(
+            thisRef: Any,
+            property: KProperty<*>
+        ) : FragmentDelegate<T> = FragmentDelegate.Temporary(manager, tag, buildImpl)
+
+        /** Assumes fragment is initialized elsewhere, throws exception if it's is missing instead of instantiating it. */
+        fun required(): FragmentDelegate<T> = FragmentDelegate.Temporary(manager, tag, null)
+    }
 }
 
 /** Lazy fragment delegate object. If [tag] is null then property name is used. */
-class FragmentDelegate<T : Fragment>(
+open class FragmentDelegate<T : Fragment>(
     val manager: FragmentManagerProvider,
     val tag: String?,
-    private var buildImpl: (() -> T)?
+    protected var buildImpl: (() -> T)?
 ) : ReadOnlyProperty<Any, T> {
     protected var value: T? = null
 
     @Suppress("UNCHECKED_CAST")
     override fun getValue(thisRef: Any, property: KProperty<*>): T {
-        if (value != null) {
-            buildImpl = null
-            return value!!
-        }
+        getCurrentValue(thisRef, property)?.also { return it }
+        val f = restoreValue(thisRef, property) ?: createValue(thisRef, property)
+        value = f
+        if(discardBuilder()) buildImpl = null
+        return f
+    }
+
+    protected open fun getCurrentValue(thisRef: Any, property: KProperty<*>) : T?{
+        return value
+    }
+
+    protected open fun restoreValue(thisRef: Any, property: KProperty<*>) : T? {
         val f = manager.get().findFragmentByTag(tag ?: (property.name)) as T?
         if (f != null) {
             value = f
             return f
         }
+        return null
+    }
+
+    protected open fun createValue(thisRef: Any, property: KProperty<*>) : T{
         check(buildImpl != null) { "Fragment not found and creation in this delegate is disabled." }
-        val f2 = buildImpl!!()
-        buildImpl = null
-        value = f2
-        return f2
+        return buildImpl!!()
+    }
+
+    protected open fun discardBuilder() = true
+
+    /** Discards referenced fragment when it's destroyed and creates new instance (keeps builder reference). */
+    class Temporary<T : Fragment>(
+        manager: FragmentManagerProvider,
+        tag: String?,
+        buildImpl: (() -> T)?
+    ) : FragmentDelegate<T>(manager, tag, buildImpl) {
+        override fun getCurrentValue(thisRef: Any, property: KProperty<*>): T? {
+            return value?.takeIf { it.lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED) }
+        }
+
+        override fun discardBuilder() = false
     }
 }
 
 /** Fragment delegate that returns null if target fragment is not found. */
-class FragmentDelegateNullable<T : Fragment>(
+open class FragmentDelegateNullable<T : Fragment>(
     val manager: FragmentManagerProvider,
     val tag: String?
 ) : ReadOnlyProperty<Any, T?> {
-    private var value: T? = null
+    protected var value: T? = null
 
     @Suppress("UNCHECKED_CAST")
     override fun getValue(thisRef: Any, property: KProperty<*>): T? {
-        if (value != null) return value
+        getCurrentValue(thisRef, property)?.also { return it }
+        val f = restoreValue(thisRef, property)
+        value = f
+        return f
+    }
+
+    protected open fun getCurrentValue(thisRef: Any, property: KProperty<*>) : T?{
+        return value
+    }
+
+    protected open fun restoreValue(thisRef: Any, property: KProperty<*>) : T? {
         val f = manager.get().findFragmentByTag(tag ?: (property.name)) as T?
         if (f != null) {
             value = f
+            return f
         }
-        return f
+        return null
+    }
+
+    /** Nullable delegate that considers destroyed fragments invalid. */
+    class Managed<T: Fragment>(manager: FragmentManagerProvider, tag : String?) :
+        FragmentDelegateNullable<T>(manager, tag) {
+        override fun getCurrentValue(thisRef: Any, property: KProperty<*>): T? {
+            return value?.takeIf { it.lifecycle.currentState.isAtLeast(Lifecycle.State.INITIALIZED) }
+        }
     }
 }
+
 
 /*
     Internal - helper extensions.

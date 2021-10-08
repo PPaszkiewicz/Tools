@@ -81,9 +81,10 @@ class MyFragmentTwo : Fragment() {
 class MyFragmentThree : Fragment() {
     // some more options to find fragments
     val childF by parentFragments<MyFragmentThree>().required()
-    val childF2 by parentFragments<MyFragmentThree>().nullable()
+    val childF2 by parentFragments<MyFragmentThree>().managed()
     val parentRoot by activityFragments<MyFragmentOne>(true).required()
     val parentNotExisting by activityFragments<MyFragmentOne>(false).nullable()
+    val detachable by activityFragments<MyFragmentOne>(false).temporary().required()
 }
 
 enum class MyTestEnum {
