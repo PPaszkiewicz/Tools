@@ -93,6 +93,10 @@ abstract class BindServiceConnection<T> private constructor(
     /** Get default config object if provided configBuilder is `null` - only return final static objects. */
     protected open fun getDefaultConfig(): Config = Config.DEFAULT
 
+    /** After [release] binding can't be performed anymore. */
+    var isReleased = false
+        private set
+
     /** Raised if [performBind] was called without matching [performUnbind]. */
     var isBound = false
         internal set
@@ -161,6 +165,7 @@ abstract class BindServiceConnection<T> private constructor(
 
     /** Perform binding during specific triggering event. */
     protected open fun performBind(flags: Int) {
+        check(!isReleased){"This BindServiceConnection was already released."}
         if (!isBound) {
             isBound = true
             val bindingExc = performBindImpl(true, flags)
@@ -556,7 +561,7 @@ abstract class BindServiceConnection<T> private constructor(
     /**
      * Thrown when binding to the service fails.
      *
-     * @param intent Intent produced by [createBindingIntent] that caused the failure
+     * @param intent Intent produced by [Adapter.createBindingIntent] that caused the failure
      * @param rootException If binding returned `false` this is `null`, otherwise this is exception that was thrown
      * */
     class BindingException(
