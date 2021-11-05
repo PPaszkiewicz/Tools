@@ -41,13 +41,10 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
         LifecycleEventObserver {
 
         override fun initLifecycle(lifecycle: LifecycleRegistry) {
+            lifecycle.currentState = lifecycles.minOf { it.lifecycle.currentState }
             // if any of provided lifecycles is destroyed just destroy the compound immediately
-            val destroyed =
-                lifecycles.find { it.lifecycle.currentState == Lifecycle.State.DESTROYED }
-            if (destroyed != null) {
-                lifecycle.currentState = Lifecycle.State.DESTROYED
-                lifecycles.clear()
-            } else lifecycles.forEach { it.lifecycle.addObserver(this) }
+            if(lifecycle.currentState == Lifecycle.State.DESTROYED) lifecycles.clear()
+            else lifecycles.forEach { it.lifecycle.addObserver(this) }
         }
 
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
@@ -70,7 +67,8 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
     open class Or(vararg lifecycles: LifecycleOwner) : CompoundLifecycleOwner(*lifecycles),
         LifecycleEventObserver {
         override fun initLifecycle(lifecycle: LifecycleRegistry) {
-            // run iteration on copy because list will be altered if something is in destroyed state
+            lifecycle.currentState = lifecycles.maxOf { it.lifecycle.currentState }
+            // run iteration on copy because destroyed items are removed from original list
             lifecycles.toTypedArray().forEach { it.lifecycle.addObserver(this) }
         }
 
