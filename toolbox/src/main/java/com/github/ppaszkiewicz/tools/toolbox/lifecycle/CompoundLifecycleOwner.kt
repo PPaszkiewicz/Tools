@@ -1,9 +1,7 @@
 package com.github.ppaszkiewicz.tools.toolbox.lifecycle
 
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.Lifecycle.State.INITIALIZED
-import androidx.lifecycle.Lifecycle.State.CREATED
-import androidx.lifecycle.Lifecycle.State.DESTROYED
+import androidx.lifecycle.Lifecycle.State.*
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -15,7 +13,6 @@ import androidx.lifecycle.LifecycleRegistry
  * - [CompoundLifecycleOwner.And] assume the lowest state
  * - [CompoundLifecycleOwner.Or] assume the highest state
  */
-@Suppress("LeakingThis")
 abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : LifecycleOwner {
     init {
         require(lifecycles.isNotEmpty())
@@ -24,13 +21,18 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
     /** List of lifecycles, once any of them reach destroyed state it should be discarded. */
     protected val lifecycles = lifecycles.toMutableList()
 
-    private val _lifecycle = LifecycleRegistry(this)
+    /** `True` until lifecycle is prepared. */
+    protected var isInitializing = true
+        private set
+
+    private val _lifecycle by lazy {
+        LifecycleRegistry(this).also {
+            initLifecycle(it)
+            isInitializing = false
+        }
+    }
 
     override fun getLifecycle() = _lifecycle
-
-    init {
-        initLifecycle(_lifecycle)
-    }
 
     /**
      * Called when lazily creating [lifecycle], attach the observers here.
@@ -52,6 +54,7 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
         }
 
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+            if(isInitializing) return   // suppress callbacks triggered by addObserver
             val state = lifecycles.minOf { it.lifecycle.currentState }
             if (state == DESTROYED) destroy()
             else lifecycle.currentState = state
@@ -86,6 +89,7 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
         }
 
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
+            if(isInitializing) return // suppress callbacks triggered by addObserver
             if (source.lifecycle.currentState == DESTROYED) {
                 source.lifecycle.removeObserver(this)
                 lifecycles.remove(source)
