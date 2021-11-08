@@ -1,16 +1,15 @@
 package com.github.ppaszkiewicz.tools.demo
 
 import androidx.lifecycle.MutableLiveData
-import androidx.test.runner.AndroidJUnit4
+import androidx.test.filters.SmallTest
 import com.github.ppaszkiewicz.tools.toolbox.extensions.awaitValue
 import com.github.ppaszkiewicz.tools.toolbox.extensions.awaitValueForever
 import com.github.ppaszkiewicz.tools.toolbox.extensions.awaitNull
 import com.github.ppaszkiewicz.tools.toolbox.extensions.awaitValueOrNull
 import kotlinx.coroutines.*
 import org.junit.Test
-import org.junit.runner.RunWith
 
-@RunWith(AndroidJUnit4::class)
+@SmallTest
 class SuspendLiveDataTest {
 
     @Test

@@ -76,13 +76,14 @@ class CompoundLifecycleTest {
         val first = DummyLife("first")
         val second = DummyLife("second")
         first.moveTo(CREATED)
+        second.moveTo(CREATED)
         val compound = first or second
         compound.lifecycle.addObserver(LifecycleEventObserver {_, ev ->
             Log.d("TEST","observer: $ev")
         })
-        first.moveTo(RESUMED)
+        //first.moveTo(RESUMED)
         first.moveTo(DESTROYED)
-        second.moveTo(CREATED)
+        //second.moveTo(CREATED)
         second.moveTo(DESTROYED)
         Log.d("TEST", "compound state: ${compound.lifecycle.currentState}")
     }

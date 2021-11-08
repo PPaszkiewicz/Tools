@@ -13,7 +13,8 @@ import androidx.lifecycle.LifecycleRegistry
  * - [CompoundLifecycleOwner.And] assume the lowest state
  * - [CompoundLifecycleOwner.Or] assume the highest state
  */
-abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : LifecycleOwner {
+abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : LifecycleOwner,
+    LifecycleEventObserver {
     init {
         require(lifecycles.isNotEmpty())
     }
@@ -42,9 +43,18 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
      *  */
     abstract fun initLifecycle(lifecycle: LifecycleRegistry)
 
+    /** Clean up observers and move down to [DESTROYED] state if possible (not [INITIALIZED]). */
+    protected fun destroy() {
+        check(lifecycle.currentState != DESTROYED)
+        lifecycles.forEach { it.lifecycle.removeObserver(this) }
+        lifecycles.clear()
+        // cannot move down from INITIALIZED so just leave lifecycle there
+        if (lifecycle.currentState.isAtLeast(CREATED))
+            lifecycle.currentState = DESTROYED
+    }
+
     /** `RESUMED` when everything is resumed, `DESTROYED` when at least one is. */
-    open class And(vararg lifecycles: LifecycleOwner) : CompoundLifecycleOwner(*lifecycles),
-        LifecycleEventObserver {
+    open class And(vararg lifecycles: LifecycleOwner) : CompoundLifecycleOwner(*lifecycles) {
 
         override fun initLifecycle(lifecycle: LifecycleRegistry) {
             lifecycle.currentState = lifecycles.minOf { it.lifecycle.currentState }
@@ -54,19 +64,10 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
         }
 
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-            if(isInitializing) return   // suppress callbacks triggered by addObserver
+            if (isInitializing) return   // suppress callbacks triggered by addObserver
             val state = lifecycles.minOf { it.lifecycle.currentState }
             if (state == DESTROYED) destroy()
             else lifecycle.currentState = state
-        }
-
-        private fun destroy() {
-            check(lifecycle.currentState != DESTROYED)
-            lifecycles.forEach { it.lifecycle.removeObserver(this) }
-            lifecycles.clear()
-            // cannot move down from INITIALIZED so just leave lifecycle there
-            if (lifecycle.currentState.isAtLeast(CREATED))
-                lifecycle.currentState = DESTROYED
         }
 
         // builder operators allowing for chaining
@@ -89,23 +90,21 @@ abstract class CompoundLifecycleOwner(vararg lifecycles: LifecycleOwner) : Lifec
         }
 
         override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
-            if(isInitializing) return // suppress callbacks triggered by addObserver
+            if (isInitializing) return // suppress callbacks triggered by addObserver
             if (source.lifecycle.currentState == DESTROYED) {
                 source.lifecycle.removeObserver(this)
                 lifecycles.remove(source)
-                if (lifecycles.isEmpty() && lifecycle.currentState.isAtLeast(CREATED)) {
-                    lifecycle.currentState = DESTROYED // last lifecycle was destroyed
+                if (lifecycles.isEmpty()) {
+                    destroy()
                     return
                 }
             }
-            val maxState = lifecycles.maxOf { it.lifecycle.currentState }
+            val maxState = lifecycles.maxOf { it.lifecycle.currentState } // will never be DESTROYED
 
-            // note: it's impossible to perform direct INITIALIZED -> DESTROYED state change
-            if (maxState.isAtLeast(CREATED)) {
-                lifecycle.currentState = maxState   // OK just update the state
-            } else if (lifecycle.currentState.isAtLeast(CREATED)) {
+            // doing direct INITIALIZED -> DESTROYED state change is illegal so don't even account for it
+            if (maxState == INITIALIZED && lifecycle.currentState > INITIALIZED) {
                 lifecycle.currentState = CREATED    // clamp to CREATED
-            }
+            } else lifecycle.currentState = maxState
         }
 
         // builder operators allowing for chaining
