@@ -52,7 +52,7 @@ subprojects {
                             from components.release
                             groupId = 'com.github.PPaszkiewicz.Tools'
                             //artifactId = 'moduleName' // inherits module name
-                            version = '1.5.31'
+                            version = '1.5.32'
 
                             artifact(sourcesJar)
                         }

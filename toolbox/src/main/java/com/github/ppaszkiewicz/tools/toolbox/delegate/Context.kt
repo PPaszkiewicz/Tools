@@ -8,33 +8,24 @@ import androidx.lifecycle.AndroidViewModel
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
-// helper class needed to lazily obtain a context to safely provide a lazy delegate
+// helper typealias needed to lazily obtain a context to safely provide a lazy delegate
 // in fragments etc
 /** Context delegate for classes that can return a [Context]. */
-interface ContextDelegate : ReadOnlyProperty<Any, Context> {
-    override fun getValue(thisRef: Any, property: KProperty<*>) = get()
-    fun get(): Context
+typealias ContextDelegate = ReadOnlyProperty<Any, Context>
 
-    /** Returns self. */
-    @JvmInline
-    value class OfContext(private val context: Context) : ContextDelegate {
-        override fun get() = context
-    }
+// dummy prop fed into get
+private val nullProp = Unit
 
-    /** Returns fragments context. Fragment might not have context attached when this wrapper is created. */
-    @JvmInline
-    value class OfFragment(private val fragment: Fragment) : ContextDelegate {
-        override fun get() = fragment.requireContext()
-    }
-}
+/** Get the context. */
+fun ContextDelegate.get() = getValue(this, ::nullProp)
 
 /** Delegate that returns context. */
 val Context.contextDelegate
-    get() = ContextDelegate.OfContext(this)
+    get() = ContextDelegate{_, _ -> this }
 
 /** Delegate that returns context. */
 val Fragment.contextDelegate
-    get() = ContextDelegate.OfFragment(this)
+    get() = ContextDelegate { fragment, _ -> (fragment as Fragment).requireContext() }
 
 /** Delegate that returns context. */
 val AndroidViewModel.contextDelegate
