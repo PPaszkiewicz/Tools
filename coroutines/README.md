@@ -4,6 +4,8 @@
 Coroutines
 ==========
 
+Deprecated - could be cleaned up and rewritten using flow api.
+
 "Loader" utilities based on coroutines.
 
 Import in **build.gradle** or **build.gradle.kts**:

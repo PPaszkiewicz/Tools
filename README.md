@@ -8,13 +8,6 @@ My personal Kotlin based tools.
 
 To import ensure you have ```maven { url `jitpack.io` }``` repository in your project level **build.gradle**.
 
-### Coroutines
-"Loader" utilities based on coroutines.
-
-Import in **build.gradle** or **build.gradle.kts**:
-```gradle
-implementation("com.github.PPaszkiewicz.Tools:coroutines:$version")
-```
 ### Services
 
 ServiceConnection implementation that's lifecycle aware and exposes service callbacks in more
