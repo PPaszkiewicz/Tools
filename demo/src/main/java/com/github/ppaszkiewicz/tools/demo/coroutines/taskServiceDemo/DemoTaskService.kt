@@ -8,7 +8,7 @@ import android.util.Log
 import com.github.ppaszkiewicz.tools.coroutines.service.QueuedTaskService
 import com.github.ppaszkiewicz.tools.coroutines.service.TaskServiceJob
 import com.github.ppaszkiewicz.tools.demo.coroutines.taskServiceDemo.DemoTaskService.Companion.EXTRA_PARAMS
-import com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService
+import com.github.ppaszkiewicz.tools.services.DirectBindService
 import com.github.ppaszkiewicz.tools.toolbox.liveData.LiveDataProgressMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.parcelize.Parcelize

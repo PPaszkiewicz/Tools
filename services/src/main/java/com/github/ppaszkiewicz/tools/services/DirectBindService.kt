@@ -1,6 +1,6 @@
 @file:Suppress("UNCHECKED_CAST")
 
-package com.github.ppaszkiewicz.kotlin.tools.services
+package com.github.ppaszkiewicz.tools.services
 
 import android.app.Service
 import android.content.ComponentName
@@ -9,8 +9,7 @@ import android.content.Intent
 import android.os.Binder
 import android.os.IBinder
 import androidx.lifecycle.LifecycleService
-import com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService.Companion.BIND_DIRECT_ACTION
-import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
+import com.github.ppaszkiewicz.tools.services.DirectBindService.Companion.BIND_DIRECT_ACTION
 
 /*
     Base for direct binding services.

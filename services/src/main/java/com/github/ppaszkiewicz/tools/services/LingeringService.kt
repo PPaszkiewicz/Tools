@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.services
+package com.github.ppaszkiewicz.tools.services
 
 import android.content.Context
 import android.content.Intent
@@ -9,7 +9,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.LiveData
-import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
 
 /**
  * [DirectBindService] that gets automatically stopped when it's unbound for [serviceTimeoutMs].

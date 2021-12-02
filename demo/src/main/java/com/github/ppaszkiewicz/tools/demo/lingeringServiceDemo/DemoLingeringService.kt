@@ -10,11 +10,11 @@ import androidx.core.content.getSystemService
 import androidx.lifecycle.*
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.toolbox.extensions.LoopRunnable
-import com.github.ppaszkiewicz.kotlin.tools.services.DirectBindService
-import com.github.ppaszkiewicz.kotlin.tools.services.LingeringService
+import com.github.ppaszkiewicz.tools.services.DirectBindService
+import com.github.ppaszkiewicz.tools.services.LingeringService
 
 /** Demo for [LingeringService] and [DirectBindService]. */
-class DemoLingeringService : com.github.ppaszkiewicz.kotlin.tools.services.LingeringService(){
+class DemoLingeringService : LingeringService(){
     companion object{
         const val TAG = "DEMO_SERVICE"
         /** Connection factory to this service. */

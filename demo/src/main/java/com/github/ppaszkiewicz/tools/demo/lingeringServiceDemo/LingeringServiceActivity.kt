@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
-import com.github.ppaszkiewicz.kotlin.tools.services.BindServiceConnectionCallbacks
+import com.github.ppaszkiewicz.tools.services.BindServiceConnectionCallbacks
 import com.github.ppaszkiewicz.tools.demo.databinding.ActivityServiceBinding
 import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
 

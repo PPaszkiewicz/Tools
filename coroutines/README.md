@@ -10,7 +10,7 @@ Deprecated - could be cleaned up and rewritten using flow api.
 
 Import in **build.gradle** or **build.gradle.kts**:
 ```gradle
-implementation("com.github.PPaszkiewicz.Tools:coroutines:$version")
+implementation("com.github.PPaszkiewicz.Tools:coroutines:1.5.20")
 ```
 
 See demo app for sample usage.

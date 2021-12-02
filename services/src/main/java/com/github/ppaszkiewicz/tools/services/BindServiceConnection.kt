@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.services
+package com.github.ppaszkiewicz.tools.services
 
 import android.content.ComponentName
 import android.content.Context
@@ -13,8 +13,6 @@ import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
-import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
-import com.github.ppaszkiewicz.tools.toolbox.delegate.contextDelegate
 import java.lang.ref.WeakReference
 
 /**
@@ -417,9 +415,9 @@ abstract class BindServiceConnection<T> private constructor(
 
     /** Base for connection factories that connect to service of type [T]. */
     abstract class ConnectionFactory<T> : ConnectionFactoryBase<T,
-            BindServiceConnection.Manual<T>,
-            BindServiceConnection.Observable<T>,
-            BindServiceConnection.LifecycleAware<T>>()
+            Manual<T>,
+            Observable<T>,
+            LifecycleAware<T>>()
 
     /** Base of connection factory that can be used if custom connection types are returned. */
     abstract class ConnectionFactoryBase<T,

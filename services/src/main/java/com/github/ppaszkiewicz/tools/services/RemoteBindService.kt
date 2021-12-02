@@ -1,6 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.services
-
-import com.github.ppaszkiewicz.tools.toolbox.delegate.ContextDelegate
+package com.github.ppaszkiewicz.tools.services
 
 /**
  * Hosts factory for remote binding services.

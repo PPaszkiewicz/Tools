@@ -1,9 +1,7 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'com.github.dcendents.android-maven'
 apply plugin: 'kotlin-kapt'
-
-group='com.github.PPaszkiewicz'
+apply plugin: 'maven-publish'
 
 android {
     compileSdkVersion 30
@@ -21,11 +19,12 @@ android {
 
     buildTypes {
         debug{
-            consumerProguardFiles 'proguard-rules.pro'
+            consumerProguardFiles 'consumer-rules.pro'
         }
         release {
-            minifyEnabled true
-            consumerProguardFiles 'proguard-rules.pro'
+            minifyEnabled false
+            consumerProguardFiles 'consumer-rules.pro'
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     compileOptions {

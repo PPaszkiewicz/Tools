@@ -1,4 +1,4 @@
-package com.github.ppaszkiewicz.kotlin.tools.services
+package com.github.ppaszkiewicz.tools.services
 
 import android.content.Context
 import android.content.ServiceConnection
