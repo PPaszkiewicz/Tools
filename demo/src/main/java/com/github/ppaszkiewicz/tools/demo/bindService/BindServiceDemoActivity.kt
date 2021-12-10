@@ -2,7 +2,6 @@ package com.github.ppaszkiewicz.tools.demo.bindService
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -22,7 +21,6 @@ import com.github.ppaszkiewicz.tools.demo.databinding.ActivityButtonsBinding
 import com.github.ppaszkiewicz.tools.services.BindServiceConnection
 import com.github.ppaszkiewicz.tools.services.BindServiceConnectionCallbacks
 import com.github.ppaszkiewicz.tools.services.DirectBindService
-import com.github.ppaszkiewicz.tools.services.RemoteBindService
 import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
 import com.github.ppaszkiewicz.tools.toolbox.extensions.LoopRunnable
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startService
