@@ -163,11 +163,11 @@ abstract class BindServiceConnection<T> private constructor(
 
     /** Perform binding during specific triggering event. */
     protected open fun performBind(flags: Int) {
-        check(!isReleased){"This BindServiceConnection was already released."}
+        check(!isReleased) { "This BindServiceConnection was already released." }
         if (!isBound) {
             isBound = true
             val bindingExc = performBindImpl(true, flags)
-            if(bindingExc != null) {
+            if (bindingExc != null) {
                 isBound = false
                 onBindingFailed(bindingExc)
             }
@@ -175,12 +175,12 @@ abstract class BindServiceConnection<T> private constructor(
     }
 
     /** Internal binding call without altering [isBound]. Returns `null` on success, otherwise exception. */
-    protected fun performBindImpl(doCallback: Boolean, flags: Int) : BindingException?{
+    protected fun performBindImpl(doCallback: Boolean, flags: Int): BindingException? {
         val bindingIntent = adapter.createBindingIntent(context)
         val bindingExc = try {
             if (context.bindService(bindingIntent, serviceConnectionObject, flags)) {
                 _stateLifecycle.currentState = Lifecycle.State.CREATED
-                if(doCallback) onBind?.invoke()
+                if (doCallback) onBind?.invoke()
                 startNotConnectedRunnable()
                 return null
             }
@@ -210,13 +210,13 @@ abstract class BindServiceConnection<T> private constructor(
     /** Perform rebind after unexpected binding death. */
     protected open fun performRebind(doCallbacks: Boolean, flags: Int) {
         if (isBound) {
-            check(value == null){"performRebind cannot be called when there's an active connection"}
+            check(value == null) { "performRebind cannot be called when there's an active connection" }
             // unbind doesn't need to account for anything since service should've disconnected already
             context.unbindService(serviceConnectionObject)
             if (doCallbacks) onUnbind?.invoke()
 
             val bindingExc = performBindImpl(doCallbacks, flags) // exception handling for binding
-            if(bindingExc != null) {
+            if (bindingExc != null) {
                 isBound = false
                 onBindingFailed(bindingExc)
             }
@@ -417,7 +417,43 @@ abstract class BindServiceConnection<T> private constructor(
     abstract class ConnectionFactory<T> : ConnectionFactoryBase<T,
             Manual<T>,
             Observable<T>,
-            LifecycleAware<T>>()
+            LifecycleAware<T>>() {
+        /** Factory returning default implementations backed by [adapter].*/
+        open class Default<T>(val adapter: Adapter<T>) : ConnectionFactory<T>() {
+            override fun createManualConnection(
+                contextDelegate: ContextDelegate,
+                configBuilder: Config.Builder?
+            ) = Manual(contextDelegate, adapter, configBuilder)
+
+            override fun createObservableConnection(
+                contextDelegate: ContextDelegate,
+                configBuilder: Config.Builder?
+            ) = Observable(contextDelegate, adapter, configBuilder)
+
+            override fun createLifecycleConnection(
+                contextDelegate: ContextDelegate,
+                configBuilder: LifecycleAware.Config.Builder?
+            ) = LifecycleAware(contextDelegate, adapter, configBuilder)
+        }
+
+        /** Factory intended for third party services that is an [Adapter] itself. */
+        abstract class Remote<T> : ConnectionFactory<T>(), Adapter<T> {
+            override fun createManualConnection(
+                contextDelegate: ContextDelegate,
+                configBuilder: Config.Builder?
+            ) = Manual(contextDelegate, this, configBuilder)
+
+            override fun createObservableConnection(
+                contextDelegate: ContextDelegate,
+                configBuilder: Config.Builder?
+            ) = Observable(contextDelegate, this, configBuilder)
+
+            override fun createLifecycleConnection(
+                contextDelegate: ContextDelegate,
+                configBuilder: LifecycleAware.Config.Builder?
+            ) = LifecycleAware(contextDelegate, this, configBuilder)
+        }
+    }
 
     /** Base of connection factory that can be used if custom connection types are returned. */
     abstract class ConnectionFactoryBase<T,
@@ -591,7 +627,7 @@ abstract class BindServiceConnection<T> private constructor(
             }
 
             /** Never call [onNotConnected]. */
-            fun none() : NotConnectedTimeout = NotConnectedTimeout(0)
+            fun none(): NotConnectedTimeout = NotConnectedTimeout(0)
         }
     }
 

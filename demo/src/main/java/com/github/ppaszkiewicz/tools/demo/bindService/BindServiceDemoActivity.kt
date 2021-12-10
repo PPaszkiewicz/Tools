@@ -2,6 +2,7 @@ package com.github.ppaszkiewicz.tools.demo.bindService
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -16,15 +17,16 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
+import com.github.ppaszkiewicz.tools.demo.R
+import com.github.ppaszkiewicz.tools.demo.databinding.ActivityButtonsBinding
 import com.github.ppaszkiewicz.tools.services.BindServiceConnection
 import com.github.ppaszkiewicz.tools.services.BindServiceConnectionCallbacks
-import com.github.ppaszkiewicz.tools.demo.R
+import com.github.ppaszkiewicz.tools.services.DirectBindService
+import com.github.ppaszkiewicz.tools.services.RemoteBindService
+import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
 import com.github.ppaszkiewicz.tools.toolbox.extensions.LoopRunnable
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startService
 import com.github.ppaszkiewicz.tools.toolbox.extensions.stopService
-import com.github.ppaszkiewicz.tools.services.DirectBindService
-import com.github.ppaszkiewicz.tools.demo.databinding.ActivityButtonsBinding
-import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
 
 
 class BindServiceDemoActivity : AppCompatActivity() {
@@ -32,7 +34,7 @@ class BindServiceDemoActivity : AppCompatActivity() {
         const val TAG = "BindDemoActivity"
     }
 
-    val serviceConn = TestService.connectionFactory.manual(this){
+    val serviceConn = TestService.connectionFactory.manual(this) {
         defaultBindFlags = 0
         // uncomment to prevent auto rebinding when service is stopped
         //deadBindingBehavior = BindServiceConnection.DeadBindingBehavior.CALLBACK_ONLY
@@ -77,7 +79,7 @@ class BindServiceDemoActivity : AppCompatActivity() {
             }
 
             button5.setOnClickListener {
-                if(!serviceConn.isConnected)
+                if (!serviceConn.isConnected)
                     textView2.text = null
                 serviceConn.unbind()
             }
@@ -158,7 +160,7 @@ class BindServiceDemoActivity : AppCompatActivity() {
             }
             onBindingDied = {
                 Log.d(TAG, "onBindingDied")
-                if(!serviceConn.config.deadBindingBehavior.rebind){
+                if (!serviceConn.config.deadBindingBehavior.rebind) {
                     "Connection bound = false ($currentBindFlags)"
                 }
                 true

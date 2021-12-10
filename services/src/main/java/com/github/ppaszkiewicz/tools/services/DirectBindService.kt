@@ -90,22 +90,5 @@ interface DirectBindService {
      * For convenience this can be inherited or created by that services companion object.
      */
     open class ConnectionFactory<T : DirectBindService>(protected val serviceClass: Class<T>) :
-        BindServiceConnection.ConnectionFactory<T>() {
-        val adapter = createAdapter(serviceClass)
-
-        override fun createManualConnection(
-            contextDelegate: ContextDelegate,
-            configBuilder: BindServiceConnection.Config.Builder?
-        ) = BindServiceConnection.Manual(contextDelegate, adapter, configBuilder)
-
-        override fun createObservableConnection(
-            contextDelegate: ContextDelegate,
-            configBuilder: BindServiceConnection.Config.Builder?
-        ) = BindServiceConnection.Observable(contextDelegate, adapter, configBuilder)
-
-        override fun createLifecycleConnection(
-            contextDelegate: ContextDelegate,
-            configBuilder: BindServiceConnection.LifecycleAware.Config.Builder?
-        ) = BindServiceConnection.LifecycleAware(contextDelegate, adapter, configBuilder)
-    }
+        BindServiceConnection.ConnectionFactory.Default<T>(createAdapter(serviceClass))
 }

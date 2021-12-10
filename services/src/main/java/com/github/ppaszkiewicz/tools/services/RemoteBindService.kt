@@ -1,30 +1,20 @@
 package com.github.ppaszkiewicz.tools.services
 
 /**
- * Hosts factory for remote binding services.
+ * Hosts factories for remote binding services.
  */
 object RemoteBindService {
     /**
      * Connection factory that creates connections to services that are not [DirectBindService] and need
-     * custom [adapter].
-     *
-     * For convenience this can be inherited or created as a static helper object.
+     * custom [BindServiceConnection.Adapter] implementation.
      */
-    open class ConnectionFactory<T>(protected val adapter: BindServiceConnection.Adapter<T>) :
-        BindServiceConnection.ConnectionFactory<T>() {
-        override fun createManualConnection(
-            contextDelegate: ContextDelegate,
-            configBuilder: BindServiceConnection.Config.Builder?
-        ) = BindServiceConnection.Manual(contextDelegate, adapter, configBuilder)
+    abstract class ConnectionFactory<T> : BindServiceConnection.ConnectionFactory.Remote<T>()
 
-        override fun createObservableConnection(
-            contextDelegate: ContextDelegate,
-            configBuilder: BindServiceConnection.Config.Builder?
-        ) = BindServiceConnection.Observable(contextDelegate, adapter, configBuilder)
-
-        override fun createLifecycleConnection(
-            contextDelegate: ContextDelegate,
-            configBuilder: BindServiceConnection.LifecycleAware.Config.Builder?
-        ) = BindServiceConnection.LifecycleAware(contextDelegate, adapter, configBuilder)
-    }
+    /**
+     * Connection factory that creates connections to services that are not [DirectBindService] and need
+     * custom [adapter] implementation.
+     */
+    @Suppress("FunctionName")
+    fun <T> ConnectionFactory(adapter: BindServiceConnection.Adapter<T>) =
+        BindServiceConnection.ConnectionFactory.Default(adapter)
 }
