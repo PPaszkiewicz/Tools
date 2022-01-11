@@ -8,11 +8,10 @@ import android.os.Bundle
 import android.util.AttributeSet
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
-import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.demo.databinding.ActivityStableTextviewBinding
 import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
 
-class StableTextViewActivity : AppCompatActivity(R.layout.activity_stable_textview) {
+class StableTextViewActivity : AppCompatActivity() {
     val v by viewBinding<ActivityStableTextviewBinding>()
     private var colorAnim : Animator? = null
 

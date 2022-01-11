@@ -9,17 +9,15 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
 import androidx.viewbinding.ViewBinding
 import com.github.ppaszkiewicz.tools.toolbox.R
-import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.contract
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 
 // Delegates for ViewBindings and values that should be auto-cleared
 // alongside fragments view
 
-// requires viewbinding to be excluded by proguard:
+// requires viewbinding methods to be kept by proguard:
 
-//-keep class * implements androidx.viewbinding.ViewBinding {
+//-keep,allowoptimization,allowobfuscation class * implements androidx.viewbinding.ViewBinding {
 //    public static *** bind(android.view.View);
 //    public static *** inflate(android.view.LayoutInflater);
 //    public static *** inflate(android.view.LayoutInflater, android.view.ViewGroup, boolean);
@@ -37,8 +35,7 @@ inline fun <reified T : ViewBinding> View.viewBinding() = viewBinding(T::class.j
  * Viewbinding as tag on a view. Instantiates it with reflection.
  */
 fun <T : ViewBinding> View.viewBinding(bindingClass: Class<T>): T {
-    val bindMethod = bindingClass.getDeclaredMethod("bind", View::class.java)
-    return lazyTagValue(R.id.viewBinding) { bindMethod(null, it) as T }
+    return lazyTagValue(R.id.viewBinding, bindingClass.getBindMethod())
 }
 
 /**
@@ -48,26 +45,26 @@ fun <T : ViewBinding> View.viewBinding(bindingFactory: (View) -> T): T {
     return lazyTagValue(R.id.viewBinding, bindingFactory)
 }
 
-// not restricted to viewbinding
+// general extensions for view tag values
 /**
  * [View.getTag] that will throw if tag is set but not of type [T].
  * */
-fun <T> View.getTagValue() : T? = tag?.let { it as T }
+fun <T> View.getTagValue(): T? = tag?.let { it as T }
 
 /**
  * [View.getTag] that will throw if tag for [key] is set but not of type [T].
  * */
-fun <T> View.getTagValue(key: Int) : T? = getTag(key)?.let { it as T }
+fun <T> View.getTagValue(key: Int): T? = getTag(key)?.let { it as T }
 
 /**
  * [View.setTag] that returns [value].
  * */
-fun <T> View.setTagValue(value : T) : T = value.also { tag = it }
+fun <T> View.setTagValue(value: T): T = value.also { tag = it }
 
 /**
  * [View.setTag] that returns [value].
  * */
-fun <T> View.setTagValue(key: Int, value : T) : T = value.also { setTag(key, it) }
+fun <T> View.setTagValue(key: Int, value: T): T = value.also { setTag(key, it) }
 
 /**
  * "Lazy" value stored within views tag. Returns it or uses [valueInit] to set it.
@@ -78,7 +75,7 @@ inline fun <T> View.lazyTagValue(key: Int, valueInit: (View) -> T): T {
 
 //*********** FRAGMENT ****************/
 
-// not restricted to viewbinding
+// extensions to keep values in fragments - not restricted to viewbinding
 /**
  * Lazy delegate for value that's bound to views lifecycle - released when view is destroyed.
  * @param initValue use provided view to create the value
@@ -142,8 +139,7 @@ inline fun <reified T : ViewBinding> Fragment.viewBinding() = viewBinding(T::cla
  * @param bindingClass view binding class to instantiate
  */
 fun <T : ViewBinding> Fragment.viewBinding(bindingClass: Class<T>): ReadOnlyProperty<Fragment, T> {
-    val bindMethod = bindingClass.getDeclaredMethod("bind", View::class.java)
-    return viewValue(R.id.viewBinding) { bindMethod(null, it) as T }
+    return viewValue(R.id.viewBinding, bindingClass.getBindMethod())
 }
 
 /**
@@ -170,8 +166,7 @@ inline fun <reified T : ViewBinding> AppCompatActivity.viewBinding() = viewBindi
  * @param bindingClass view binding class to instantiate
  */
 fun <T : ViewBinding> AppCompatActivity.viewBinding(bindingClass: Class<T>): ActivityViewBindingDelegateProvider<T> {
-    val inflate = bindingClass.getDeclaredMethod("inflate", LayoutInflater::class.java)
-    return ActivityViewBindingDelegateProvider { inflate(null, it) as T }
+    return ActivityViewBindingDelegateProvider(bindingClass.getInflateMethod())
 }
 
 /**
@@ -194,6 +189,30 @@ value class ActivityViewBindingDelegateProvider<T : ViewBinding>(private val cre
         property: KProperty<*>
     ): ReadOnlyProperty<AppCompatActivity, T> {
         return ActivityViewBindingDelegate(thisRef, createBindingImpl)
+    }
+}
+
+// helpers for nameless class search - it's expected that viewbinding will be obfuscated but not shrunk
+/** Get inflate method of this ViewBinding class. */
+fun <T : ViewBinding> Class<T>.getInflateMethod(): (inflater: LayoutInflater) -> T {
+    val src =
+        declaredMethods.first { method -> method.parameterTypes.let { it.size == 1 && it[0] == LayoutInflater::class.java } }
+    return { inflater: LayoutInflater -> src(null, inflater) as T }
+}
+
+/** Get bind method of this ViewBinding class. */
+fun <T : ViewBinding> Class<T>.getBindMethod(): (root: View) -> T {
+    val src =
+        declaredMethods.first { method -> method.parameterTypes.let { it.size == 1 && it[0] == View::class.java } }
+    return { inflater: View -> src(null, inflater) as T }
+}
+
+/** Get inflate in parent method of this ViewBinding class. */
+fun <T : ViewBinding> Class<T>.getInflateInParentMethod(): (inflater: LayoutInflater, parent: ViewGroup, attach: Boolean) -> T {
+    val src =
+        declaredMethods.first { method -> method.parameterTypes.let { it.size == 3 && it[0] == LayoutInflater::class.java } }
+    return { inflater: LayoutInflater, parent: ViewGroup, attach: Boolean ->
+        src(null, inflater, parent, attach) as T
     }
 }
 
