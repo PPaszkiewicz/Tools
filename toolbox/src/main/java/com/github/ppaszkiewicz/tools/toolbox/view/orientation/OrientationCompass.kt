@@ -16,14 +16,6 @@ import androidx.core.view.marginTop
  * Available default implementation:
  * - [Horizontal]
  * - [Vertical]
- *
- * **[Horizontal]:**
- * - left/right -> start/end
- * - top/bottom -> altStart/altEnd
- * - width -> size
- * - height -> altSize
- *
- * **[Vertical]:**
  */
 interface OrientationCompass {
     // orientation guide creation
