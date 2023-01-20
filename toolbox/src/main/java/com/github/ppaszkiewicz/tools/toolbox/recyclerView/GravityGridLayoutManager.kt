@@ -8,7 +8,7 @@ import android.view.View
 import androidx.core.content.res.use
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.github.ppaszkiewicz.tools.toolbox.view.orientation.RecyclerViewOrientationHelper
+import com.github.ppaszkiewicz.tools.toolbox.view.orientation.RecyclerViewOrientationGuide
 
 /* Requires view.orientation package. */
 /**
@@ -61,14 +61,14 @@ class GravityGridLayoutManager : GridLayoutManager {
     private var mAvailableSpace = 0
     private val mChildSize = Rect() // raw coordinates of child size
 
-    private var _orientHelper: RecyclerViewOrientationHelper.LayoutManager? = null
+    private var _orientGuide: RecyclerViewOrientationGuide.LayoutManager? = null
         get() = field ?: when (orientation) {
-            RecyclerView.HORIZONTAL -> RecyclerViewOrientationHelper.horizontal(this)
-            RecyclerView.VERTICAL -> RecyclerViewOrientationHelper.vertical(this)
+            RecyclerView.HORIZONTAL -> RecyclerViewOrientationGuide.horizontal(this)
+            RecyclerView.VERTICAL -> RecyclerViewOrientationGuide.vertical(this)
             else -> throw IllegalStateException()
         }.also { field = it }
-    private val orientHelper: RecyclerViewOrientationHelper.LayoutManager
-        get() = _orientHelper!!
+    private val orientGuide: RecyclerViewOrientationGuide.LayoutManager
+        get() = _orientGuide!!
 
     /**
      * Gravity of items.
@@ -87,9 +87,9 @@ class GravityGridLayoutManager : GridLayoutManager {
         right: Int,
         bottom: Int
     ) {
-        orientHelper.apply {
+        orientGuide.apply {
             // quick exit case (start gravity is default behavior)
-            if (handler.isAltStart(gravity)) {
+            if (compass.isAltStart(gravity)) {
                 super.layoutDecoratedWithMargins(child, left, top, right, bottom)
                 return
             }
@@ -100,19 +100,19 @@ class GravityGridLayoutManager : GridLayoutManager {
             mAvailableSpace = (altSize - paddingAltStart - paddingAltEnd) / spanCount
             // space leftover after laying out this child in amount of spans it required
             mAvailableSpace =
-                mAvailableSpace * params.spanSize - handler.altSizeOf(mChildSize)
+                mAvailableSpace * params.spanSize - compass.altSizeOf(mChildSize)
 
             childOffset = when {
-                handler.isAltEnd(gravity) -> mAvailableSpace
-                handler.hasAltFill(gravity) -> {
+                compass.isAltEnd(gravity) -> mAvailableSpace
+                compass.hasAltFill(gravity) -> {
                     if (spanCount == 1) mAvailableSpace / 2
                     else mAvailableSpace / (spanCount - 1) * params.spanIndex
                 }
-                handler.hasAltCenter(gravity) -> mAvailableSpace / 2
+                compass.hasAltCenter(gravity) -> mAvailableSpace / 2
                 else -> 0
             }
             // inject orientation into
-            handler.offset(mChildSize, altDir = childOffset)
+            compass.offset(mChildSize, altDir = childOffset)
             super.layoutDecoratedWithMargins(
                 child,
                 mChildSize.left,
@@ -124,7 +124,7 @@ class GravityGridLayoutManager : GridLayoutManager {
     }
 
     override fun setOrientation(orientation: Int) {
-        _orientHelper = null
+        _orientGuide = null
         super.setOrientation(orientation)
     }
 }

@@ -21,7 +21,7 @@ abstract class TestActivityBase : AppCompatActivity() {
     }
 
     val testActivityParams by lazy<TestActivityParams> {
-        intent.getParcelableExtra(EXTRA_LOADER_ARGS)!!
+        intent.getParcelableExtra(EXTRA_LOADER_ARGS) ?: TestActivityParams.default()
     }
 
     val binding by viewBinding<ActivityTestBinding>()
@@ -85,4 +85,9 @@ data class TestActivityParams(
     val taskCount: Int = taskCountRows * taskCountColumns,
     /** Max jobs size (service only) - only that many tasks will be handled at once, others will wait in queue.*/
     val maxJobSize : Int = 4
-) : Parcelable
+) : Parcelable{
+    companion object{
+        fun default() = TestActivityParams(5,5,5)
+    }
+
+}

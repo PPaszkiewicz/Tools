@@ -11,8 +11,8 @@ import androidx.core.graphics.withSave
 import androidx.core.graphics.withTranslation
 import androidx.core.view.children
 import com.github.ppaszkiewicz.tools.toolbox.R
-import com.github.ppaszkiewicz.tools.toolbox.view.orientation.OrientationHandler
-import com.github.ppaszkiewicz.tools.toolbox.view.orientation.OrientationHelper
+import com.github.ppaszkiewicz.tools.toolbox.view.orientation.OrientationCompass
+import com.github.ppaszkiewicz.tools.toolbox.view.orientation.OrientationGuide
 
 /* Requires view.orientation package. */
 
@@ -37,14 +37,14 @@ class TileRenderLinearLayout @JvmOverloads constructor(
 
     private var maxDraws = 0
 
-    private var _orientHelper: OrientHelper? = null
+    private var _orientGuide: OrientGuide? = null
         get() = field ?: when (orientation) {
-            HORIZONTAL -> HorizontalOrientHelper()
-            VERTICAL -> VerticalOrientHelper()
+            HORIZONTAL -> HorizontalOrientGuide()
+            VERTICAL -> VerticalOrientGuide()
             else -> throw IllegalStateException()
         }.also { field = it }
-    private val orientHelper: OrientHelper
-        get() = _orientHelper!!
+    private val orientGuide: OrientGuide
+        get() = _orientGuide!!
 
 
     companion object {
@@ -159,7 +159,7 @@ class TileRenderLinearLayout @JvmOverloads constructor(
     private fun drawSpans(canvas: Canvas) {
         maxDraws =
             0 // this is just a fallback to prevent infinite draws in case of a measurement error
-        orientHelper.apply {
+        orientGuide.apply {
             // determine drawing limits (essentially content width/height to fill in)
             drawLimit = size - paddingStart - if (clipToPadding) paddingEnd else 0
             drawLimitAlt = altSize - paddingAltStart - if (clipToPadding) paddingAltEnd else 0
@@ -186,7 +186,7 @@ class TileRenderLinearLayout @JvmOverloads constructor(
     }
 
     private fun drawSpan(canvas: Canvas) {
-        orientHelper.apply {
+        orientGuide.apply {
             currentRenders = 0
             while (drawRect.start < drawLimit && checkRenderCount()) {
                 if (maxDrawCount == DRAW_FILL_FULL_ONLY && drawRect.end > drawLimit) {
@@ -228,14 +228,14 @@ class TileRenderLinearLayout @JvmOverloads constructor(
     }
 
     override fun setOrientation(orientation: Int) {
-        _orientHelper = null
+        _orientGuide = null
         super.setOrientation(orientation)
     }
 
     private fun remeasureToFit(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         // there is no allocation: this returns mPoint
-        val specs = orientHelper.handler.getSpecs(widthMeasureSpec, heightMeasureSpec, mPoint)
-        orientHelper.apply {
+        val specs = orientGuide.compass.getSpecs(widthMeasureSpec, heightMeasureSpec, mPoint)
+        orientGuide.apply {
             // see if we need to modify the main size (main layout)
             val mainSpecMode = MeasureSpec.getMode(specs.main)
             val newMainSize = if (mainSpecMode != MeasureSpec.EXACTLY && minDrawCount > 1f) {
@@ -268,7 +268,7 @@ class TileRenderLinearLayout @JvmOverloads constructor(
             } else measuredAltSize
             // there is no allocation: this returns mPoint
             // also makes specs invalid bc we override them
-            val newDimens = handler.getMeasuredDimens(newMainSize, newAltSize, mPoint)
+            val newDimens = compass.getMeasuredDimens(newMainSize, newAltSize, mPoint)
             setMeasuredDimension(newDimens.width, newDimens.height)
         }
     }
@@ -291,13 +291,13 @@ class TileRenderLinearLayout @JvmOverloads constructor(
         }
 
         fun prepareDraw() {
-            orientHelper.apply {
+            orientGuide.apply {
                 contentRect.set(
                     start = paddingStart,
                     altStart = paddingAltStart,
                     end = children.last()
-                        .let { handler.endOf(it) + handler.marginEndOf(it) },
-                    altEnd = children.maxOf { handler.altEndOf(it) + handler.marginAltEndOf(it) }
+                        .let { compass.endOf(it) + compass.marginEndOf(it) },
+                    altEnd = children.maxOf { compass.altEndOf(it) + compass.marginAltEndOf(it) }
                 )
             }
             if (useBitmapRendering) {
@@ -337,27 +337,27 @@ class TileRenderLinearLayout @JvmOverloads constructor(
         }
     }
 
-    private abstract inner class OrientHelper(
-        override val handler: OrientationHandler
-    ) : OrientationHelper.View {
+    private abstract inner class OrientGuide(
+        override val compass: OrientationCompass
+    ) : OrientationGuide.View {
         override val src = this@TileRenderLinearLayout
-        val contentRect: OrientationHelper.Rect
-        val drawRect: OrientationHelper.Rect
-        val point: OrientationHelper.Point
+        val contentRect: OrientationGuide.Rect
+        val drawRect: OrientationGuide.Rect
+        val point: OrientationGuide.Point
 
         init {
             @Suppress("LeakingThis")
-            handler.run {
-                contentRect = helperFor(mContentRect)
-                drawRect = helperFor(mDrawRect)
-                point = helperFor(mPoint)
+            compass.run {
+                contentRect = guide(mContentRect)
+                drawRect = guide(mDrawRect)
+                point = guide(mPoint)
             }
         }
 
 //        abstract fun clip(canvas: Canvas, end: Int = size, altEnd: Int = altSize)
 //        abstract fun translate(canvas: Canvas, dir: Float = 0f, altDir: Float = 0f)
     }
-    private inner class HorizontalOrientHelper : OrientHelper(OrientationHandler.Horizontal) {
+    private inner class HorizontalOrientGuide : OrientGuide(OrientationCompass.Horizontal) {
 //        override fun translate(canvas: Canvas, dir: Float, altDir: Float) {
 //            canvas.translate(dir, altDir)
 //        }
@@ -367,7 +367,7 @@ class TileRenderLinearLayout @JvmOverloads constructor(
 //        }
     }
 
-    private inner class VerticalOrientHelper : OrientHelper(OrientationHandler.Vertical) {
+    private inner class VerticalOrientGuide : OrientGuide(OrientationCompass.Vertical) {
 //        override fun translate(canvas: Canvas, dir: Float, altDir: Float) {
 //            canvas.translate(altDir, dir)
 //        }

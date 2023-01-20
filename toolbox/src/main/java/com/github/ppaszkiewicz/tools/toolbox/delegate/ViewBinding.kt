@@ -175,7 +175,9 @@ fun <T : ViewBinding> AppCompatActivity.viewBinding(bindingClass: Class<T>): Act
  *
  * For example:
  *
- *          val binding by viewBinding { MyActivityBinding.inflate(it) }.
+ *          val binding by viewBinding { MyActivityBinding.inflate(it) }
+ *          // alternatively
+ *          val binding2 by viewBinding(MyActivityBinding::inflate)
  */
 @Suppress("Unused")
 fun <T : ViewBinding> AppCompatActivity.viewBinding(createBinding: (LayoutInflater) -> T) =
@@ -207,7 +209,7 @@ fun <T : ViewBinding> Class<T>.getBindMethod(): (root: View) -> T {
     return { inflater: View -> src(null, inflater) as T }
 }
 
-/** Get inflate in parent method of this ViewBinding class. */
+/** Get "inflate in parent" method of this ViewBinding class. */
 fun <T : ViewBinding> Class<T>.getInflateInParentMethod(): (inflater: LayoutInflater, parent: ViewGroup, attach: Boolean) -> T {
     val src =
         declaredMethods.first { method -> method.parameterTypes.let { it.size == 3 && it[0] == LayoutInflater::class.java } }

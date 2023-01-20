@@ -11,29 +11,28 @@ import androidx.core.view.marginStart
 import androidx.core.view.marginTop
 
 /**
- * Orientation handler that contains methods to query target objects for their properties
- * abstracting their orientation:
+ * Contains methods to query target objects for their properties abstracting their orientation.
  *
- * **Horizontal:**
+ * Available default implementation:
+ * - [Horizontal]
+ * - [Vertical]
+ *
+ * **[Horizontal]:**
  * - left/right -> start/end
  * - top/bottom -> altStart/altEnd
  * - width -> size
  * - height -> altSize
  *
- * **Vertical:**
- * - top/bottom -> start/end
- * - left/right -> altStart/altEnd
- * - height -> size
- * - width -> altSize
+ * **[Vertical]:**
  */
-interface OrientationHandler {
-    // orientation helper creation
-    fun helperFor(point: Point): OrientationHelper.Point
-    fun helperFor(rect: Rect): OrientationHelper.Rect
-    fun helperFor(view: View): OrientationHelper.View
-    fun helperFor(params: ViewGroup.MarginLayoutParams): OrientationHelper.LayoutParams
-    fun helperFor(gravity: Int): OrientationHelper.Gravity
-    fun helperForSize(point: Point): OrientationHelper.Size
+interface OrientationCompass {
+    // orientation guide creation
+    fun guide(point: Point): OrientationGuide.Point
+    fun guide(rect: Rect): OrientationGuide.Rect
+    fun guide(view: View): OrientationGuide.View
+    fun guide(params: ViewGroup.MarginLayoutParams): OrientationGuide.LayoutParams
+    fun guide(gravity: Int): OrientationGuide.Gravity
+    fun guideSize(point: Point): OrientationGuide.Size
 
     // point
     fun posOf(point: Point): Int
@@ -152,18 +151,25 @@ interface OrientationHandler {
 
     // implementations
 
-    open class Horizontal protected constructor() : OrientationHandler {
+    /**
+     * Default horizontal compass:
+     * - left/right -> start/end
+     * - top/bottom -> altStart/altEnd
+     * - width -> size
+     * - height -> altSize
+     */
+    open class Horizontal protected constructor() : OrientationCompass {
         /** Default instance for horizontal orientation. */
         companion object Default : Horizontal()
 
-        override fun helperFor(point: Point) = OrientationHelper.horizontal(point)
-        override fun helperFor(rect: Rect) = OrientationHelper.horizontal(rect)
-        override fun helperFor(view: View) = OrientationHelper.horizontal(view)
-        override fun helperFor(params: ViewGroup.MarginLayoutParams) =
-            OrientationHelper.horizontal(params)
+        override fun guide(point: Point) = OrientationGuide.horizontal(point)
+        override fun guide(rect: Rect) = OrientationGuide.horizontal(rect)
+        override fun guide(view: View) = OrientationGuide.horizontal(view)
+        override fun guide(params: ViewGroup.MarginLayoutParams) =
+            OrientationGuide.horizontal(params)
 
-        override fun helperFor(gravity: Int) = OrientationHelper.horizontal(gravity)
-        override fun helperForSize(point: Point) = OrientationHelper.horizontalSize(point)
+        override fun guide(gravity: Int) = OrientationGuide.horizontal(gravity)
+        override fun guideSize(point: Point) = OrientationGuide.horizontalSize(point)
 
         override fun posOf(point: Point) = point.x
         override fun altPosOf(point: Point) = point.y
@@ -286,18 +292,25 @@ interface OrientationHandler {
         override fun isAltClip(gravity: Int) = gravity == Gravity.CLIP_VERTICAL
     }
 
-    open class Vertical protected constructor() : OrientationHandler {
+    /**
+     *  Default vertical compass:
+     * - top/bottom -> start/end
+     * - left/right -> altStart/altEnd
+     * - height -> size
+     * - width -> altSize
+     * */
+    open class Vertical protected constructor() : OrientationCompass {
         /** Default instance for vertical orientation. */
         companion object Default : Vertical()
 
-        override fun helperFor(point: Point) = OrientationHelper.vertical(point)
-        override fun helperFor(rect: Rect) = OrientationHelper.vertical(rect)
-        override fun helperFor(view: View) = OrientationHelper.vertical(view)
-        override fun helperFor(params: ViewGroup.MarginLayoutParams) =
-            OrientationHelper.vertical(params)
+        override fun guide(point: Point) = OrientationGuide.vertical(point)
+        override fun guide(rect: Rect) = OrientationGuide.vertical(rect)
+        override fun guide(view: View) = OrientationGuide.vertical(view)
+        override fun guide(params: ViewGroup.MarginLayoutParams) =
+            OrientationGuide.vertical(params)
 
-        override fun helperFor(gravity: Int) = OrientationHelper.vertical(gravity)
-        override fun helperForSize(point: Point) = OrientationHelper.verticalSize(point)
+        override fun guide(gravity: Int) = OrientationGuide.vertical(gravity)
+        override fun guideSize(point: Point) = OrientationGuide.verticalSize(point)
 
         override fun posOf(point: Point) = point.y
         override fun altPosOf(point: Point) = point.x

@@ -3,10 +3,10 @@ package com.github.ppaszkiewicz.tools.toolbox.view.orientation
 import androidx.recyclerview.widget.RecyclerView
 
 /**
- * [OrientationHandler] extended to handle [RecyclerView.LayoutManager] properties as well.
+ * [OrientationCompass] extended to handle [RecyclerView.LayoutManager] properties as well.
  * */
-interface RecyclerViewOrientationHandler : OrientationHandler {
-    fun helperFor(layoutManager: RecyclerView.LayoutManager): RecyclerViewOrientationHelper.LayoutManager
+interface RecyclerViewOrientationCompass : OrientationCompass {
+    fun guide(layoutManager: RecyclerView.LayoutManager): RecyclerViewOrientationGuide.LayoutManager
     fun sizeOf(layoutManager: RecyclerView.LayoutManager): Int
     fun altSizeOf(layoutManager: RecyclerView.LayoutManager): Int
     fun paddingStartOf(layoutManager: RecyclerView.LayoutManager): Int
@@ -18,13 +18,13 @@ interface RecyclerViewOrientationHandler : OrientationHandler {
     fun canScroll(layoutManager: RecyclerView.LayoutManager): Boolean
     fun canScrollAlt(layoutManager: RecyclerView.LayoutManager): Boolean
 
-    open class Horizontal protected constructor() : OrientationHandler.Horizontal(),
-        RecyclerViewOrientationHandler {
+    open class Horizontal protected constructor() : OrientationCompass.Horizontal(),
+        RecyclerViewOrientationCompass {
         /** Default instance for horizontal orientation. */
         companion object Default : Horizontal()
 
-        override fun helperFor(layoutManager: RecyclerView.LayoutManager) =
-            RecyclerViewOrientationHelper.horizontal(layoutManager)
+        override fun guide(layoutManager: RecyclerView.LayoutManager) =
+            RecyclerViewOrientationGuide.horizontal(layoutManager)
 
         override fun sizeOf(layoutManager: RecyclerView.LayoutManager) = layoutManager.width
         override fun altSizeOf(layoutManager: RecyclerView.LayoutManager) = layoutManager.height
@@ -53,13 +53,13 @@ interface RecyclerViewOrientationHandler : OrientationHandler {
             layoutManager.canScrollVertically()
     }
 
-    open class Vertical protected constructor() : OrientationHandler.Vertical(),
-        RecyclerViewOrientationHandler {
+    open class Vertical protected constructor() : OrientationCompass.Vertical(),
+        RecyclerViewOrientationCompass {
         /** Default instance for vertical orientation. */
         companion object Default : Vertical()
 
-        override fun helperFor(layoutManager: RecyclerView.LayoutManager) =
-            RecyclerViewOrientationHelper.vertical(layoutManager)
+        override fun guide(layoutManager: RecyclerView.LayoutManager) =
+            RecyclerViewOrientationGuide.vertical(layoutManager)
 
         override fun sizeOf(layoutManager: RecyclerView.LayoutManager) = layoutManager.height
         override fun altSizeOf(layoutManager: RecyclerView.LayoutManager) = layoutManager.width
@@ -90,9 +90,9 @@ interface RecyclerViewOrientationHandler : OrientationHandler {
 }
 
 /**
- * Orientation helpers that wrap calls to [RecyclerViewOrientationHandler] of a single object as properties.
+ * Contains [LayoutManager] guide.
  */
-interface RecyclerViewOrientationHelper {
+interface RecyclerViewOrientationGuide {
     companion object {
         fun horizontal(layoutManager: RecyclerView.LayoutManager) =
             LayoutManager.Horizontal(layoutManager)
@@ -101,39 +101,42 @@ interface RecyclerViewOrientationHelper {
             LayoutManager.Vertical(layoutManager)
     }
 
+    /**
+     * Uses provided [RecyclerViewOrientationCompass] to give [src] object properties fixed directions.
+     */
     interface LayoutManager :
-        OrientationHelper.Base.ImmutablePaddedSize<RecyclerView.LayoutManager, RecyclerViewOrientationHandler> {
+        OrientationGuide.Base.ImmutablePaddedSize<RecyclerView.LayoutManager, RecyclerViewOrientationCompass> {
         val minimumSize: Int
-            get() = handler.minimumSizeOf(src)
+            get() = compass.minimumSizeOf(src)
         val minimumAltSize: Int
-            get() = handler.minimumAltSizeOf(src)
+            get() = compass.minimumAltSizeOf(src)
 
-        fun canScroll() = handler.canScroll(src)
-        fun canScrollAlt() = handler.canScrollAlt(src)
+        fun canScroll() = compass.canScroll(src)
+        fun canScrollAlt() = compass.canScrollAlt(src)
 
         override val size: Int
-            get() = handler.sizeOf(src)
+            get() = compass.sizeOf(src)
         override val altSize: Int
-            get() = handler.altSizeOf(src)
+            get() = compass.altSizeOf(src)
         override val paddingStart: Int
-            get() = handler.paddingStartOf(src)
+            get() = compass.paddingStartOf(src)
         override val paddingEnd: Int
-            get() = handler.paddingEndOf(src)
+            get() = compass.paddingEndOf(src)
         override val paddingAltStart: Int
-            get() = handler.paddingAltStartOf(src)
+            get() = compass.paddingAltStartOf(src)
         override val paddingAltEnd: Int
-            get() = handler.paddingAltEndOf(src)
+            get() = compass.paddingAltEndOf(src)
 
         @JvmInline
         value class Horizontal(override val src: RecyclerView.LayoutManager) : LayoutManager {
-            override val handler: RecyclerViewOrientationHandler
-                get() = RecyclerViewOrientationHandler.Horizontal
+            override val compass: RecyclerViewOrientationCompass
+                get() = RecyclerViewOrientationCompass.Horizontal
         }
 
         @JvmInline
         value class Vertical(override val src: RecyclerView.LayoutManager) : LayoutManager {
-            override val handler: RecyclerViewOrientationHandler
-                get() = RecyclerViewOrientationHandler.Vertical
+            override val compass: RecyclerViewOrientationCompass
+                get() = RecyclerViewOrientationCompass.Vertical
         }
     }
 }

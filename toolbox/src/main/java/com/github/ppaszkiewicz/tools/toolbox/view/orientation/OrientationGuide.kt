@@ -3,9 +3,9 @@ package com.github.ppaszkiewicz.tools.toolbox.view.orientation
 import android.view.ViewGroup
 
 /**
- * Orientation helpers that wrap calls to [OrientationHandler] of a single [src] object as properties.
+ * Uses provided [OrientationCompass] to give [src] object properties fixed directions.
  */
-interface OrientationHelper<T, H : OrientationHandler> {
+interface OrientationGuide<T, H : OrientationCompass> {
     companion object {
         fun horizontal(point: android.graphics.Point) = Point.Horizontal(point)
         fun vertical(point: android.graphics.Point) = Point.Vertical(point)
@@ -29,15 +29,15 @@ interface OrientationHelper<T, H : OrientationHandler> {
         fun verticalSize(point: android.graphics.Point) = Size.Vertical(point)
     }
 
-    /** Object this helper is wrapping. */
+    /** Object this guide is working on. */
     val src: T
 
-    /** Orientation handler used by this wrapper. */
-    val handler: H
+    /** [OrientationCompass] used by this guide. */
+    val compass: H
 
     /** Contains interface definitions and combinations. */
     interface Base {
-        interface ImmutableSize<T, H : OrientationHandler> : OrientationHelper<T, H> {
+        interface ImmutableSize<T, H : OrientationCompass> : OrientationGuide<T, H> {
             /** Main size: width for horizontal, height for vertical */
             val size: Int
 
@@ -45,13 +45,13 @@ interface OrientationHelper<T, H : OrientationHandler> {
             val altSize: Int
         }
 
-        interface MutableSize<T, H : OrientationHandler> : ImmutableSize<T, H> {
+        interface MutableSize<T, H : OrientationCompass> : ImmutableSize<T, H> {
             override var size: Int
             override var altSize: Int
             fun set(size: Int = this.size, altSize: Int = this.altSize)
         }
 
-        interface CoordinatedSize<T, H : OrientationHandler> : ImmutableSize<T, H> {
+        interface CoordinatedSize<T, H : OrientationCompass> : ImmutableSize<T, H> {
             val start: Int
             val altStart: Int
             val end: Int
@@ -87,247 +87,247 @@ interface OrientationHelper<T, H : OrientationHandler> {
         }
 
         // couple of grouped up bases
-        interface ImmutablePaddedSize<T, H : OrientationHandler> : ImmutableSize<T, H>, Padding
-        interface CoordinatedPaddedSize<T, H : OrientationHandler> : CoordinatedSize<T, H>, Padding
-        interface MutableMarginSize<T, H : OrientationHandler> : MutableSize<T, H>, MutableMargin
+        interface ImmutablePaddedSize<T, H : OrientationCompass> : ImmutableSize<T, H>, Padding
+        interface CoordinatedPaddedSize<T, H : OrientationCompass> : CoordinatedSize<T, H>, Padding
+        interface MutableMarginSize<T, H : OrientationCompass> : MutableSize<T, H>, MutableMargin
     }
 
-    interface Point : OrientationHelper<android.graphics.Point, OrientationHandler> {
+    interface Point : OrientationGuide<android.graphics.Point, OrientationCompass> {
         val pos: Int
-            get() = handler.posOf(src)
+            get() = compass.posOf(src)
         val altPos: Int
-            get() = handler.altPosOf(src)
+            get() = compass.altPosOf(src)
 
-        fun set(pos: Int = this.pos, altPos: Int = this.altPos) = handler.set(src, pos, altPos)
-        fun offset(dir: Int = 0, altDir: Int = 0) = handler.set(src, pos, altPos)
+        fun set(pos: Int = this.pos, altPos: Int = this.altPos) = compass.set(src, pos, altPos)
+        fun offset(dir: Int = 0, altDir: Int = 0) = compass.set(src, pos, altPos)
 
         @JvmInline
         value class Horizontal(override val src: android.graphics.Point) : Point {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Horizontal
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Horizontal
         }
 
         @JvmInline
         value class Vertical(override val src: android.graphics.Point) : Point {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Vertical
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Vertical
         }
     }
 
-    interface Size : Base.MutableSize<android.graphics.Point, OrientationHandler> {
+    interface Size : Base.MutableSize<android.graphics.Point, OrientationCompass> {
         override var size: Int
-            get() = handler.posOf(src)
-            set(value) = handler.set(src, pos = value)
+            get() = compass.posOf(src)
+            set(value) = compass.set(src, pos = value)
         override var altSize: Int
-            get() = handler.altPosOf(src)
-            set(value) = handler.set(src, altPos = value)
+            get() = compass.altPosOf(src)
+            set(value) = compass.set(src, altPos = value)
 
-        override fun set(size: Int, altSize: Int) = handler.set(src, size, altSize)
+        override fun set(size: Int, altSize: Int) = compass.set(src, size, altSize)
 
         @JvmInline
         value class Horizontal(override val src: android.graphics.Point) : Size {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Horizontal
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Horizontal
         }
 
         @JvmInline
         value class Vertical(override val src: android.graphics.Point) : Size {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Vertical
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Vertical
         }
     }
 
-    interface Rect : Base.CoordinatedSize<android.graphics.Rect, OrientationHandler> {
+    interface Rect : Base.CoordinatedSize<android.graphics.Rect, OrientationCompass> {
         override val size: Int
-            get() = handler.sizeOf(src)
+            get() = compass.sizeOf(src)
         override val altSize: Int
-            get() = handler.altSizeOf(src)
+            get() = compass.altSizeOf(src)
 
         override var start: Int
-            get() = handler.startOf(src)
-            set(value) = handler.setStartOf(src, value)
+            get() = compass.startOf(src)
+            set(value) = compass.setStartOf(src, value)
         override var end: Int
-            get() = handler.endOf(src)
-            set(value) = handler.setEndOf(src, value)
+            get() = compass.endOf(src)
+            set(value) = compass.setEndOf(src, value)
         override var altStart: Int
-            get() = handler.altStartOf(src)
-            set(value) = handler.setAltStartOf(src, value)
+            get() = compass.altStartOf(src)
+            set(value) = compass.setAltStartOf(src, value)
         override var altEnd: Int
-            get() = handler.altEndOf(src)
-            set(value) = handler.setAltEndOf(src, value)
+            get() = compass.altEndOf(src)
+            set(value) = compass.setAltEndOf(src, value)
 
         fun set(
             start: Int = this.start,
             altStart: Int = this.altStart,
             end: Int = this.end,
             altEnd: Int = this.altEnd
-        ) = handler.set(src, start, altStart, end, altEnd)
+        ) = compass.set(src, start, altStart, end, altEnd)
 
-        fun offset(dir: Int = 0, altDir: Int = 0) = handler.offset(src, dir, altDir)
+        fun offset(dir: Int = 0, altDir: Int = 0) = compass.offset(src, dir, altDir)
 
         @JvmInline
         value class Horizontal(override val src: android.graphics.Rect) : Rect {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Horizontal
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Horizontal
         }
 
         @JvmInline
         value class Vertical(override val src: android.graphics.Rect) : Rect {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Vertical
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Vertical
         }
     }
 
-    interface View : Base.CoordinatedPaddedSize<android.view.View, OrientationHandler>,
+    interface View : Base.CoordinatedPaddedSize<android.view.View, OrientationCompass>,
         Base.Margin {
         val measuredSize: Int
-            get() = handler.measuredSizeOf(src)
+            get() = compass.measuredSizeOf(src)
         val measuredAltSize: Int
-            get() = handler.measuredAltSizeOf(src)
+            get() = compass.measuredAltSizeOf(src)
 
         val minimumSize: Int
-            get() = handler.minimumSizeOf(src)
+            get() = compass.minimumSizeOf(src)
         val minimumAltSize: Int
-            get() = handler.minimumAltSizeOf(src)
+            get() = compass.minimumAltSizeOf(src)
 
         val scroll: Int
-            get() = handler.scrollOf(src)
+            get() = compass.scrollOf(src)
         val altScroll: Int
-            get() = handler.altScrollOf(src)
+            get() = compass.altScrollOf(src)
 
 
         override val paddingStart: Int
-            get() = handler.paddingStartOf(src)
+            get() = compass.paddingStartOf(src)
         override val paddingEnd: Int
-            get() = handler.paddingEndOf(src)
+            get() = compass.paddingEndOf(src)
         override val paddingAltStart: Int
-            get() = handler.paddingAltStartOf(src)
+            get() = compass.paddingAltStartOf(src)
         override val paddingAltEnd: Int
-            get() = handler.paddingAltEndOf(src)
+            get() = compass.paddingAltEndOf(src)
         override val marginStart: Int
-            get() = handler.marginStartOf(src)
+            get() = compass.marginStartOf(src)
         override val marginEnd: Int
-            get() = handler.marginEndOf(src)
+            get() = compass.marginEndOf(src)
         override val marginAltStart: Int
-            get() = handler.marginAltStartOf(src)
+            get() = compass.marginAltStartOf(src)
         override val marginAltEnd: Int
-            get() = handler.marginAltEndOf(src)
+            get() = compass.marginAltEndOf(src)
         override val size: Int
-            get() = handler.sizeOf(src)
+            get() = compass.sizeOf(src)
         override val altSize: Int
-            get() = handler.altSizeOf(src)
+            get() = compass.altSizeOf(src)
         override val start: Int
-            get() = handler.startOf(src)
+            get() = compass.startOf(src)
         override val end: Int
-            get() = handler.endOf(src)
+            get() = compass.endOf(src)
         override val altStart: Int
-            get() = handler.altStartOf(src)
+            get() = compass.altStartOf(src)
         override val altEnd: Int
-            get() = handler.altEndOf(src)
+            get() = compass.altEndOf(src)
 
 
         @JvmInline
         value class Horizontal(override val src: android.view.View) : View {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Horizontal
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Horizontal
         }
 
         @JvmInline
         value class Vertical(override val src: android.view.View) : View {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Vertical
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Vertical
         }
     }
 
     // almost all layout params support margins so there's no support for non-margin ones
     interface LayoutParams :
-        Base.MutableMarginSize<ViewGroup.MarginLayoutParams, OrientationHandler> {
+        Base.MutableMarginSize<ViewGroup.MarginLayoutParams, OrientationCompass> {
         override var size: Int
-            get() = handler.sizeOf(src)
-            set(value) = handler.setSizeOf(src, value)
+            get() = compass.sizeOf(src)
+            set(value) = compass.setSizeOf(src, value)
         override var altSize: Int
-            get() = handler.altSizeOf(src)
-            set(value) = handler.setSizeOf(src, value)
+            get() = compass.altSizeOf(src)
+            set(value) = compass.setSizeOf(src, value)
 
         override fun set(size: Int, altSize: Int) =
-            handler.set(src, size, altSize)
+            compass.set(src, size, altSize)
 
         override var marginStart: Int
-            get() = handler.marginStartOf(src)
-            set(value) = handler.setMarginStartOf(src, value)
+            get() = compass.marginStartOf(src)
+            set(value) = compass.setMarginStartOf(src, value)
         override var marginEnd: Int
-            get() = handler.marginEndOf(src)
-            set(value) = handler.setMarginEndOf(src, value)
+            get() = compass.marginEndOf(src)
+            set(value) = compass.setMarginEndOf(src, value)
         override var marginAltStart: Int
-            get() = handler.marginAltStartOf(src)
-            set(value) = handler.setMarginAltStartOf(src, value)
+            get() = compass.marginAltStartOf(src)
+            set(value) = compass.setMarginAltStartOf(src, value)
         override var marginAltEnd: Int
-            get() = handler.marginAltEndOf(src)
-            set(value) = handler.setMarginAltEndOf(src, value)
+            get() = compass.marginAltEndOf(src)
+            set(value) = compass.setMarginAltEndOf(src, value)
 
         override fun updateMargin(start: Int, altStart: Int, end: Int, altEnd: Int) =
-            handler.updateMarginOf(src, start, altStart, end, altEnd)
+            compass.updateMarginOf(src, start, altStart, end, altEnd)
 
         @JvmInline
         value class Horizontal(override val src: ViewGroup.MarginLayoutParams) : LayoutParams {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Horizontal
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Horizontal
         }
 
         @JvmInline
         value class Vertical(override val src: ViewGroup.MarginLayoutParams) : LayoutParams {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Vertical
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Vertical
         }
     }
 
-    interface Gravity : OrientationHelper<Int, OrientationHandler> {
+    interface Gravity : OrientationGuide<Int, OrientationCompass> {
         val isStart: Boolean
-            get() = handler.isStart(src)
+            get() = compass.isStart(src)
         val isEnd: Boolean
-            get() = handler.isEnd(src)
+            get() = compass.isEnd(src)
         val isCenter: Boolean
-            get() = handler.isCenter(src)
+            get() = compass.isCenter(src)
         val hasCenter : Boolean
-            get() = handler.hasCenter(src)
+            get() = compass.hasCenter(src)
         val isFill: Boolean
-            get() = handler.isFill(src)
+            get() = compass.isFill(src)
         val hasFill: Boolean
-            get() = handler.hasFill(src)
+            get() = compass.hasFill(src)
 
         val isClip: Boolean
-            get() = handler.isClip(src)
+            get() = compass.isClip(src)
 
         val isAltStart: Boolean
-            get() = handler.isAltStart(src)
+            get() = compass.isAltStart(src)
         val isAltEnd: Boolean
-            get() = handler.isAltEnd(src)
+            get() = compass.isAltEnd(src)
         val isAltCenter: Boolean
-            get() = handler.isAltCenter(src)
+            get() = compass.isAltCenter(src)
         val hasAltCenter: Boolean
-            get() = handler.hasAltCenter(src)
+            get() = compass.hasAltCenter(src)
         val isAltFill: Boolean
-            get() = handler.isAltFill(src)
+            get() = compass.isAltFill(src)
         val hasAltFill: Boolean
-            get() = handler.hasAltFill(src)
+            get() = compass.hasAltFill(src)
         val isAltClip: Boolean
-            get() = handler.isAltClip(src)
+            get() = compass.isAltClip(src)
 
         /** Centered in both directions. */
         val isCenterBoth
-            get() = handler.isCenterBoth(src)
+            get() = compass.isCenterBoth(src)
 
 
         @JvmInline
         value class Horizontal(override val src: Int) : Gravity {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Horizontal
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Horizontal
         }
 
         @JvmInline
         value class Vertical(override val src: Int) : Gravity {
-            override val handler: OrientationHandler
-                get() = OrientationHandler.Vertical
+            override val compass: OrientationCompass
+                get() = OrientationCompass.Vertical
         }
     }
 }

@@ -25,24 +25,28 @@
 
         <TextView
                 android:text="Loader test: within activity"
+                android:visibility="gone"
                 android:gravity="center"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"/>
 
         <Button
                 android:id="@+id/btnLoaderTest1"
+                android:visibility="gone"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Loader"/>
 
         <TextView
                 android:text="Service test: queuing tasks within service"
+                android:visibility="gone"
                 android:gravity="center"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"/>
 
         <Button
                 android:id="@+id/btnServiceTest1"
+                android:visibility="gone"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Task Service"/>

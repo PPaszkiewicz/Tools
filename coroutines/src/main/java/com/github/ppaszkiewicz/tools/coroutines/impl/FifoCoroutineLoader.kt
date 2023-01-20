@@ -62,7 +62,7 @@ abstract class FifoCoroutineLoaderTask<Q : Any, R : Any> : CoroutineLoaderTask<Q
             if(cacheItem != null){
                 // need to notify real cache to move item forward
                 fifoLoader.scope.launch(fifoLoader.sync){
-                    fifoLoader.cache.pushKey(key)
+                    fifoLoader.cache.pushKeyInHistory(key)
                 }
             }
             cacheItem
