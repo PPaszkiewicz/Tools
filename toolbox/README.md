@@ -67,7 +67,7 @@ useful to prevent excessive layout requests (for example in RecyclerView).
 
 **TileRenderLinearLayout** - layout that tiles out multiple drawing of its content for "loading" effect.
 
-**orientation** - package of helper objects and wrappers for building horizontal/vertical layouts.
+**orientation** - contains a "compass" and "guides" that help building layouts with selectable orientation.
 
 ## License
 Copyright 2021 Paweł Paszkiewicz
