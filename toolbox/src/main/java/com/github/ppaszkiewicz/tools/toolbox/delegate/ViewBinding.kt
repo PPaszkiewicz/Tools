@@ -117,7 +117,7 @@ private class ViewBoundValueDelegate<T>(private val valueFactory: (View) -> T) :
     }
 }
 
-/** Delegate that keeps its value within fragments view, so it's auto cleared without
+/** Delegate that keeps its value as a tag on fragments view, so it's auto cleared without
  * using any listener. */
 private class ViewTagValueDelegate<T>(val key: Int, private val valueFactory: (View) -> T) :
     ReadOnlyProperty<Fragment, T> {
@@ -126,7 +126,7 @@ private class ViewTagValueDelegate<T>(val key: Int, private val valueFactory: (V
 }
 
 /**
- * Lazy delegate for ViewBinding that automatically releases it when view is destroyed. Uses reflection
+ * Lazy delegate for ViewBinding that keeps its value as a tag on fragments view. Uses reflection
  * to get the static bind method.
  *
  * @param T view binding class to instantiate
@@ -134,7 +134,7 @@ private class ViewTagValueDelegate<T>(val key: Int, private val valueFactory: (V
 inline fun <reified T : ViewBinding> Fragment.viewBinding() = viewBinding(T::class.java)
 
 /**
- * Lazy delegate for ViewBinding that automatically releases it when view is destroyed. Uses reflection
+ * Lazy delegate for ViewBinding that keeps its value as a tag on fragments view. Uses reflection
  * to get the static bind method.
  * @param bindingClass view binding class to instantiate
  */
@@ -143,7 +143,7 @@ fun <T : ViewBinding> Fragment.viewBinding(bindingClass: Class<T>): ReadOnlyProp
 }
 
 /**
- * Lazy delegate for ViewBinding that automatically releases it when view is destroyed.
+ * Lazy delegate for ViewBinding that keeps its value as a tag on fragments view.
  * @param bindingFactory factory to create the binding
  */
 fun <T : ViewBinding> Fragment.viewBinding(bindingFactory: (View) -> T) =
@@ -260,5 +260,6 @@ private class ActivityViewBindingDelegate<T : ViewBinding>(
     fun onCreated() {
         // this is a fallback to ensure viewbinding will be created even if not referenced during onCreate
         if (value == null) get()
+        activity.lifecycle.removeObserver(this)
     }
 }

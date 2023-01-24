@@ -10,7 +10,6 @@ import org.junit.runners.JUnit4
 /**
  * Self contained [KMirror] test.
  * */
-@RunWith(JUnit4::class)
 class KMirrorTest {
     @Test
     fun privateContainerMirrorTest() {
