@@ -9,7 +9,7 @@ import android.util.AttributeSet
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import com.github.ppaszkiewicz.tools.demo.databinding.ActivityStableTextviewBinding
-import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
+import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
 
 class StableTextViewActivity : AppCompatActivity() {
     val v by viewBinding<ActivityStableTextviewBinding>()

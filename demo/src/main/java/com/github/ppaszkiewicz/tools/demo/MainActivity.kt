@@ -20,7 +20,7 @@ import com.github.ppaszkiewicz.tools.demo.viewModel.SyncableLiveDataDemoActivity
 import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
 import com.github.ppaszkiewicz.tools.demo.views.StableTextViewActivity
 import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences
-import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
+import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startActivity
 
 /**

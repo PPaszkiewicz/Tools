@@ -29,11 +29,6 @@ Various delegates and their factories.
     // inside activity or fragment:
     val userPreference by preferences().boolean("key", false)
 
-**ViewBinding** - delegate for `ViewBinding` (Android Studio 3.6+) that's lifecycle aware so it doesn't require any `onDestroyView` override.
-
-    // inside fragment:
-    val binding by viewBinding<MainActivityBinding>()
-
 ### DownloadManager
 Utilities for querying download progress from systems DownloadManager.
 
@@ -68,6 +63,19 @@ useful to prevent excessive layout requests (for example in RecyclerView).
 **TileRenderLinearLayout** - layout that tiles out multiple drawing of its content for "loading" effect.
 
 **orientation** - contains a "compass" and "guides" that help building layouts with selectable orientation.
+
+### ViewBinding
+`ViewBinding` delegates for activity, fragments and views that are lifecycle aware so they doen't require any `onDestroyView` overrides.
+Sample:
+
+    // inside fragment:
+    val binding by viewBinding<MainActivityBinding>()
+
+**ViewBinding** - core methods for delegates.
+
+**ViewTags** - delegates for view tags.
+
+**Reflection** - delegates that are based on reflection so they can work just with class name.
 
 ## License
 Copyright 2021 Paweł Paszkiewicz

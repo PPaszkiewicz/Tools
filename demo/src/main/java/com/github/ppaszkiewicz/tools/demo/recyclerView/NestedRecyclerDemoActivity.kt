@@ -9,11 +9,10 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.demo.databinding.ActivityRecyclerBinding
-import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
+import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
 import com.github.ppaszkiewicz.tools.toolbox.recyclerView.NestedWrapLayoutManager
 
 /**

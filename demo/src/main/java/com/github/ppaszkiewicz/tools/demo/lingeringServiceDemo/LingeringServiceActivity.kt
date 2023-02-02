@@ -6,7 +6,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.services.BindServiceConnectionCallbacks
 import com.github.ppaszkiewicz.tools.demo.databinding.ActivityServiceBinding
-import com.github.ppaszkiewicz.tools.toolbox.delegate.viewBinding
+import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
 
 /** Uses lifecycle to automatically handle connection*/
 class LingeringServiceActivity : AppCompatActivity(){
