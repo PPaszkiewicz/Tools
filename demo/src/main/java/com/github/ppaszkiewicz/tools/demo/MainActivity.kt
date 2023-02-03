@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.commitNow
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.bindService.BindServiceDemoActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
@@ -20,8 +21,11 @@ import com.github.ppaszkiewicz.tools.demo.viewModel.SyncableLiveDataDemoActivity
 import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
 import com.github.ppaszkiewicz.tools.demo.views.StableTextViewActivity
 import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences
+import com.github.ppaszkiewicz.tools.toolbox.extensions.findFragmentByClass
+import com.github.ppaszkiewicz.tools.toolbox.extensions.showSingle
 import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startActivity
+import com.github.ppaszkiewicz.tools.toolbox.extensions.withArguments
 
 /**
  * Activity for selecting test.
@@ -99,6 +103,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun onUpdateParams(newParams: TestActivityParams){
+        params = newParams
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putParcelable(SAVE_PARAMS, params)
@@ -117,9 +125,9 @@ class MainActivity : AppCompatActivity() {
         // as you specify a parent activity in AndroidManifest.xml.
         return when (item.itemId) {
             R.id.action_edit_params -> {
-                TestActivityParamsDialog.createAndShow(this, params) {
-                    params = it
-                }
+                TestActivityParamsDialog().withArguments {
+                    putParcelable(TestActivityBase.EXTRA_LOADER_ARGS, params)
+                }.showSingle(supportFragmentManager)
                 true
             }
             R.id.action_test_enum -> {

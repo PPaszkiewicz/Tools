@@ -1,3 +1,5 @@
+@file:Suppress("DeprecatedCallableAddReplaceWith", "FunctionName")
+
 package com.github.ppaszkiewicz.tools.toolbox.extensions
 
 import android.app.Activity
@@ -22,7 +24,6 @@ inline fun <reified T : Activity> Context.startActivity(options: ActivityOptions
  * Start activity of given class.
  * @return intent that started the activity
  * */
-@Deprecated("use ActivityResultContract API instead with StartActivityForResult")
 inline fun <reified T : Activity> Context.startActivity(
     options: ActivityOptions? = null,
     editStartIntent: Intent.() -> Unit
@@ -50,6 +51,7 @@ inline fun <reified T : Activity> Activity.startActivityForResult(
  * Start activity of given class without any specific action or extras, for result.
  * @return intent that started the activity
  * */
+@Deprecated("use ActivityResultContract API instead with StartActivityForResult")
 inline fun <reified T : Activity> Activity.startActivityForResult(
     requestCode: Int,
     options: ActivityOptions? = null
@@ -81,7 +83,6 @@ inline fun <reified T : Activity> Fragment.startActivity(
  * Start activity of given class without any specific action or extras for result to return into this fragment.
  * @return intent that started the activity
  * */
-@Suppress("DeprecatedCallableAddReplaceWith")
 @Deprecated("use ActivityResultContract API instead with StartActivityForResult")
 inline fun <reified T : Activity> Fragment.startActivityForResult(
     requestCode: Int,
@@ -106,14 +107,12 @@ inline fun <reified T : Activity> Fragment.startActivityForResult(
 
 // helpers for new result API
 /** Infer class used to construct  [StartLocalActivityForResult]. */
-@Suppress("FunctionName")
 inline fun <reified T : Activity> Activity.StartActivityForResult(
     action: String? = null,
     noinline editStartIntent: (Intent.() -> Unit)? = null)  =
     StartLocalActivityForResult(T::class.java, action, editStartIntent)
 
 /** Infer class used to construct [StartLocalActivityForResult]. */
-@Suppress("FunctionName")
 inline fun <reified T : Activity> Fragment.StartActivityForResult(
     action: String? = null,
     noinline editStartIntent: (Intent.() -> Unit)? = null)  =

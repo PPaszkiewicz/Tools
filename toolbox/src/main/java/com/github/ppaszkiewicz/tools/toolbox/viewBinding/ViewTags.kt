@@ -12,13 +12,6 @@ import kotlin.reflect.KProperty
 // Note that View extensions require declaration of R.id.viewBinding in resources
 
 /**
- * Viewbinding as tag on a view. Instantiates it with reflection.
- */
-fun <T : ViewBinding> View.viewBinding(bindingClass: Class<T>): T {
-    return lazyTagValue(R.id.viewBinding, bindingClass.getBindMethod())
-}
-
-/**
  * Viewbinding as tag on a view. Instantiates it with [bindingFactory].
  */
 fun <T : ViewBinding> View.viewBinding(bindingFactory: (View) -> T): T {
@@ -52,6 +45,7 @@ fun <T> View.setTagValue(key: Int, value: T): T = value.also { setTag(key, it) }
 inline fun <T> View.lazyTagValue(key: Int, valueInit: (View) -> T): T {
     return getTagValue(key) ?: setTagValue(key, valueInit(this))
 }
+
 /**
  * Lazy delegate for value that's stored as root views tag so it gets cleared alongside it without
  * establishing any lifecycle listeners.
@@ -62,7 +56,6 @@ inline fun <T> View.lazyTagValue(key: Int, valueInit: (View) -> T): T {
 @Suppress("Unused")
 fun <T> Fragment.viewTagValue(key: Int, initValue: (View) -> T): ReadOnlyProperty<Fragment, T> =
     ViewTagValueDelegate(key, initValue)
-
 
 /** Delegate that keeps its value as a tag on fragments view, so it's cleared without
  * using any lifecycle listener. */
