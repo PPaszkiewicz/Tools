@@ -65,20 +65,28 @@ useful to prevent excessive layout requests (for example in RecyclerView).
 **orientation** - contains a "compass" and "guides" that help building layouts with selectable orientation.
 
 ### ViewBinding
-`ViewBinding` delegates for activity, fragments and views that are lifecycle aware so they doen't require any `onDestroyView` overrides.
+`ViewBinding` delegates for activity, fragments and views that are lifecycle aware so they don't require any `onDestroyView` overrides.
 Sample:
 
-    // inside fragment:
-    val binding by viewBinding<MainActivityBinding>()
+ ```kotlin
+class MyFragment : Fragment(R.layout.my_fragment) {
+    val binding by viewBinding { MyFragmentBinding.bind(it) }
+    // alternatively
+    val binding2 by viewBinding(MyFragmentBinding::bind)
+    //...
+}
+```
 
 **ViewBinding** - core methods for delegates.
 
 **ViewTags** - delegates for view tags.
 
+**DialogFragment** - delegates and extensions for `DialogFragment`.
+
 **Reflection** - delegates that are based on reflection so they can work just with class name.
 
 ## License
-Copyright 2021 Paweł Paszkiewicz
+Copyright 2021-2023 Paweł Paszkiewicz
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

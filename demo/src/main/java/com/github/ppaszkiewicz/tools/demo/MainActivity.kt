@@ -1,11 +1,13 @@
 package com.github.ppaszkiewicz.tools.demo
 
 import android.os.Bundle
+import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.commitNow
+import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
 import com.github.ppaszkiewicz.tools.demo.bindService.BindServiceDemoActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParams
@@ -22,10 +24,12 @@ import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
 import com.github.ppaszkiewicz.tools.demo.views.StableTextViewActivity
 import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences
 import com.github.ppaszkiewicz.tools.toolbox.extensions.findFragmentByClass
-import com.github.ppaszkiewicz.tools.toolbox.extensions.showSingle
+import com.github.ppaszkiewicz.tools.toolbox.extensions.showInstance
 import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startActivity
 import com.github.ppaszkiewicz.tools.toolbox.extensions.withArguments
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Activity for selecting test.
@@ -127,7 +131,7 @@ class MainActivity : AppCompatActivity() {
             R.id.action_edit_params -> {
                 TestActivityParamsDialog().withArguments {
                     putParcelable(TestActivityBase.EXTRA_LOADER_ARGS, params)
-                }.showSingle(supportFragmentManager)
+                }.showInstance(supportFragmentManager)
                 true
             }
             R.id.action_test_enum -> {

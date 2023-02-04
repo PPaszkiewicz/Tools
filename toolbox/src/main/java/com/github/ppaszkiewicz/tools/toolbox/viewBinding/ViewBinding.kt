@@ -5,10 +5,7 @@ package com.github.ppaszkiewicz.tools.toolbox.viewBinding
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.ActionBarDrawerToggle.DelegateProvider
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.*
 import androidx.viewbinding.ViewBinding
@@ -20,7 +17,7 @@ import kotlin.reflect.KProperty
 
 //*********** FRAGMENT ****************/
 
-// extensions to keep values in fragments - not restricted to ViewBinding
+// extension to keep values in fragments - not restricted to ViewBinding
 /**
  * Lazy delegate for value that's bound to views lifecycle - released when view is destroyed.
  * @param initValue use provided view to create the value
@@ -31,39 +28,45 @@ fun <T> Fragment.viewValue(initValue: (View) -> T): ReadOnlyProperty<Fragment, T
 
 /**
  * Lazy delegate for ViewBinding that's released when fragments view is destroyed.
- * @param bindingFactory factory to create the binding
+ *
+ * Example:
+ * ```
+ * class MyFragment : Fragment(R.layout.my_fragment) {
+ *     val binding by viewBinding { MyFragmentBinding.bind(it) }
+ *     // alternatively
+ *     val binding2 by viewBinding(MyFragmentBinding::bind)
+ *     //...
+ * }
  */
 fun <T : ViewBinding> Fragment.viewBinding(bindingFactory: (View) -> T) = viewValue(bindingFactory)
 
 //*********** ACTIVITY ****************/
 /**
  * Delegate for ViewBinding that's lazy but with a fallback that ensures binding will be inflated.
- * @param createBinding use provided [LayoutInflater] to create the binding (by using static `inflate` method).
  *
- * For example:
- *
- *     class MyActivity : AppCompatActivity() {
- *          val binding by viewBinding { MyActivityBinding.inflate(it) }
- *          // alternatively
- *          val binding2 by viewBinding(MyActivityBinding::inflate)
- *          ...
- *      }
+ * Example:
+ * ```
+ * class MyActivity : AppCompatActivity() {
+ *     val binding by viewBinding { MyActivityBinding.inflate(it) }
+ *     // alternatively
+ *     val binding2 by viewBinding(MyActivityBinding::inflate)
+ *     //...
+ * }
  */
 fun <T : ViewBinding> AppCompatActivity.viewBinding(createBinding: (LayoutInflater) -> T): PropertyDelegateProvider<AppCompatActivity, ReadOnlyProperty<AppCompatActivity, T>> =
     ActivityViewBindingDelegateProvider(createBinding)
 
 /**
  * Delegate for ViewBinding that binds it lazily without actually performing any inflation.
- * @param bindingFactory use provided [View] to establish the binding (by using static `bind` method).
  *
- * For example:
- *
- *     class MyActivity : AppCompatActivity(R.layout.my_activity) {
- *          val binding by viewBinding { MyActivityBinding.bind(it) }
- *          // alternatively
- *          val binding2 by viewBinding(MyActivityBinding::bind)
- *          ...
- *      }
+ * Example:
+ * ```
+ * class MyActivity : AppCompatActivity(R.layout.my_activity) {
+ *     val binding by viewBinding { MyActivityBinding.bind(it) }
+ *     // alternatively
+ *     val binding2 by viewBinding(MyActivityBinding::bind)
+ *     //...
+ * }
  */
 fun <T : ViewBinding> AppCompatActivity.viewBindingLazy(bindingFactory: (View) -> T): Lazy<T> =
     lazy {
@@ -75,8 +78,12 @@ fun <T : ViewBinding> AppCompatActivity.viewBindingLazy(bindingFactory: (View) -
 
 // backing delegates
 
-private class ViewBoundValueDelegate<T>(private val valueFactory: (View) -> T) :
+// holds value until view is destroyed
+internal abstract class ViewBoundValueDelegate<T> :
     ReadOnlyProperty<Fragment, T>, Observer<LifecycleOwner> {
+
+    abstract fun createValue(thisRef: Fragment, property: KProperty<*>): T
+
     private var value: T? = null
     private var ld: LiveData<LifecycleOwner>? = null
 
@@ -84,24 +91,37 @@ private class ViewBoundValueDelegate<T>(private val valueFactory: (View) -> T) :
         if (value == null) {
             synchronized(this) {
                 value?.let { return it }
-                check(ld == null) { "viewLifecycleOwner was not cleared since previous value initialization. Fragment state is: ${thisRef.lifecycle.currentState}" }
+                check(ld == null) { "viewLifecycleOwner was not cleared since previous ${property.name} initialization. Fragment state is: ${thisRef.lifecycle.currentState}" }
                 ld = thisRef.viewLifecycleOwnerLiveData.also { it.observeForever(this) }
-                value = valueFactory(thisRef.requireView())
+                value = createValue(thisRef, property)
             }
         }
         return value!!
     }
 
     override fun onChanged(viewLifecycleOwner: LifecycleOwner?) {
-        if (viewLifecycleOwner == null) {
+        if (value != null && viewLifecycleOwner == null) {
             synchronized(this) {
                 value = null
-                ld!!.removeObserver(this)
-                ld = null
+                // for dialog fragments viewLifecycleOwnerLiveData remains null, however null is
+                // also emitted every time dialog is dismissed
+                ld?.let {
+                    it.removeObserver(this)
+                    ld = null
+                }
             }
         }
     }
 }
+
+// factory when only view is needed
+internal fun <T> ViewBoundValueDelegate(initValue: (View) -> T) =
+    object : ViewBoundValueDelegate<T>() {
+        override fun createValue(thisRef: Fragment, property: KProperty<*>): T {
+            return initValue(thisRef.requireView())
+        }
+    }
+
 
 @JvmInline
 internal value class ActivityViewBindingDelegateProvider<T : ViewBinding>(private val createBindingImpl: (LayoutInflater) -> T) :
