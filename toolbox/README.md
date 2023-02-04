@@ -70,9 +70,7 @@ Sample:
 
  ```kotlin
 class MyFragment : Fragment(R.layout.my_fragment) {
-    val binding by viewBinding { MyFragmentBinding.bind(it) }
-    // alternatively
-    val binding2 by viewBinding(MyFragmentBinding::bind)
+    val binding by viewBinding<MyFragmentBinding>()
     //...
 }
 ```
