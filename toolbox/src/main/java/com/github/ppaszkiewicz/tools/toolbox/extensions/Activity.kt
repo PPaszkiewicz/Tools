@@ -133,11 +133,11 @@ class StartLocalActivityForResult(
     val action: String? = null,
     val editStartIntent: (Intent.() -> Unit)? = null
 ) : ActivityResultContract<Bundle, ActivityResult>() {
-    override fun createIntent(context: Context, input: Bundle?) =
+    override fun createIntent(context: Context, input: Bundle) =
         Intent(context, targetClass).also {
             it.action = action
             editStartIntent?.invoke(it)
-            input?.let { b -> it.putExtras(b) }
+            input.let { b -> it.putExtras(b) }
         }
 
     override fun parseResult(resultCode: Int, intent: Intent?): ActivityResult {

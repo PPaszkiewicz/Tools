@@ -11,7 +11,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 fun View.setOnApplyWindowInsetsListenerCompat(listener: OnApplyWindowInsetsListenerCompat) {
     setOnApplyWindowInsetsListener { v, insets ->
         listener.onApplyWindowInsets(v, WindowInsetsCompat.toWindowInsetsCompat(insets, v))
-            .toWindowInsets()
+            .toWindowInsets()!!
     }
 }
 

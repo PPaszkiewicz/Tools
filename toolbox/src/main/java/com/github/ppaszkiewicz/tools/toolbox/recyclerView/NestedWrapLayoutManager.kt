@@ -12,8 +12,13 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.HorizontalScrollView
 import android.widget.ScrollView
-import androidx.core.util.*
-import androidx.core.view.*
+import androidx.core.util.isEmpty
+import androidx.core.util.isNotEmpty
+import androidx.core.util.size
+import androidx.core.view.marginBottom
+import androidx.core.view.marginLeft
+import androidx.core.view.marginRight
+import androidx.core.view.marginTop
 import androidx.core.widget.NestedScrollView
 import androidx.recyclerview.widget.RecyclerView
 import com.github.ppaszkiewicz.tools.toolbox.recyclerView.NestedWrapLayoutManager.Companion.HORIZONTAL
@@ -595,7 +600,7 @@ class NestedWrapLayoutManager @JvmOverloads constructor(
     }
 
     override fun onScrollChange(
-        v: NestedScrollView?,
+        v: NestedScrollView,
         scrollX: Int,
         scrollY: Int,
         oldScrollX: Int,

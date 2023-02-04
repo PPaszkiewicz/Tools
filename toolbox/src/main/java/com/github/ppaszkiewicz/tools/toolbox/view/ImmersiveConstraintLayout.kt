@@ -87,6 +87,7 @@ class ImmersiveConstraintLayout @JvmOverloads constructor(
         super.onDetachedFromWindow()
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onSystemUiVisibilityChange(visibility: Int) {
         removeCallbacks(reimmerseRunnable)
         if(visibility and View.SYSTEM_UI_FLAG_FULLSCREEN == 0){

@@ -4,27 +4,23 @@ apply plugin: 'kotlin-kapt'
 apply plugin: 'maven-publish'
 
 android {
-    compileSdkVersion 30
+    compileSdkVersion 33
 
 
     defaultConfig {
         minSdkVersion 21
-        targetSdkVersion 30
-        versionCode 1
-        versionName "1.1"
+        targetSdkVersion 33
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
     }
 
     buildTypes {
-        debug{
+        debug {
             consumerProguardFiles 'consumer-rules.pro'
         }
         release {
-            minifyEnabled false
             consumerProguardFiles 'consumer-rules.pro'
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
     compileOptions {
@@ -45,6 +41,6 @@ dependencies {
     implementation "androidx.fragment:fragment-ktx:$fragment_version"
     //implementation "androidx.lifecycle:lifecycle-extensions:$lifecycle_version"
     implementation "androidx.constraintlayout:constraintlayout:$constraint_version"
-    implementation 'androidx.recyclerview:recyclerview:1.2.0'
+    implementation 'androidx.recyclerview:recyclerview:1.2.1'
     implementation 'androidx.palette:palette-ktx:1.0.0'
 }
