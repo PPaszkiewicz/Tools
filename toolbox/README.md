@@ -75,6 +75,8 @@ Sample:
 
 **ViewTags** - delegates for view tags.
 
+**DialogFragment** - delegates and extensions for `DialogFragment`.
+
 **Reflection** - delegates that are based on reflection so they can work just with class name.
 
 ## License

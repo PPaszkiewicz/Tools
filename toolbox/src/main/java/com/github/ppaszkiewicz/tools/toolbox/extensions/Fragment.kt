@@ -30,13 +30,17 @@ fun DialogFragment.showNow(fragmentManager: FragmentManager) {
 }
 
 /**
- * Show this dialog fragment using its class name as a tag while ensuring only one instance
- * of it exists.
+ * Show this dialog fragment using its class name as a tag while ensuring that it's not being already
+ * shown.
+ *
+ * Returns `true` if this dialog fragment was shown or false if dialog of this class already
+ * exists.
  * */
-fun DialogFragment.showSingle(fragmentManager: FragmentManager, now: Boolean = false) {
+fun <T : DialogFragment>T.showInstance(fragmentManager: FragmentManager, now: Boolean = false) : Boolean{
     fragmentManager.executePendingTransactions()
-    if (fragmentManager.findFragmentByClass(this::class.java) == null) {
-        if (now) showNow(fragmentManager)
-        else show(fragmentManager)
-    }
+    val previous = fragmentManager.findFragmentByClass(this::class.java)
+    if(previous != null) return false
+    if (now) showNow(fragmentManager)
+    else show(fragmentManager)
+    return true
 }

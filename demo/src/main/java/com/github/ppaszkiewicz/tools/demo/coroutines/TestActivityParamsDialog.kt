@@ -1,31 +1,37 @@
 package com.github.ppaszkiewicz.tools.demo.coroutines
 
 import android.app.Dialog
-import android.content.Context
-import android.content.DialogInterface
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
 import android.widget.EditText
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
-import androidx.fragment.app.FragmentManager
 import com.github.ppaszkiewicz.tools.demo.MainActivity
-import com.github.ppaszkiewicz.tools.demo.R
 import com.github.ppaszkiewicz.tools.demo.databinding.ViewParamsEditBinding
-import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
-import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewValue
+import com.github.ppaszkiewicz.tools.toolbox.viewBinding.dialogViewBinding
+import com.github.ppaszkiewicz.tools.toolbox.viewBinding.setView
 
 /** Dialog for editing [TestActivityParams]. */
-class TestActivityParamsDialog : DialogFragment(R.layout.view_params_edit){
+class TestActivityParamsDialog : DialogFragment(){
+    val binding by dialogViewBinding<ViewParamsEditBinding>()
+
     val srcParams
         get() = arguments?.getParcelable<TestActivityParams>(TestActivityBase.EXTRA_LOADER_ARGS)
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val binding = ViewParamsEditBinding.inflate(LayoutInflater.from(requireContext()))
         return AlertDialog.Builder(requireContext(), theme)
             .setTitle("Edit task params")
-            .setView(binding.root)
+            .setView(binding){
+                srcParams!!.apply {
+                    etRows.int = taskCountRows
+                    etColumns.int = taskCountColumns
+                    etDuration.int = taskDurationSeconds
+                    etDurationVariance.int = taskDurationSecondsVariance
+                    etCrashChance.float = taskRandomCrashChance
+                    etTaskCount.int = taskCount
+                    etMaxJobCount.int = maxJobSize
+                }
+                root.jumpDrawablesToCurrentState()
+            }
             .setNegativeButton(android.R.string.cancel, null)
             .setPositiveButton(android.R.string.ok) { _, _ ->
                 val newParams = binding.run {
@@ -40,7 +46,8 @@ class TestActivityParamsDialog : DialogFragment(R.layout.view_params_edit){
                     )
                 }
                 (activity as MainActivity).onUpdateParams(newParams)
-            }.create()
+            }
+            .create()
     }
 
     private var EditText.int: Int
