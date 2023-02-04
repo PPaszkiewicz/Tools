@@ -10,7 +10,7 @@ external dependencies. If they require another file it's specified in
 file header.
 
 To import everything, add to **build.gradle** or **build.gradle.kts**:
-```gradle    
+```groovy    
 implementation("com.github.PPaszkiewicz.Tools:toolbox:$version")
 ```
 
@@ -20,15 +20,15 @@ Various delegates and their factories.
 **Context** - lazy context delegates useful for declaring some delegates in fragments.
 
 **Fragment** - delegates for creating/finding existing fragments.
-
+```kotlin
     // inside activity or fragment:
     val myFragment by fragments<MyFragment>()
-
+```
 **Preferences** - delegates for exposing preference values.
-
+```kotlin
     // inside activity or fragment:
     val userPreference by preferences().boolean("key", false)
-
+```
 ### DownloadManager
 Utilities for querying download progress from systems DownloadManager.
 
