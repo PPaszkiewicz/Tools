@@ -63,26 +63,6 @@ useful to prevent excessive layout requests (for example in RecyclerView).
 **TileRenderLinearLayout** - layout that tiles out multiple drawing of its content for "loading" effect.
 
 **orientation** - contains a "compass" and "guides" that help building layouts with selectable orientation.
-
-### ViewBinding
-`ViewBinding` delegates for activity, fragments and views that are lifecycle aware so they don't require any `onDestroyView` overrides.
-Sample:
-
- ```kotlin
-class MyFragment : Fragment(R.layout.my_fragment) {
-    val binding by viewBinding<MyFragmentBinding>()
-    //...
-}
-```
-
-**ViewBinding** - core methods for delegates.
-
-**ViewTags** - delegates for view tags.
-
-**DialogFragment** - delegates and extensions for `DialogFragment`.
-
-**Reflection** - delegates that are based on reflection so they can work just with class name.
-
 ## License
 Copyright 2021-2023 Paweł Paszkiewicz
 

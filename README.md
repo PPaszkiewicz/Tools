@@ -25,14 +25,21 @@ Import in **build.gradle** or **build.gradle.kts**:
 ```gradle    
 implementation("com.github.PPaszkiewicz.Tools:toolbox:$version")
 ```
+### ViewBinding
 
+`ViewBinding` delegates and extensions.
+
+Import in **build.gradle** or **build.gradle.kts**:
+```gradle    
+implementation("com.github.PPaszkiewicz.Tools:viewBinding:$version")
+```
 ### Demo
 
 Demo app for other packages.
 
 
 ## License
-Copyright 2019-2021 Paweł Paszkiewicz
+Copyright 2019-2023 Paweł Paszkiewicz
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
