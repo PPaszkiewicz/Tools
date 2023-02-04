@@ -41,6 +41,7 @@ dependencies {
     api project(":coroutines")
     api project(":toolbox")
     api project(":services")
+    api project(":viewBinding")
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation "androidx.appcompat:appcompat:$appCompat_version"
     implementation "androidx.fragment:fragment-ktx:$fragment_version"

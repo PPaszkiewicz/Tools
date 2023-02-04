@@ -1,13 +1,10 @@
 package com.github.ppaszkiewicz.tools.demo
 
 import android.os.Bundle
-import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
 import androidx.appcompat.app.AppCompatActivity
-import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.Observer
-import androidx.lifecycle.lifecycleScope
 import com.github.ppaszkiewicz.tools.demo.bindService.BindServiceDemoActivity
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityBase
 import com.github.ppaszkiewicz.tools.demo.coroutines.TestActivityParams
@@ -23,13 +20,10 @@ import com.github.ppaszkiewicz.tools.demo.viewModel.SyncableLiveDataDemoActivity
 import com.github.ppaszkiewicz.tools.demo.views.SaveStateTestActivity
 import com.github.ppaszkiewicz.tools.demo.views.StableTextViewActivity
 import com.github.ppaszkiewicz.tools.toolbox.delegate.preferences
-import com.github.ppaszkiewicz.tools.toolbox.extensions.findFragmentByClass
 import com.github.ppaszkiewicz.tools.toolbox.extensions.showInstance
-import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startActivity
 import com.github.ppaszkiewicz.tools.toolbox.extensions.withArguments
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.github.ppaszkiewicz.tools.viewBinding.viewBinding
 
 /**
  * Activity for selecting test.

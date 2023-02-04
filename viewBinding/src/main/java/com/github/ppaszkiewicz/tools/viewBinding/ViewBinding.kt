@@ -1,6 +1,6 @@
 @file:Suppress("Unused")
 
-package com.github.ppaszkiewicz.tools.toolbox.viewBinding
+package com.github.ppaszkiewicz.tools.viewBinding
 
 import android.view.LayoutInflater
 import android.view.View

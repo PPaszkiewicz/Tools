@@ -1,1 +1,1 @@
-include ':services', ':coroutines', ':demo', ':toolbox'
+include ':services', ':coroutines', ':demo', ':toolbox', ':viewBinding'

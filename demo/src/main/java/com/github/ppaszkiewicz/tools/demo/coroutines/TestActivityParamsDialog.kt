@@ -7,8 +7,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
 import com.github.ppaszkiewicz.tools.demo.MainActivity
 import com.github.ppaszkiewicz.tools.demo.databinding.ViewParamsEditBinding
-import com.github.ppaszkiewicz.tools.toolbox.viewBinding.dialogViewBinding
-import com.github.ppaszkiewicz.tools.toolbox.viewBinding.setView
+import com.github.ppaszkiewicz.tools.viewBinding.dialogViewBinding
+import com.github.ppaszkiewicz.tools.viewBinding.setView
 
 /** Dialog for editing [TestActivityParams]. */
 class TestActivityParamsDialog : DialogFragment(){

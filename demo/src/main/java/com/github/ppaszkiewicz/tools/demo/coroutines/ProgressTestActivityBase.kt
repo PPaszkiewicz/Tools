@@ -9,7 +9,7 @@ import android.widget.GridLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.setMargins
 import com.github.ppaszkiewicz.tools.demo.databinding.ActivityTestBinding
-import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
+import com.github.ppaszkiewicz.tools.viewBinding.viewBinding
 import kotlinx.parcelize.Parcelize
 
 // extras for activity  and service intents

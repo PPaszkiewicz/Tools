@@ -21,10 +21,10 @@ import com.github.ppaszkiewicz.tools.demo.databinding.ActivityButtonsBinding
 import com.github.ppaszkiewicz.tools.services.BindServiceConnection
 import com.github.ppaszkiewicz.tools.services.BindServiceConnectionCallbacks
 import com.github.ppaszkiewicz.tools.services.DirectBindService
-import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
 import com.github.ppaszkiewicz.tools.toolbox.extensions.LoopRunnable
 import com.github.ppaszkiewicz.tools.toolbox.extensions.startService
 import com.github.ppaszkiewicz.tools.toolbox.extensions.stopService
+import com.github.ppaszkiewicz.tools.viewBinding.viewBinding
 
 
 class BindServiceDemoActivity : AppCompatActivity() {

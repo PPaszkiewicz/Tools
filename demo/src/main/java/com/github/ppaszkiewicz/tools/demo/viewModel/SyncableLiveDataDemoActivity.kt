@@ -9,10 +9,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import com.github.ppaszkiewicz.tools.demo.databinding.ActivityButtonsBinding
-import com.github.ppaszkiewicz.tools.toolbox.viewBinding.viewBinding
 import com.github.ppaszkiewicz.tools.toolbox.liveData.LiveDataSync
 import com.github.ppaszkiewicz.tools.toolbox.liveData.createFrom
 import com.github.ppaszkiewicz.tools.toolbox.liveData.syncedOn
+import com.github.ppaszkiewicz.tools.viewBinding.viewBinding
 
 
 class SyncableLiveDataDemoActivity : AppCompatActivity() {

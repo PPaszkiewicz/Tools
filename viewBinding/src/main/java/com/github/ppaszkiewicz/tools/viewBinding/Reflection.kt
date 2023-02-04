@@ -1,6 +1,6 @@
 @file:Suppress("Unused")
 
-package com.github.ppaszkiewicz.tools.toolbox.viewBinding
+package com.github.ppaszkiewicz.tools.viewBinding
 
 import android.view.LayoutInflater
 import android.view.View
@@ -9,7 +9,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.viewbinding.ViewBinding
-import com.github.ppaszkiewicz.tools.toolbox.R
 import kotlin.properties.PropertyDelegateProvider
 import kotlin.properties.ReadOnlyProperty
 
