@@ -21,13 +21,13 @@ Various delegates and their factories.
 
 **Fragment** - delegates for creating/finding existing fragments.
 ```kotlin
-    // inside activity or fragment:
-    val myFragment by fragments<MyFragment>()
+// inside activity or fragment:
+val myFragment by fragments<MyFragment>()
 ```
 **Preferences** - delegates for exposing preference values.
 ```kotlin
-    // inside activity or fragment:
-    val userPreference by preferences().boolean("key", false)
+// inside activity or fragment:
+val userPreference by preferences().boolean("key", false)
 ```
 ### DownloadManager
 Utilities for querying download progress from systems DownloadManager.
