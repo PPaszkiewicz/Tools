@@ -13,16 +13,9 @@ android {
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
+        consumerProguardFiles 'consumer-rules.pro'
     }
 
-    buildTypes {
-        debug {
-            consumerProguardFiles 'consumer-rules.pro'
-        }
-        release {
-            consumerProguardFiles 'consumer-rules.pro'
-        }
-    }
     compileOptions {
         targetCompatibility = 1.8
         sourceCompatibility = 1.8
