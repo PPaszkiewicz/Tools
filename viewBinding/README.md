@@ -4,8 +4,8 @@
 ViewBinding
 =======
 `ViewBinding` delegates for activity, fragments and views that are lifecycle aware so they don't require any `onDestroyView` overrides.
-Sample:
 
+**Fragments:**
  ```kotlin
 class MyFragment : Fragment(R.layout.my_fragment) {
     val binding by viewBinding<MyFragmentBinding>()
@@ -13,14 +13,30 @@ class MyFragment : Fragment(R.layout.my_fragment) {
 }
 ```
 
-**ViewBinding** - core methods for delegates.
-
-**ViewTags** - delegates for view tags.
-
-**DialogFragment** - delegates and extensions for `DialogFragment`.
-
-**Reflection** - delegates that are based on reflection so they can work just with class name.
-
+**Activity:**
+ ```kotlin
+ class MyActivity : AppCompatActivity() {
+     val binding by viewBinding<MyActivityBinding>()
+     //...
+ }
+ ```
+ 
+ **DialogFragment:**
+  ```kotlin
+ class MyDialogFragment : DialogFragment() {
+     val binding by dialogViewBinding<MyDialogFragmentBinding>()
+     
+     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+         return AlertDialog.Builder(requireContext(), theme)
+             .setTitle("Dialog title")
+             .setPositiveButton(android.R.string.ok) { _, _ -> }
+             .setView(binding) {
+                 textView1.text = "Hello World!"
+             }.create()
+     }
+ }
+ ```
+ 
 ## License
 Copyright 2021-2023 Paweł Paszkiewicz
 
