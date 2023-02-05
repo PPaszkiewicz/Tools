@@ -5,6 +5,11 @@ ViewBinding
 =======
 `ViewBinding` delegates for activity, fragments and views that are lifecycle aware so they don't require any `onDestroyView` overrides.
 
+To import everything, add to **build.gradle** or **build.gradle.kts**:
+```groovy    
+implementation("com.github.PPaszkiewicz.Tools:viewBinding:$version")
+```
+
 **Fragments:**
  ```kotlin
 class MyFragment : Fragment(R.layout.my_fragment) {
