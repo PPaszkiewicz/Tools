@@ -32,14 +32,14 @@ value class PreparedResult<out P, out R> @PublishedApi internal constructor(
     val result: Result<R> get() = (value as Finished<R>).result
 
     /** Get the progress value or null if this represents a [Result]. */
-    inline fun getProgressOrNull(): P? =
+    inline fun progressOrNull(): P? =
         when {
             isProgress -> value as P
             else -> null
         }
 
     /** Get the [Result] or null if this represents progress. */
-    inline fun getResultOrNull(): Result<R>? =
+    inline fun resultOrNull(): Result<R>? =
         when (value) {
             isFinished -> result
             else -> null
@@ -87,7 +87,7 @@ inline fun <P, R> PreparedResult<P, R>.onProgress(action: (progress: P) -> Unit)
     contract {
         callsInPlace(action, InvocationKind.AT_MOST_ONCE)
     }
-    getProgressOrNull()?.let { action(it) }
+    progressOrNull()?.let { action(it) }
     return this
 }
 
@@ -97,7 +97,7 @@ inline fun <P, R> PreparedResult<P, R>.onResult(action: (result: Result<R>) -> U
     contract {
         callsInPlace(action, InvocationKind.AT_MOST_ONCE)
     }
-    getResultOrNull()?.let { action(it) }
+    resultOrNull()?.let { action(it) }
     return this
 }
 
@@ -107,8 +107,8 @@ inline fun <P, R> PreparedResult<P, R>.onResult(action: (result: Result<R>) -> U
  * This will rethrow any exceptions thrown by them.
  * */
 @OptIn(ExperimentalContracts::class)
-public inline fun <P, R, T> PreparedResult<P, R>.fold(
-    onProgress: (progress : P) -> T,
+inline fun <P, R, T> PreparedResult<P, R>.fold(
+    onProgress: (progress: P) -> T,
     onSuccess: (value: R) -> T,
     onFailure: (exception: Throwable) -> T
 ): T {
@@ -117,58 +117,80 @@ public inline fun <P, R, T> PreparedResult<P, R>.fold(
         callsInPlace(onSuccess, InvocationKind.AT_MOST_ONCE)
         callsInPlace(onFailure, InvocationKind.AT_MOST_ONCE)
     }
-    return when (val result = getResultOrNull()) {
+    return when (val result = resultOrNull()) {
         null -> onProgress(value as P)
         else -> result.fold(onSuccess, onFailure)
     }
 }
 
-/** Flow of [PreparedResult] values. */
-typealias ResultFlow<P, R> = Flow<PreparedResult<P, R>>
+/**
+ * Execute one of the actions depending on what this [PreparedResult] represents.
+ *
+ * If result represents failure this will rethrow the exception.
+ * */
+@OptIn(ExperimentalContracts::class)
+inline fun <P, R, T> PreparedResult<P, R>.fold(
+    onProgress: (progress: P) -> T,
+    onSuccess: (value: R) -> T
+): T {
+    contract {
+        callsInPlace(onProgress, InvocationKind.AT_MOST_ONCE)
+        callsInPlace(onSuccess, InvocationKind.AT_MOST_ONCE)
+    }
+    return when (val result = resultOrNull()) {
+        null -> onProgress(progress)
+        else -> onSuccess(result.getOrThrow())
+    }
+}
+
+/** Fold each [PreparedResult] into single value to flow down. */
+fun <P, V, T> Flow<PreparedResult<P, V>>.foldPreparedResult(
+    onProgress: (progress: P) -> T,
+    onSuccess: (value: V) -> T,
+    onFailure: (exception: Throwable) -> T
+) = map { it.fold(onProgress, onSuccess, onFailure) }
+
+/** Fold each [PreparedResult] into single value to flow down. */
+inline fun <P, V, T> Flow<PreparedResult<P, V>>.foldPreparedResult(
+    crossinline onProgress: (progress: P) -> T,
+    crossinline onResult: (result: V) -> T
+) = map { it.fold(onProgress, onResult) }
 
 /** Flow of [PreparedResult] values. Types can be inferred by using [emitProgress] and [emitSuccess]. **/
-fun <P, R> resultFlow(block: suspend FlowCollector<PreparedResult<P, R>>.() -> Unit): ResultFlow<P, R> =
+fun <P, R> resultFlow(block: suspend FlowCollector<PreparedResult<P, R>>.() -> Unit): Flow<PreparedResult<P, R>> =
     flow(block)
 
 /** [transform] incoming flow into flow of [PreparedResult]. Types can be inferred by using [emitProgress] and [emitSuccess]. */
-fun <T, P, R> Flow<T>.toResultFlow(block: suspend FlowCollector<PreparedResult<P, R>>.(T) -> Unit): ResultFlow<P, R> =
+fun <T, P, R> Flow<T>.toResultFlow(block: suspend FlowCollector<PreparedResult<P, R>>.(T) -> Unit): Flow<PreparedResult<P, R>> =
     transform(block)
 
 /**
  * Collect flow of [PreparedResult] values by invoking [handleProgress] on all progress values
  * while flowing down all [Result] values.
- *
- * *If this flow is supposed to collect only one [Result] use [onProgressUntilResult].*
  * */
-fun <P, R> ResultFlow<P, R>.onProgress(handleProgress: suspend (P) -> Unit) =
+fun <P, R> Flow<PreparedResult<P, R>>.filterProgress(handleProgress: suspend (P) -> Unit) =
     transform {
-        when {
-            it.isProgress -> handleProgress(it.progress)
-            else -> emit(it.result)
+        when (val result = it.resultOrNull()) {
+            null -> handleProgress(it.progress)
+            else -> emit(result)
         }
     }
 
 /**
- * Shorthand for [onProgress] -> [first].
+ * Shorthand for [filterProgress] -> [first].
  *
- * Await and return result of this flow while handling the progress emitted before it.
+ * Await and return first result in this flow while handling the progress emitted before it.
  * */
-suspend fun <P, R> ResultFlow<P, R>.onProgressUntilResult(handleProgress: suspend (P) -> Unit) =
-    onProgress(handleProgress).first()
+suspend fun <P, R> Flow<PreparedResult<P, R>>.filterProgressUntilResult(handleProgress: suspend (P) -> Unit) =
+    filterProgress(handleProgress).first()
 
 /**
- * Ignore progress values and only emits [Result] values.
- *
- * *If this flow is supposed to collect only one [Result] use [awaitPreparedResult].*
+ * Filter out progress values and only emits [Result] values.
  */
-fun <P, R> ResultFlow<P, R>.onPreparedResult() = transform {
-    if (it.isFinished) {
-        emit(it.result)
-    }
-}
+fun <P, R> Flow<PreparedResult<P, R>>.filterProgress() = filter { it.isFinished }
 
-/** Shorthand for [onPreparedResult] -> [first]. */
-suspend fun <P, R> ResultFlow<P, R>.awaitPreparedResult() = onPreparedResult().first()
+/** Shorthand for [filterProgress] -> [first]. */
+suspend fun <P, R> Flow<PreparedResult<P, R>>.firstResult() = filterProgress().first()
 
 /** Emit progress for flows emitting [PreparedResult]. */
 suspend fun <P, R> FlowCollector<PreparedResult<P, R>>.emitProgress(progress: P) =
