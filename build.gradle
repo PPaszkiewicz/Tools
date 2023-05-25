@@ -2,12 +2,14 @@
 
 buildscript {
     ext{
-        kotlin_version = '1.7.21'
-        coroutines_version = '1.6.4'
-        appCompat_version = '1.6.0'
-        fragment_version = '1.5.5'
+        kotlin_version = '1.8.21'
+        coroutines_version = '1.7.1'
+        appCompat_version = '1.6.1'
+        fragment_version = '1.5.7'
         constraint_version = '2.1.4'
-        lifecycle_version = '2.5.1'
+        lifecycle_version = '2.6.1'
+
+        jvm_toolchain_ver = 18
     }
     repositories {
         google()
@@ -15,7 +17,7 @@ buildscript {
         jcenter()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:7.4.1'
+        classpath 'com.android.tools.build:gradle:8.0.2'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 }
@@ -39,7 +41,6 @@ subprojects {
     afterEvaluate {
         if (plugins.hasPlugin('com.android.library') && plugins.hasPlugin('maven-publish')) {
             task sourcesJar(type: Jar) {
-                classifier = 'sources'
                 from android.sourceSets.main.java.srcDirs
             }
 
@@ -55,7 +56,7 @@ subprojects {
                             groupId = 'com.github.PPaszkiewicz.Tools'
                             //artifactId = 'moduleName' // inherits module name
                             // version used is in most cases in line with current Kotlin version
-                            version = '1.7.21'
+                            version = '1.8.21'
 
                             artifact(sourcesJar)
                         }

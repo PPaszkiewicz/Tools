@@ -8,7 +8,6 @@ import android.util.Log
 import com.github.ppaszkiewicz.tools.services.DirectBindService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.android.asCoroutineDispatcher
-import java.lang.IllegalStateException
 import kotlin.coroutines.CoroutineContext
 import kotlin.math.max
 
@@ -24,6 +23,7 @@ import kotlin.math.max
  *
  * @param R result of tasks
  * */
+@OptIn(DelicateCoroutinesApi::class)
 abstract class QueuedTaskService<R> : DirectBindService.Impl(), CoroutineScope {
     companion object {
         @JvmStatic

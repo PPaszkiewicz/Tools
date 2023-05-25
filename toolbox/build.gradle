@@ -4,15 +4,13 @@ apply plugin: 'kotlin-kapt'
 apply plugin: 'maven-publish'
 
 android {
+    namespace 'com.github.ppaszkiewicz.tools.toolbox'
     compileSdkVersion 33
-
 
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 33
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
     }
 
     buildTypes {
@@ -23,14 +21,14 @@ android {
             consumerProguardFiles 'consumer-rules.pro'
         }
     }
+    kotlin {
+        jvmToolchain(jvm_toolchain_ver)
+    }
     compileOptions {
-        targetCompatibility = 1.8
-        sourceCompatibility = 1.8
+        targetCompatibility = jvm_toolchain_ver
+        sourceCompatibility = jvm_toolchain_ver
     }
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
-    buildFeatures{
+    buildFeatures {
         viewBinding = true
     }
 }
@@ -41,6 +39,6 @@ dependencies {
     implementation "androidx.fragment:fragment-ktx:$fragment_version"
     //implementation "androidx.lifecycle:lifecycle-extensions:$lifecycle_version"
     implementation "androidx.constraintlayout:constraintlayout:$constraint_version"
-    implementation 'androidx.recyclerview:recyclerview:1.2.1'
+    implementation 'androidx.recyclerview:recyclerview:1.3.0'
     implementation 'androidx.palette:palette-ktx:1.0.0'
 }

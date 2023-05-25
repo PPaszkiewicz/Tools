@@ -119,7 +119,10 @@ abstract class BindServiceConnection<T> private constructor(
         get() = _stateLifecycle
 
     /** Owner of [stateLifecycle]. */
-    val stateLifecycleOwner: LifecycleOwner = LifecycleOwner { _stateLifecycle }
+    val stateLifecycleOwner: LifecycleOwner = object : LifecycleOwner {
+        override val lifecycle: Lifecycle
+            get() = _stateLifecycle
+        }
 
     internal val _stateLifecycle = LifecycleRegistry(stateLifecycleOwner)
 
@@ -143,7 +146,10 @@ abstract class BindServiceConnection<T> private constructor(
         }
 
     /** Owner of [connectionLifecycle]. */
-    val connectionLifecycleOwner: LifecycleOwner = LifecycleOwner { connectionLifecycle }
+    val connectionLifecycleOwner: LifecycleOwner = object : LifecycleOwner {
+        override val lifecycle: Lifecycle
+            get() = connectionLifecycle
+    }
 
     internal var _connectionLifecycle: LifecycleRegistry? = null
 
@@ -699,13 +705,12 @@ abstract class BindServiceConnection<T> private constructor(
         adapter: Adapter<T>,
         configBuilder: Config.Builder? = null
     ) : BindServiceConnection<T>(contextDelegate, adapter, configBuilder),
-        LifecycleObserver {
+        LifecycleEventObserver {
         /** Lifecycle state that will trigger the binding. */
         val bindingLifecycleState: Lifecycle.State
             get() = (config as Config).bindingLifecycleState
 
-        @OnLifecycleEvent(Lifecycle.Event.ON_ANY)
-        fun onLifecycleEvent(source: LifecycleOwner, event: Lifecycle.Event) {
+        override fun onStateChanged(source: LifecycleOwner, event: Lifecycle.Event) {
             when (bindingLifecycleState) {
                 Lifecycle.State.STARTED -> when (event) {
                     Lifecycle.Event.ON_START -> performBind(config.defaultBindFlags)

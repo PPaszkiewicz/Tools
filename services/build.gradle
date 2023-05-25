@@ -3,15 +3,14 @@ apply plugin: 'kotlin-android'
 apply plugin: 'maven-publish'
 
 android {
+    namespace 'com.github.ppaszkiewicz.tools.services'
     compileSdkVersion 33
-
 
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 33
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-
     }
 
     buildTypes {
@@ -22,12 +21,12 @@ android {
             consumerProguardFiles 'consumer-rules.pro'
         }
     }
-    compileOptions {
-        targetCompatibility = 1.8
-        sourceCompatibility = 1.8
+    kotlin {
+        jvmToolchain(jvm_toolchain_ver)
     }
-    kotlinOptions {
-        jvmTarget = '1.8'
+    compileOptions {
+        targetCompatibility = jvm_toolchain_ver
+        sourceCompatibility = jvm_toolchain_ver
     }
 }
 

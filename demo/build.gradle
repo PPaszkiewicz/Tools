@@ -4,6 +4,7 @@ apply plugin: 'kotlin-parcelize'
 apply plugin: 'kotlin-kapt'
 
 android {
+    namespace 'com.github.ppaszkiewicz.tools.demo'
     compileSdkVersion 33
     defaultConfig {
         applicationId "com.github.ppaszkiewicz.tools.demo"
@@ -24,12 +25,12 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
         }
     }
-    compileOptions {
-        targetCompatibility = 1.8
-        sourceCompatibility = 1.8
+    kotlin {
+        jvmToolchain(jvm_toolchain_ver)
     }
-    kotlinOptions {
-        jvmTarget = '1.8'
+    compileOptions {
+        targetCompatibility = jvm_toolchain_ver
+        sourceCompatibility = jvm_toolchain_ver
     }
     buildFeatures{
         viewBinding = true
@@ -47,14 +48,14 @@ dependencies {
     implementation "androidx.fragment:fragment-ktx:$fragment_version"
     //implementation "androidx.lifecycle:lifecycle-extensions:$lifecycle_version" disabled, just inherit
     implementation "androidx.constraintlayout:constraintlayout:$constraint_version"
-    implementation 'androidx.core:core-ktx:1.5.0'
-    implementation 'com.google.android.material:material:1.4.0-beta01'
+    implementation 'androidx.core:core-ktx:1.10.1'
+    implementation 'com.google.android.material:material:1.9.0'
 
 
     testImplementation 'junit:junit:4.12'
     testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutines_version"
 
-    androidTestImplementation 'androidx.test:core:1.4.0'
-    androidTestImplementation 'androidx.test:runner:1.4.0'
-    androidTestImplementation 'androidx.test:rules:1.4.0'
+    androidTestImplementation 'androidx.test:core:1.5.0'
+    androidTestImplementation 'androidx.test:runner:1.5.2'
+    androidTestImplementation 'androidx.test:rules:1.5.0'
 }

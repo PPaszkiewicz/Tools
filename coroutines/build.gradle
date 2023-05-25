@@ -2,6 +2,7 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
+    namespace 'com.github.ppaszkiewicz.tools.coroutines'
     compileSdkVersion 33
 
     defaultConfig {
@@ -12,12 +13,12 @@ android {
     buildTypes {
 
     }
-    compileOptions {
-        targetCompatibility = 1.8
-        sourceCompatibility = 1.8
+    kotlin {
+        jvmToolchain(jvm_toolchain_ver)
     }
-    kotlinOptions {
-        jvmTarget = '1.8'
+    compileOptions {
+        targetCompatibility = jvm_toolchain_ver
+        sourceCompatibility = jvm_toolchain_ver
     }
 }
 

@@ -108,6 +108,7 @@ open class CancellableJob<T : Any?> : InterruptibleWork(), ICancellableJob<T> {
     /**
      * Obtain exception that cancelled this job. (result not guaranteed?)
      * */
+    @OptIn(ExperimentalCoroutinesApi::class)
     final override fun getCancellationException() : Throwable?{
         cancellationException?.let { return it }
         // not possible yet

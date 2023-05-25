@@ -22,9 +22,10 @@ import androidx.lifecycle.LiveData
  * Use [LingeringService.ConnectionFactory] object to build valid connection objects.
  */
 abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
-    private val mLifecycle = LifecycleRegistry(this)
+    private val _lifecycle = LifecycleRegistry(this)
 
-    override fun getLifecycle(): Lifecycle = mLifecycle
+    override val lifecycle: Lifecycle
+        get() = _lifecycle
 
     /** Milliseconds before self stop occurs after no client is bound. */
     var serviceTimeoutMs: Long = TIMEOUT_MS
@@ -51,12 +52,12 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
 
     override fun onCreate() {
         super.onCreate()
-        mLifecycle.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        _lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
     }
 
     override fun onDestroy() {
         // destroying will trigger onStop as well
-        mLifecycle.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        _lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         super.onDestroy()
     }
 
@@ -83,7 +84,7 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
         if (intent?.action == ACTION_LINGERING_SERVICE_START_LINGER) {
             timeoutHandler.postDelayed(timeoutRunnable, serviceTimeoutMs)
             onServiceTimeoutStarted()
-            mLifecycle.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+            _lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
         }
         return START_STICKY
     }
@@ -104,7 +105,7 @@ abstract class LingeringService : DirectBindService.Impl(), LifecycleOwner {
         isLingeringAllowed = true
         stopSelf()
         // go to resumed state (if onStart was not triggered before it will be called as well)
-        mLifecycle.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+        _lifecycle.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
     }
 
     companion object {
