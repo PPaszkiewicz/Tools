@@ -255,6 +255,10 @@ abstract class BindServiceConnection<T> private constructor(
     private fun dispatchDestroyLifecycles() {
         dispatchDestroyConnectionLifecycle(true)
         check(_stateLifecycle.currentState < Lifecycle.State.RESUMED) { "Cannot be called while binding is active" }
+        // need to bump state to created so it can be cleanly destroyed and observers are released
+        if(stateLifecycle.currentState == Lifecycle.State.INITIALIZED) {
+            _stateLifecycle.currentState = Lifecycle.State.CREATED
+        }
         _stateLifecycle.currentState = Lifecycle.State.DESTROYED
     }
 
